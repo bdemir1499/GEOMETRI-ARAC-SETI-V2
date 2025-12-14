@@ -527,37 +527,29 @@ onFlip: function(e) {
     
     // Çizimi bitir (Ana kanvasa gönder)
     finalizeDraw: function(x, y) {
-    if (!this.state.isDrawing) return;
+  if (!this.state.isDrawing) return;
 
-    const mainCanvas = document.querySelector('canvas');
-    if (!mainCanvas) {
-        console.error("Pergel HATASI: Ana <canvas> bulunamadı!");
-        return; 
-    }
-    const rect = mainCanvas.getBoundingClientRect();
+  const mainCanvas = document.querySelector('canvas');
+  const rect = mainCanvas.getBoundingClientRect();
 
-    if (window.drawnStrokes && window.redrawAllStrokes) {
-        const centerLabel = window.nextPointChar;
-        window.nextPointChar = window.advanceChar(centerLabel);
+  const centerLabel = window.nextPointChar;
+  window.nextPointChar = window.advanceChar(centerLabel);
 
-        window.drawnStrokes.push({
-            type: 'arc',
-            cx: this.startState.pivot.x - rect.left,
-            cy: this.startState.pivot.y - rect.top,
-            radius: this.state.radius,
-            startAngle: this.state.startAngle,
-            endAngle: this.state.rotation,
-            color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
-            width: 3,
-            label: centerLabel,
-            // --- YENİ: son pozisyonu da kaydet ---
-            endX: (typeof x !== 'undefined') ? x - rect.left : null,
-            endY: (typeof y !== 'undefined') ? y - rect.top : null
-        });
+  window.drawnStrokes.push({
+    type: 'arc',
+    cx: this.startState.pivot.x - rect.left,
+    cy: this.startState.pivot.y - rect.top,
+    radius: this.state.radius,
+    startAngle: this.state.startAngle,
+    endAngle: this.state.rotation,
+    color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
+    width: 3,
+    label: centerLabel
+  });
 
-        window.redrawAllStrokes();
-    }
+  window.redrawAllStrokes();
 }
+
 
 };
 

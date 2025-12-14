@@ -284,34 +284,23 @@ window.audio_draw.play();
 // LÜTFEN MEVCUT onMouseUp FONKSİYONUNUZU BU BLOK İLE DEĞİŞTİRİN:
 
     onMouseUp: function(e) {
-    if (this.interactionMode === 'none') return; 
+  if (this.isDrawingLine) {
+    window.audio_draw.pause();
+    window.audio_draw.currentTime = 0;
 
-    if (this.interactionMode === 'dragging') {
-        this.bodyElement.style.cursor = 'grab'; 
-    }
-    
-    if (this.isDrawingLine) { 
-        // 1. Sesi durdur
-        window.audio_draw.pause(); 
-        window.audio_draw.currentTime = 0; 
-        
-        // --- KRİTİK FİNALİZE KONTROLÜ ---
-        const pos = currentMousePos; 
-        this.finalizeDraw(pos.x, pos.y);
-        // --- KONTROL SONU ---
-        
-        // 2. Etiketi gizle
-        this.drawHandleLabel.style.display = 'none';
-        
-        // 3. Önizlemeyi temizle
-        if(this.drawHandleElement) { 
-            this.isDrawingLine = false; 
-            this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
-        }
-    }
-    
-    this.interactionMode = 'none'; 
+    const pos = currentMousePos;
+    this.finalizeDraw(pos.x, pos.y);
+
+    this.isDrawingLine = false;
+    this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
+
+    // Etiketi gizle
+    this.drawHandleLabel.style.display = 'none';
+  }
+
+  this.interactionMode = 'none';
 },
+
 
 
     // --- MANTIK FONKSİYONLARI (TÜMÜ EKLENDİ) ---
@@ -453,67 +442,30 @@ window.audio_draw.play();
 // LÜTFEN MEVCUT finalizeDraw FONKSİYONUNUZU BU BLOK İLE DEĞİŞTİRİN:
 
 finalizeDraw: function(x, y) {
-    // Eğer parametre verilmişse, son pozisyonu kullan
-    const handleX = (typeof x !== 'undefined') ? x : (this.state.currentHandleX || 0);
-    if (handleX <= 0) return;
+  if (!this.isDrawingLine) return;
 
-    // ... (p1 ve p2 hesaplamaları aynı kalacak) ...
-    const angleRad = this.state.angle * (Math.PI / 180);
-    const cosAngle = Math.cos(angleRad);
-    const sinAngle = Math.sin(angleRad);
-    
-    const centerX = this.state.x + (this.state.width / 2);
-    const centerY = this.state.y + 30; 
+  const mainCanvas = document.querySelector('canvas');
+  const rect = mainCanvas.getBoundingClientRect();
 
-    const startX_local = 0;
-    const startY_local = -6; 
-    const endX_local = handleX;
-    const endY_local = -6; 
+  // Start ve end noktalarını global -> canvas koordinatlarına çevir
+  const p1 = { x: this.startPos.x - rect.left, y: this.startPos.y - rect.top };
+  const p2 = { x: x - rect.left, y: y - rect.top };
 
-    const s_rel_center_x = startX_local - (this.state.width / 2);
-    const s_rel_center_y = startY_local - 30; 
-    const e_rel_center_x = endX_local - (this.state.width / 2);
-    const e_rel_center_y = endY_local - 30;
+  if (window.drawnStrokes && window.redrawAllStrokes) {
+  window.drawnStrokes.push({
+    type: 'straightLine',
+    p1, p2,
+    color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
+    width: 3,
+    lengthLabel: (Math.hypot(p2.x - p1.x, p2.y - p1.y) / this.PIXELS_PER_CM).toFixed(1).replace('.', ',') + ' cm',
+    lengthLabelPos: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+  });
 
-    const p1_rotated_x = s_rel_center_x * cosAngle - s_rel_center_y * sinAngle;
-    const p1_rotated_y = s_rel_center_x * sinAngle + s_rel_center_y * cosAngle;
-    const p2_rotated_x = e_rel_center_x * cosAngle - e_rel_center_y * sinAngle;
-    const p2_rotated_y = e_rel_center_x * sinAngle + e_rel_center_y * cosAngle;
+  window.redrawAllStrokes();
+} else {
+  console.error("Hata: drawnStrokes veya redrawAllStrokes globalda bulunamadı!");
+}
 
-    const p1 = {
-        x: p1_rotated_x + centerX,
-        y: p1_rotated_y + centerY
-    };
-    const p2 = {
-        x: p2_rotated_x + centerX,
-        y: p2_rotated_y + centerY
-    };
-    
-    // --- YENİ EKLENEN KISIM (Etiket Verisi) ---
-    // 1. Uzunluğu "X,X cm" formatında hesapla (virgül kullanarak)
-    const cmText = (handleX / this.PIXELS_PER_CM).toFixed(1).replace('.', ',') + " cm";
-    
-    // 2. Orta noktayı hesapla
-    const midPoint = { 
-        x: (p1.x + p2.x) / 2, 
-        y: (p1.y + p2.y) / 2 
-    };
-    // --- YENİ EKLENEN KISIM SONU ---
-
-    if (window.drawnStrokes && window.redrawAllStrokes) {
-        window.drawnStrokes.push({
-            type: 'straightLine', 
-            p1: p1,
-            p2: p2,
-            color: window.isToolThemeBlack ? '#000000' : window.currentLineColor, 
-            width: 3,
-            lengthLabel: cmText, // <-- YENİ SATIR
-            lengthLabelPos: midPoint // <-- YENİ SATIR
-        });
-        window.redrawAllStrokes(); 
-    } else {
-        console.error("Hata: drawnStrokes veya redrawAllStrokes globalda bulunamadı!");
-    }
 }, // <-- finalizeDraw fonksiyonu burada biter
 
 // LÜTFEN KODUNUZUN KALANINI OLDUĞU GİBİ BIRAKIN

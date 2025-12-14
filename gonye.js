@@ -444,72 +444,28 @@ window.GonyeTool.handleDraw = function(e) {
 
 // 8. Madde: Çizimi ana kanvasa (app.js) gönderme
 window.GonyeTool.finalizeDraw = function(x, y) {
-    // Eğer parametre verilmişse, son pozisyonu kullan
-    const handleY = (typeof y !== 'undefined') ? y : (this.state.currentHandleY || 0);
+  if (!this.isDrawingLine) return;
 
-    const startX_local = 4; 
-    const startY_local = this.state.height; 
-    const endX_local = (typeof x !== 'undefined') ? x : 4;
-    const endY_local = handleY + 10;
+  const mainCanvas = document.querySelector('canvas');
+  const rect = mainCanvas.getBoundingClientRect();
 
-        if (Math.abs(startY_local - endY_local) < 1) return; 
+  const p1 = { x: this.startPos.x - rect.left, y: this.startPos.y - rect.top };
+  const p2 = { x: x - rect.left, y: y - rect.top };
 
-        // ... (p1 ve p2 hesaplamaları sizde mevcut olmalı) ...
-        const angleRad = this.state.angle * (Math.PI / 180);
-        const cosAngle = Math.cos(angleRad);
-        const sinAngle = Math.sin(angleRad);
-        
-        const centerX = this.state.x + (this.state.width / 2);
-        const centerY = this.state.y + (this.state.height / 2);
+  if (window.drawnStrokes && window.redrawAllStrokes) {
+    window.drawnStrokes.push({
+      type: 'segment',
+      p1, p2,
+      color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
+      width: 3
+    });
+    window.redrawAllStrokes();
+  } else {
+    console.error("Hata: drawnStrokes veya redrawAllStrokes globalda bulunamadı!");
+  }
 
-        const s_rel_center_x = startX_local - (this.state.width / 2);
-        const s_rel_center_y = startY_local - (this.state.height / 2);
-        const e_rel_center_x = endX_local - (this.state.width / 2);
-        const e_rel_center_y = endY_local - (this.state.height / 2);
-
-        const p1_rotated_x = s_rel_center_x * cosAngle - s_rel_center_y * sinAngle;
-        const p1_rotated_y = s_rel_center_x * sinAngle + s_rel_center_y * cosAngle;
-        const p2_rotated_x = e_rel_center_x * cosAngle - e_rel_center_y * sinAngle;
-        const p2_rotated_y = e_rel_center_x * sinAngle + e_rel_center_y * cosAngle;
-
-        const p1 = { x: p1_rotated_x + centerX, y: p1_rotated_y + centerY };
-        const p2 = { x: p2_rotated_x + centerX, y: p2_rotated_y + centerY };
-        
-        // --- YENİ EKLENEN KISIM (Etiket Verisi) ---
-        // 1. Uzunluğu "X,X cm" formatında hesapla (virgül kullanarak)
-        const lengthPx = window.distance(p1, p2);
-        const cmText = (lengthPx / this.PIXELS_PER_CM).toFixed(1).replace('.', ',') + " cm";
-
-        // 2. Orta noktayı hesapla
-        const midPoint = { 
-            x: (p1.x + p2.x) / 2, 
-            y: (p1.y + p2.y) / 2 
-        };
-        // --- YENİ EKLENEN KISIM SONU ---
-        
-        if (window.drawnStrokes && window.redrawAllStrokes) {
-            
-            const label1 = window.nextPointChar;
-            window.nextPointChar = window.advanceChar(label1);
-            const label2 = window.nextPointChar;
-            window.nextPointChar = window.advanceChar(label2);
-            
-            window.drawnStrokes.push({
-                type: 'segment', 
-                p1: p1,
-                p2: p2,
-                color: window.isToolThemeBlack ? '#000000' : window.currentLineColor, 
-                width: 3,
-                label1: label1,
-                label2: label2,
-                lengthLabel: cmText, // <-- YENİ SATIR
-                lengthLabelPos: midPoint // <-- YENİ SATIR
-            });
-            window.redrawAllStrokes(); 
-        } else {
-            console.error("Hata: drawnStrokes veya redrawAllStrokes globalda bulunamadı!");
-        }
-    },
+  this.isDrawingLine = false;
+};
 
 // 9. Madde: Boyutlandırma Mantığı
 window.GonyeTool.handleResize = function(dx, dy) {

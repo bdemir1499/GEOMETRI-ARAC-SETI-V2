@@ -326,170 +326,117 @@ const resize = this.resizeHandle;
         }
     },
 
-    onUp: function(e) {
+  onUp: function(e) {
     if (this.interactionMode === 'drawing') {
-        // (audio pause kodu sizde zaten vardı)
-        window.audio_draw.pause();
-        window.audio_draw.currentTime = 0;
+      window.audio_draw.pause();
+      window.audio_draw.currentTime = 0;
 
-        // --- KRİTİK FİNALİZE KONTROLÜ ---
-        // Çizimi kalıcı olarak kaydetmeye zorla (Silgi aktif olsa bile)
-        const pos = currentMousePos;   // app.js içinde güncelleniyor
-this.finalizeDraw(pos.x, pos.y);
+      const pos = currentMousePos;
+      this.finalizeDraw(pos.x, pos.y);
 
-        // --- KONTROL SONU ---
-        
-        this.state.isDrawing = false;
-        this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
-        
-        // --- GECİKME VE KRİTİK DÜZELTME ---
-        setTimeout(() => {
-            this.previewCanvas.style.display = 'none'; // Önizlemeyi kapat
-            
-            // 1. Kırmızı çizgiyi sıfırla
-            this.redLine.style.transition = 'transform 0.05s ease-out';
-            this.redLine.style.transform = 'rotate(0deg)';
-            
-            
-            
-            this.drawHandleLabel.style.display = 'none';
-        }, 50); // 50ms gecikme
-        // --- YENİ KOD SONU ---
+      this.state.isDrawing = false;
+      this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+
+      setTimeout(() => {
+        this.previewCanvas.style.display = 'none';
+        this.redLine.style.transition = 'transform 0.05s ease-out';
+        this.redLine.style.transform = 'rotate(0deg)';
+        this.drawHandleLabel.style.display = 'none';
+      }, 50);
     }
     if (this.interactionMode === 'dragging') {
-        this.bodyElement.style.cursor = 'grab';
+      this.bodyElement.style.cursor = 'grab';
     }
     this.interactionMode = 'none';
-},
+  },
 
-    // --- 6. ÇİZİM MANTIĞI (DÜZELTİLDİ: Ters Döndürme Uygulandı) ---
-    // --- aciolcer.js ---
-// LÜTFEN MEVCUT handleDraw FONKSİYONUNUZU BU BLOK İLE DEĞİŞTİRİN:
+  handleDraw: function(currPos) {
+    this.state.hasDragged = true;
+    const cx = this.state.x;
+    const cy = this.state.y;
 
-    handleDraw: function(currPos) {
-        // Sürükleme başladığını kaydet (Adım 1'deki "hiç çizim yapmama" sorununu çözer)
-        this.state.hasDragged = true;
+    this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+    this.previewCtx.beginPath();
+    this.previewCtx.moveTo(cx, cy);
+    this.previewCtx.lineTo(currPos.x, currPos.y);
+    this.previewCtx.strokeStyle = '#FFFFFF';
+    this.previewCtx.lineWidth = 3;
+    this.previewCtx.setLineDash([5, 5]);
+    this.previewCtx.stroke();
+    this.previewCtx.setLineDash([]);
 
-        const cx = this.state.x;
-        const cy = this.state.y;
+    const gdx = currPos.x - cx;
+    const gdy = currPos.y - cy;
+    const rad = -this.state.angle * Math.PI / 180;
+    const ldx = gdx * Math.cos(rad) - gdy * Math.sin(rad);
+    const ldy = gdx * Math.sin(rad) + gdy * Math.cos(rad);
 
-        // 1. Önizleme Çizgisi (Global - Her zaman doğru)
-        this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height); 
-        this.previewCtx.beginPath();
-        this.previewCtx.moveTo(cx, cy);
-        this.previewCtx.lineTo(currPos.x, currPos.y);
-        this.previewCtx.strokeStyle = '#FFFFFF';
-        this.previewCtx.lineWidth = 3; 
-        this.previewCtx.setLineDash([5, 5]);
-        this.previewCtx.stroke();
-        this.previewCtx.setLineDash([]);
+    let localAngleDeg;
+    if (ldy > 0) {
+      localAngleDeg = ldx > 0 ? 0 : 180;
+    } else {
+      localAngleDeg = Math.atan2(-ldy, ldx) * 180 / Math.PI;
+    }
 
-        // 2. LOKAL Pozisyon Hesabı
-        const gdx = currPos.x - cx;
-        const gdy = currPos.y - cy;
-        const rad = -this.state.angle * Math.PI / 180;
-        const ldx = gdx * Math.cos(rad) - gdy * Math.sin(rad);
-        const ldy = gdx * Math.sin(rad) + gdy * Math.cos(rad);
+    this.drawHandle.style.transform = `translateX(-50%) translate(${ldx}px, ${ldy + 5}px)`;
+    this.drawHandleLabel.style.transform = `translateX(-50%) translate(${ldx}px, ${ldy - 20}px)`;
 
-        // 3. Açıyı Hesapla (ZIT YÖN DÜZELTMESİ)
-        let localAngleDeg;
-        
-        // Fare alt yarıya mı kaydı? (ldy > 0)
-        if (ldy > 0) {
-            // Evet, alt yarıda. En yakın kenara (0 veya 180) kilitle.
-            if (ldx > 0) { // Alt-sağ
-                localAngleDeg = 0;
-            } else { // Alt-sol
-                localAngleDeg = 180;
-            }
-        } else {
-            // Hayır, üst yarıda (normal hesaplama)
-            localAngleDeg = Math.atan2(-ldy, ldx) * 180 / Math.PI;
-        }
+    this.state.currentDrawAngleLocal = localAngleDeg;
+    this.drawHandleLabel.innerText = `${localAngleDeg.toFixed(0)}°`;
 
-        // 4. Butonu ve Etiketi LOKAL pozisyona taşı
-        this.drawHandle.style.transform = `translateX(-50%) translate(${ldx}px, ${ldy + 5}px)`;
-        this.drawHandleLabel.style.transform = `translateX(-50%) translate(${ldx}px, ${ldy - 20}px)`;
+    this.redLine.style.transition = 'none';
+    this.redLine.style.transform = `rotate(${-localAngleDeg}deg)`;
+  },
 
-        // 5. Yeni Açıları Kaydet
-        this.state.currentDrawAngleLocal = localAngleDeg;
-        this.drawHandleLabel.innerText = `${localAngleDeg.toFixed(0)}°`;
-
-        // Kırmızı çizgiyi döndür (Lokal açıya göre)
-        this.redLine.style.transition = 'none';
-        this.redLine.style.transform = `rotate(${-localAngleDeg}deg)`;
-    },
-
-    // --- aciolcer.js ---
-// LÜTFEN MEVCUT finalizeDraw FONKSİYONUNUZU VE SONUNDAKİ
-// '};' İŞARETİNİ BU BLOK İLE DEĞİŞTİRİN:
-
-    finalizeDraw: function(x, y) {
+  finalizeDraw: function(x, y) {
     if (!this.state.isDrawing) return;
 
-    // Eğer parametre geldiyse, son pozisyonu kullan
-    if (typeof x !== 'undefined' && typeof y !== 'undefined') {
-        // Burada p2 hesaplamasında x,y kullanılacak
-        const p1 = { x: this.state.x, y: this.state.y };
-        const p2 = { x: x, y: y };
+    const mainCanvas = document.querySelector('canvas');
+    const rect = mainCanvas.getBoundingClientRect();
+    const p1 = { x: this.state.x - rect.left, y: this.state.y - rect.top };
 
-        // Çizimi kaydet
-        if (window.drawnStrokes && window.redrawAllStrokes) {
-            window.drawnStrokes.push({
-                type: 'ray',
-                p1: p1,
-                p2: p2,
-                color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
-                width: 3
-            });
-            window.redrawAllStrokes();
-        }
-        return;
+    if (typeof x === 'number' && typeof y === 'number') {
+      const p2 = { x: x - rect.left, y: y - rect.top };
+      window.drawnStrokes.push({
+        type: 'ray',
+        p1,
+        p2,
+        color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
+        width: 3
+      });
+      window.redrawAllStrokes();
+      return;
     }
 
-     // --- DÜZELTME SONU ---
+    const localAngleDeg = this.state.currentDrawAngleLocal;
+    const globalAngleRad = ((360 - localAngleDeg) + this.state.angle) * Math.PI / 180;
+    const p2 = {
+      x: p1.x + Math.cos(globalAngleRad) * 1000,
+      y: p1.y + Math.sin(globalAngleRad) * 1000
+    };
 
-        const cx = this.state.x;
-        const cy = this.state.y;
-
-        // Lokal açıdan Global açıya geç
-        const localAngleDeg = this.state.currentDrawAngleLocal;
-        // (Lokal Y-yukarı açısını, Global Y-aşağı sistemine çevir ve aletin dönüşünü ekle)
-        // Global = (360 - Lokal) + AletDönüşü
-        const globalAngleRad = ((360 - localAngleDeg) + this.state.angle) * Math.PI / 180;
-
-        // Ana kanvas ofsetini bul
-        const mainCanvas = document.querySelector('canvas');
-        const rect = mainCanvas.getBoundingClientRect();
-
-        // P1 (Merkez) ve P2 (Işın ucu) hesapla
-        const p1 = {
-            x: cx - rect.left,
-            y: cy - rect.top
-        };
-        const p2 = {
-            x: p1.x + Math.cos(globalAngleRad) * 1000,
-            y: p1.y + Math.sin(globalAngleRad) * 1000
-        };
-
-        // Kaydet
-        if (window.drawnStrokes && window.redrawAllStrokes) {
-            let l1 = '', l2 = '';
-            if (window.nextPointChar && window.advanceChar) {
-                l1 = window.nextPointChar; window.nextPointChar = window.advanceChar(l1);
-                l2 = window.nextPointChar; window.nextPointChar = window.advanceChar(l2);
-            }
-            window.drawnStrokes.push({
-                type: 'ray',
-                p1: p1,
-                p2: p2,
-                color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
-                width: 3,
-                label1: l1, label2: l2
-            });
-            window.redrawAllStrokes();
-        }
+    if (window.drawnStrokes && window.redrawAllStrokes) {
+      let l1 = '', l2 = '';
+      if (window.nextPointChar && window.advanceChar) {
+        l1 = window.nextPointChar;
+        window.nextPointChar = window.advanceChar(l1);
+        l2 = window.nextPointChar;
+        window.nextPointChar = window.advanceChar(l2);
+      }
+      window.drawnStrokes.push({
+        type: 'ray',
+        p1,
+        p2,
+        color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
+        width: 3,
+        label1: l1,
+        label2: l2
+      });
+      window.redrawAllStrokes();
     }
-}; // <-- Bu, window.AciolcerTool nesnesini kapatır
+  }
+}; // ✅ tüm fonksiyonlar tek nesne içinde
 
+// Nesne tanımı kapandıktan sonra init çağrısı yapılabilir
 window.AciolcerTool.init();
+
