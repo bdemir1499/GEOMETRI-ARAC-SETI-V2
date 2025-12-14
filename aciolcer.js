@@ -174,8 +174,7 @@ window.AciolcerTool = {
             this.state.isDrawing = false;
             this.redLine.style.transition = 'transform 0.05s ease-out';
             this.redLine.style.transform = 'rotate(0deg)';
-            this.drawHandle.style.transition = 'transform 0.05s ease-out';
-            this.drawHandle.style.transform = 'translateX(-50%) translate(0px, 0px)';
+           
             this.drawHandleLabel.style.display = 'none';
         }
     },

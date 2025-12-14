@@ -299,9 +299,7 @@ window.GonyeTool.onMouseUp = function(e) {
         // --- KRİTİK DÜZELTME (Handle'ı Geri Çek) ---
         // Çizim kaydından hemen sonra, temiz ve tek bir blokta geri dönüş yapılır.
         if(this.drawHandleElement) { 
-            this.drawHandleElement.style.transition = 'top 0.05s ease-out';
-            this.drawHandleElement.style.top = `${this.state.height - 20}px`; // Handle'ı 0'a çek
-            
+                        
             // Bayrakları ve önizlemeyi temizle
             this.isDrawingLine = false;
             this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);

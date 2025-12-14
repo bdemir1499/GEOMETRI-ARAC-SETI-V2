@@ -305,8 +305,6 @@ window.audio_draw.play();
         
         // 3. Handle'ı sıfırla (Görsel ve State)
         if(this.drawHandleElement) { 
-            this.drawHandleElement.style.transition = 'left 0.05s ease-out';
-            this.drawHandleElement.style.left = '0px'; 
             
             this.isDrawingLine = false; 
             this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
