@@ -2169,10 +2169,10 @@ canvas.addEventListener('touchmove', (e) => {
         }
     }
 
-}); // <-- FONKSİYON BURADA SAĞLAM ŞEKİLDE KAPANIYOR
-canvas.addEventListener('touchend', (e) => { 
-    if (e && e.cancelable) e.preventDefault();
+}); 
 
+
+// <-- FONKSİYON BURADA SAĞLAM ŞEKİLDE KAPANIYOR
 canvas.addEventListener('touchend', (e) => { 
     if (e && e.cancelable) e.preventDefault();
 
@@ -2891,7 +2891,10 @@ document.addEventListener('click', function(e) {
             }
         } catch(err) {}
     }
-}, true); // 'true' parametresi olayı en başta yakalamasını sağlar (Capture Phase)
+}, true); 
+
+
+// 'true' parametresi olayı en başta yakalamasını sağlar (Capture Phase)
 // --- BAŞLANGIÇ ---
 // --- AKILLI EKRAN BOYUTLANDIRMA (ADRES ÇUBUĞU ZIPLAMASINI ENGELLER) ---
 let lastWindowWidth = window.innerWidth;
@@ -2931,4 +2934,4 @@ setInterval(() => {
     if (Math.abs(canvas.height - window.innerHeight) > 10) {
         resizeCanvas();
     }
-}, 1000); // Her saniye kontrol et (Performansı etkilemez)
+}, 1000);
