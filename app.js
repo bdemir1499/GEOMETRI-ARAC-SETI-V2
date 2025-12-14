@@ -20,7 +20,11 @@ document.addEventListener('touchmove', function(e) {
 // ---------------------------------------
 // Android/iOS sıçrama önleyici (Ghost Click Blocker)
 let lastTouchTime = 0;
-document.addEventListener('touchstart', function() { lastTouchTime = new Date().getTime(); }, {passive: false});
+document.addEventListener('touchstart', function() { 
+lastTouchTime = new Date().getTime();
+ }, {passive: false});
+
+
 document.addEventListener('mousedown', function(e) {
     const now = new Date().getTime();
     // Eğer son 600ms içinde dokunmatik işlem yapıldıysa, gelen Mouse olayını iptal et
@@ -29,7 +33,10 @@ document.addEventListener('mousedown', function(e) {
         e.stopPropagation();
         return false;
     }
-}, true); // 'true' burası için önemlidir (Capture phase)
+}, true); 
+
+
+// 'true' burası için önemlidir (Capture phase)
 // --- KANVAS AYARLARI ---
 const canvas = document.getElementById('drawing-canvas');
 const ctx = canvas.getContext('2d');

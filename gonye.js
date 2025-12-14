@@ -290,7 +290,9 @@ window.GonyeTool.onMouseUp = function(e) {
         
         // --- KRİTİK FİNALİZE KONTROLÜ ---
         // Çizimi kalıcı olarak kaydetmeye zorla (Silgi aktif olsa bile)
-        this.finalizeDraw();
+        const pos = currentMousePos;   // app.js içinde zaten güncelleniyor
+this.finalizeDraw(pos.x, pos.y);
+
         // --- KONTROL SONU ---
 
         // 2. Etiketi gizle 
@@ -412,8 +414,7 @@ window.GonyeTool.handleDraw = function(e) {
     
     this.state.currentHandleY = handleY; 
     
-    this.drawHandleElement.style.transition = 'none'; 
-    this.drawHandleElement.style.top = `${handleY}px`;
+   
     
     // --- KRİTİK DÜZELTME (Hesaplamayı Eşitle) ---
     // (Eski cm hesaplamasını siliyoruz)
@@ -442,14 +443,14 @@ window.GonyeTool.handleDraw = function(e) {
 };
 
 // 8. Madde: Çizimi ana kanvasa (app.js) gönderme
-window.GonyeTool.finalizeDraw = function() {
+window.GonyeTool.finalizeDraw = function(x, y) {
+    // Eğer parametre verilmişse, son pozisyonu kullan
+    const handleY = (typeof y !== 'undefined') ? y : (this.state.currentHandleY || 0);
 
-        const handleY = this.state.currentHandleY || 0; 
-        
-        const startX_local = 4; 
-        const startY_local = this.state.height; 
-        const endX_local = 4;
-        const endY_local = handleY + 10; 
+    const startX_local = 4; 
+    const startY_local = this.state.height; 
+    const endX_local = (typeof x !== 'undefined') ? x : 4;
+    const endY_local = handleY + 10;
 
         if (Math.abs(startY_local - endY_local) < 1) return; 
 

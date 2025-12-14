@@ -334,7 +334,9 @@ const resize = this.resizeHandle;
 
         // --- KRİTİK FİNALİZE KONTROLÜ ---
         // Çizimi kalıcı olarak kaydetmeye zorla (Silgi aktif olsa bile)
-        this.finalizeDraw();
+        const pos = currentMousePos;   // app.js içinde güncelleniyor
+this.finalizeDraw(pos.x, pos.y);
+
         // --- KONTROL SONU ---
         
         this.state.isDrawing = false;
@@ -348,9 +350,7 @@ const resize = this.resizeHandle;
             this.redLine.style.transition = 'transform 0.05s ease-out';
             this.redLine.style.transform = 'rotate(0deg)';
             
-            // 2. HANDLE'I DÜZELT: Sadece BASE konumuna sıfırla
-            this.drawHandle.style.transition = 'transform 0.05s ease-out';
-            this.drawHandle.style.transform = 'translateX(-50%)'; 
+            
             
             this.drawHandleLabel.style.display = 'none';
         }, 50); // 50ms gecikme
@@ -424,16 +424,28 @@ const resize = this.resizeHandle;
 // LÜTFEN MEVCUT finalizeDraw FONKSİYONUNUZU VE SONUNDAKİ
 // '};' İŞARETİNİ BU BLOK İLE DEĞİŞTİRİN:
 
-    finalizeDraw: function() {
-        
-        // --- DÜZELTME (0 Derece Hatası) ---
-        if (!this.state.isDrawing) return;
+    finalizeDraw: function(x, y) {
+    if (!this.state.isDrawing) return;
 
-        // "Sadece tıklayıp bıraktıysan" (hiç sürüklemediysen) çizim yapma.
-        // Ama 0 dereceye sürüklediysen (hasDragged) çizim yap.
-        if (this.state.currentDrawAngleLocal < 0.1 && !this.state.hasDragged) {
-            return;
+    // Eğer parametre geldiyse, son pozisyonu kullan
+    if (typeof x !== 'undefined' && typeof y !== 'undefined') {
+        // Burada p2 hesaplamasında x,y kullanılacak
+        const p1 = { x: this.state.x, y: this.state.y };
+        const p2 = { x: x, y: y };
+
+        // Çizimi kaydet
+        if (window.drawnStrokes && window.redrawAllStrokes) {
+            window.drawnStrokes.push({
+                type: 'ray',
+                p1: p1,
+                p2: p2,
+                color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
+                width: 3
+            });
+            window.redrawAllStrokes();
         }
+        return;
+    }
 
      // --- DÜZELTME SONU ---
 

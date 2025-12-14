@@ -296,26 +296,23 @@ window.audio_draw.play();
         window.audio_draw.currentTime = 0; 
         
         // --- KRİTİK FİNALİZE KONTROLÜ ---
-        // Çizimi kalıcı olarak kaydetmeye zorla (Silgi aktif olsa bile)
-        this.finalizeDraw(); 
+        const pos = currentMousePos; 
+        this.finalizeDraw(pos.x, pos.y);
         // --- KONTROL SONU ---
         
-        // 2. Çizimi kaydet (Hata düzeltildi: finalizeDraw ÖNCE çağrılır)
+        // 2. Etiketi gizle
         this.drawHandleLabel.style.display = 'none';
         
-        // 3. Handle'ı sıfırla (Görsel ve State)
+        // 3. Önizlemeyi temizle
         if(this.drawHandleElement) { 
-            
             this.isDrawingLine = false; 
             this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
-            
-            // KRİTİK: Bir sonraki çizim için state'i sıfırla
-            this.state.currentHandleX = 0; 
         }
     }
     
     this.interactionMode = 'none'; 
 },
+
 
     // --- MANTIK FONKSİYONLARI (TÜMÜ EKLENDİ) ---
 
@@ -435,9 +432,7 @@ window.audio_draw.play();
     
     this.state.currentHandleX = handleX; 
     
-    this.drawHandleElement.style.transition = 'none'; 
-    this.drawHandleElement.style.left = `${handleX}px`;
-    
+       
     // --- KRİTİK DÜZELTME (Virgül Ekle) ---
     const cm = (handleX / this.PIXELS_PER_CM).toFixed(1).replace('.', ',');
     this.drawHandleLabel.innerText = `${cm} cm`;
@@ -457,12 +452,12 @@ window.audio_draw.play();
     // --- ruler.js ---
 // LÜTFEN MEVCUT finalizeDraw FONKSİYONUNUZU BU BLOK İLE DEĞİŞTİRİN:
 
-finalizeDraw: function() {
-    
-    const handleX = this.state.currentHandleX || 0; 
-    if (handleX <= 0) return; 
+finalizeDraw: function(x, y) {
+    // Eğer parametre verilmişse, son pozisyonu kullan
+    const handleX = (typeof x !== 'undefined') ? x : (this.state.currentHandleX || 0);
+    if (handleX <= 0) return;
 
-    // ... (p1 ve p2 hesaplamaları sizde mevcut olmalı) ...
+    // ... (p1 ve p2 hesaplamaları aynı kalacak) ...
     const angleRad = this.state.angle * (Math.PI / 180);
     const cosAngle = Math.cos(angleRad);
     const sinAngle = Math.sin(angleRad);
