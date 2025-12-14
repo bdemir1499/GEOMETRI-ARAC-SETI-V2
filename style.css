@@ -1,0 +1,806 @@
+/* --- SIFIRLAMA VE TAM EKRAN (KESİN ÇÖZÜM) --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box; /* Kenarlıkları boyuta dahil et */
+    
+    /* Seçimi engelle */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+}
+
+body, html {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: fixed; /* Sayfayı kilitler */
+    top: 0;
+    left: 0;
+    background-color: #000;
+}
+
+canvas {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none; /* Çerçeve varsa koordinatı bozar, sıfırladık */
+    outline: none;
+    z-index: 1;
+}
+
+/* Panellerin Genel Stili */
+.panel {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: rgba(10, 10, 31, 0.8); /* Yarı saydam panel arka planı */
+    border: 2px solid #00ffcc; /* Neon çerçeve */
+    box-shadow: 0 0 15px #00ffcc;
+    padding: 15px;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Butonlar arası boşluk */
+    z-index: 10;
+}
+
+/* Sol Panel Konumu */
+.left-panel {
+    left: 15px;
+}
+
+/* İstenen "Tombik Buton" Stili */
+.tool-button {
+    background: linear-gradient(145deg, #f0f, #0ff); /* Parlak karışık neon renkler */
+    border: none;
+    border-radius: 12px; /* Tombik görünüm için yuvarlak köşe */
+    padding: 12px 18px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #0a0a1f; /* Koyu metin (kontrast için) */
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 
+                inset 0 2px 4px rgba(255, 255, 255, 0.4); /* 3D ve "tombik" efekti */
+    transition: all 0.2s ease;
+    min-width: 120px; /* Butonların aynı genişlikte olması için */
+}
+
+/* --- DOKUNMATİK KAYDIRMAYI ENGELLEME (KİLİT) --- */
+#drawing-canvas, body, html {
+    /* Tarayıcının varsayılan dokunmatik işlemlerini kapat */
+    touch-action: none !important;
+    
+    /* Sayfa sonuna gelince oluşan yaylanma efektini kapat */
+    overscroll-behavior: none !important;
+    
+    /* Sayfanın taşmasını engelle */
+    overflow: hidden !important;
+    height: 100%;
+    width: 100%;
+    position: fixed;
+}
+/* Buton üzerine gelince ve tıklanınca */
+.tool-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4),
+                inset 0 2px 4px rgba(255, 255, 255, 0.4);
+}
+
+.tool-button:active {
+    transform: translateY(1px);
+    background: linear-gradient(145deg, #0ff, #f0f); /* Tıklama efekti için renk değişimi */
+}
+
+/* Hangi aracın seçili olduğunu gösteren stil */
+.tool-button.active {
+    background: #00ffcc; /* Neon yeşili aktif renk */
+    color: #0d0d2b;
+    box-shadow: 0 0 20px #00ffcc;
+}
+
+/* Kalem ve Silgi için özel imleçler (Temsili araç) */
+body.cursor-pen {
+    cursor: crosshair; /* veya url('kalem-imleci.png'), crosshair */
+}
+
+body.cursor-eraser {
+    /* Temsili bir silgi kutusu oluştur */
+    cursor: none; 
+}
+/* Temsili silgiyi ekranda göstermek için (CSS ile) */
+.eraser-cursor-preview {
+    position: fixed;
+    width: 20px; /* Silgi boyutu */
+    height: 20px;
+    border: 2px solid #FF0000;
+    box-shadow: 0 0 3px #000000;
+    background-color: rgba(255, 0, 0, 0.2);
+    border-radius: 2px;
+    pointer-events: none; /* Tıklamaları engellemesin */
+    transform: translate(-50%, -50%); /* Tam fare ortasına gelsin */
+    display: none; /* Varsayılan olarak gizli */
+    z-index: 9999;
+}
+body.cursor-eraser .eraser-cursor-preview {
+    display: block; /* Sadece silgi aktifken göster */
+}
+
+
+/* Kalem Renk Seçenekleri Paneli */
+.tool-options {
+    display: flex;
+    gap: 8px;
+    padding-left: 10px;
+    background: rgba(13, 13, 43, 0.5);
+    border-radius: 8px;
+    padding: 8px;
+    margin-top: -5px;
+    margin-bottom: -5px;
+}
+.tool-options.hidden {
+    display: none; /* Aktif değilken gizle */
+}
+
+/* Renk Kutuları */
+.color-box {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%; /* Yuvarlak renkler */
+    border: 2px solid #00ffcc;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+.color-box:hover {
+    transform: scale(1.1);
+}
+
+/* Kalem alt menüsü (Sadece kalem) */
+#pen-options {
+    display: flex;
+    flex-direction: column; /* Kalem seçenekleri alt alta */
+    gap: 8px;
+    padding-left: 10px;
+    background: rgba(13, 13, 43, 0.5);
+    border-radius: 8px;
+    padding: 8px;
+    margin-top: -5px;
+    margin-bottom: -5px;
+}
+
+/* Çizgi alt menüsünü (fly-out) olarak ayarla */
+#line-options {
+    position: absolute; /* Butonları itmemesi için akıştan çıkar */
+    left: 100%; /* Sol panelin tam sağına yerleştir */
+    top: 0; /* Sol panelin üstüne hizala */
+    margin-left: 10px; /* Sol panelle arasına boşluk koy */
+    z-index: 20; /* Diğer her şeyin üzerinde görünsün */
+
+    /* Panel stilini kopyala */
+    background-color: rgba(10, 10, 31, 0.8);
+    border: 2px solid #00ffcc;
+    box-shadow: 0 0 15px #00ffcc;
+    padding: 15px;
+    border-radius: 15px;
+    
+    /* İçerik stilini kopyala */
+    /* display: flex; <-- HATA BURADAYDI, KALDIRILDI */
+    flex-direction: column;
+    gap: 8px;
+}
+
+
+/* Kalem renk kutularının (yan yana) olmasını düzeltme */
+#pen-options {
+    flex-direction: row; /* Yan yana kalsın */
+    flex-wrap: wrap; /* YENİ: Sığmazsa alt satıra indir */
+    
+    /* YENİ: Genişliği 4 kutuya ayarla (4*30px + 3*8px gap + 2*8px padding) */
+    width: 160px; 
+}
+
+/* Alt menü butonları (Nokta, Düz Çizgi vb.) */
+.tool-button-sub {
+    background: #333;
+    color: #0ff;
+    border: 1px solid #0ff;
+    padding: 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.tool-button-sub.active {
+    background: #0ff;
+    color: #333;
+    box-shadow: 0 0 10px #0ff;
+}
+
+/* .hidden sınıfı zaten mevcut (menüleri gizlemek için) */
+.tool-options.hidden {
+    display: none;
+}
+
+/* "Nokta" ve "Düz Çizgi" butonlarının altındaki renk paleti */
+.color-palette {
+    display: flex;
+    flex-direction: row; /* Yan yana */
+    flex-wrap: wrap; /* YENİ: Sığmazsa alt satıra indir */
+    
+    /* YENİ: Genişliği 4 kutuya ayarla (4*30px + 3*8px gap + 2*5px padding) */
+    width: 154px; 
+    
+    gap: 8px;
+    padding: 5px;
+    margin-top: 5px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 5px;
+}
+
+/* Eğer daha önce eklemediyseniz .color-box.selected stilini ekleyin */
+.color-box.selected {
+    border: 4px solid #f0f; /* Seçili renk */
+    transform: scale(1.1);
+}
+
+/* Akıllı Yakalama Göstergesi (Yeşil Işık) */
+#snap-indicator {
+    position: fixed;
+    display: none; /* Varsayılan olarak gizli */
+    width: 14px;
+    height: 14px;
+    background-color: rgba(0, 255, 0, 0.7); /* Yeşil yakala işareti */
+    border: 2px solid #FFFFFF;
+    border-radius: 50%;
+    pointer-events: none; /* Tıklamayı engellemesin */
+    transform: translate(-50%, -50%); /* Tam noktanın ortasına */
+    z-index: 10000;
+    box-shadow: 0 0 10px #00FF00;
+}
+
+.right-panel {
+    /* panel'in dikey ortalamasını iptal et */
+    top: 15px;
+    transform: translateY(0); 
+
+    /* Konumu sağa ayarla */
+    left: auto;
+    right: 15px;
+}
+
+/* Çizgi menüsü ile aynı yana açılma stili */
+/* --- style.css'in en sonuna ekleyin veya mevcut olanı bununla DEĞİŞTİRİN --- */
+
+/* Çizgi menüsü ile aynı yana açılma stili */
+#polygon-options {
+    position: absolute; 
+    left: 100%; 
+    margin-left: 10px; 
+    z-index: 20; 
+
+    /* Konum (top) artık JS tarafından ayarlanacağı için buradan kaldırıldı. */
+    /* KRİTİK: 'display: flex;' buradan kaldırıldı, çünkü .hidden sınıfını eziyordu. */
+    
+    background-color: rgba(10, 10, 31, 0.8);
+    border: 2px solid #00ffcc;
+    box-shadow: 0 0 15px #00ffcc;
+    padding: 15px;
+    border-radius: 15px;
+    
+    flex-direction: column;
+    gap: 8px;
+    width: 200px; 
+}
+
+/* Yana açılan menülerin alt butonlarını düzenle */
+#polygon-options .tool-button-sub {
+    min-width: 170px; 
+    flex-grow: 0;
+}
+
+/* .hidden sınıfının .tool-options ile birlikte çalışmasını sağla */
+.tool-options.hidden {
+    display: none;
+}/* KRİTİK: .hidden sınıfının .tool-options ile birlikte çalışmasını sağla */
+/* Bu, #polygon-options'ın display:flex kuralını ezer */
+.tool-options.hidden {
+    display: none;
+}
+
+/* --- style.css'in en sonuna ekleyin --- */
+
+/* Oyunlar menüsü de Çokgenler menüsüyle aynı stilde olsun */
+#oyunlar-options {
+    position: absolute; 
+    left: 100%; 
+    margin-left: 10px; 
+    z-index: 20; 
+
+    background-color: rgba(10, 10, 31, 0.8);
+    border: 2px solid #00ffcc;
+    box-shadow: 0 0 15px #00ffcc;
+    padding: 15px;
+    border-radius: 15px;
+    
+    flex-direction: column;
+    gap: 8px;
+    width: 200px; 
+    
+    /* --- YENİ EKLENEN SATIRLAR --- */
+    max-height: 400px; /* Panel yüksekliğini 400px ile sınırla */
+    overflow-y: auto;  /* Eğer 400px'i aşarsa kaydırma çubuğu göster */
+    overflow-x: hidden;
+    /* --- YENİ EKLENTİ SONU --- */
+}
+
+/* Oyunlar menüsündeki linklerin (butonların) stili */
+#oyunlar-options a {
+    /* .tool-button-sub stilini taklit edelim */
+    background: #333;
+    color: #0ff;
+    border: 1px solid #0ff;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    text-decoration: none; /* Link alt çizgisini kaldır */
+    display: block; /* Tam genişlik kaplasın */
+    transition: background 0.2s ease;
+}
+
+#oyunlar-options a:hover {
+    background: #0ff;
+    color: #333;
+    box-shadow: 0 0 10px #0ff;
+}
+
+.right-panel .tool-button {
+    white-space: normal;  /* Yazının kırılmasına izin ver */
+    max-width: 130px;     /* Panelin maksimum genişliğini sınırla */
+    text-align: center;   /* Yazıyı ortala */
+    line-height: 1.2;     /* Satır aralığını biraz daralt */
+    padding: 10px 5px;    /* Kenar boşluklarını ayarla */
+    
+    font-size: 13px;      /* YENİ: Yazı boyutunu 16px'den 13px'e düşür */
+}
+
+.right-panel .tool-button {
+    width: 90px;          /* Sabit dar genişlik */
+    min-width: auto;      /* Genişleme zorlamasını kaldır */
+    
+    white-space: normal;  /* Yazıyı alt satıra kır */
+    text-align: center;   /* Ortala */
+    line-height: 1.1;     /* Satır aralığını sıkılaştır */
+    
+    font-size: 12px;      /* Yazıyı biraz küçült */
+    padding: 8px 2px;     /* İç boşluğu azalt */
+    height: auto;         /* İçeriğe göre uzasın */
+}
+
+/* Sadece "Resim Yükle" butonunun yazısını küçült ve sığdır */
+#btn-upload {
+    font-size: 10px !important;   /* Diğerlerinden (12px) daha küçük yap */
+    line-height: 1.1 !important;  /* Satırları birbirine yaklaştır */
+    padding: 4px 1px !important;  /* Kenar boşluklarını azaltarak yer aç */
+    min-height: 50px;             /* Yazı sığmazsa buton aşağı doğru uzasın */
+}
+
+/* --- RESİM YÜKLEME BUTONU ÖZELLEŞTİRMESİ --- */
+#btn-upload {
+    /* 1. Orijinal yazıyı görünmez yap */
+    color: transparent !important;
+    position: relative; /* Yeni yazı buna göre hizalanacak */
+    
+    /* 2. Buton boyutunu ayarla */
+    height: auto !important;
+    min-height: 65px; /* 3 satır sığacak kadar yükseklik */
+    padding: 0 !important;
+    
+    /* Hizalama */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 3. Yeni Yazıyı Yerleştir */
+#btn-upload::after {
+    /* \00000a kodu CSS'de "Alt Satıra Geç" (Enter) demektir */
+    content: "Resim\00000aDosya(PDFKitap)\00000aYükle";
+    
+    /* Yazı Stili */
+    color: #0a0a1f; /* Diğer butonlarla aynı metin rengi */
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 1.3; /* Satır aralığı */
+    text-align: center;
+    white-space: pre; /* Satır atlamayı tanı */
+    
+    /* Tam ortaya sabitle */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+}
+
+/* --- FİZİKSEL ARAÇLAR İÇİN SİYAH TEMA (BEYAZ KAĞIT UYUMU) --- */
+
+/* 1. Ortak Siyah Çerçeve ve Gölge */
+.tool-black-theme {
+    border-color: #000000 !important;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5) !important;
+    background-color: rgba(200, 200, 200, 0.3) !important; /* Hafif gri zemin */
+    color: #000000 !important;
+}
+
+/* 2. İç Gövde (Ruler, Gonye, Aciolcer) - ŞEFFAF TOK MAVİ */
+.tool-black-theme .ruler-body, 
+.tool-black-theme .gonye-body, 
+.tool-black-theme .aciolcer-body {
+    /* SONDAKİ DEĞERİ 0.2 YAPTIK (Çok Şeffaf) */
+    background-color: rgba(20, 80, 180, 0.2) !important; 
+    
+    /* Deseni kaldır */
+    background-image: none !important;
+    
+    /* Kenarlık (Hafif belirgin kalsın) */
+    border: 1px solid rgba(13, 71, 161, 0.5) !important;
+    
+    /* Hafif gölge */
+    box-shadow: none !important;
+    
+    /* Yazılar beyaz kalsın */
+    color: #ffffff !important;
+    
+    /* Bulanıklığı kapat (Netlik için) */
+    backdrop-filter: none !important;
+}
+
+/* 3. Çizgiler ve Yazılar (AYRIŞTIRILDI) */
+
+/* A. Çizgiler (Hepsi Beyaz - Koyu zemin üzerindeler) */
+.tool-black-theme .ruler-tick,
+.tool-black-theme .gonye-tick,
+.tool-black-theme .aciolcer-tick,
+.tool-black-theme .aciolcer-red-line {
+    background-color: #ffffff !important; 
+}
+
+/* B. Cetvel ve Gönye Yazıları (İÇERİDE oldukları için BEYAZ) */
+.tool-black-theme .ruler-label,
+.tool-black-theme .gonye-label,
+.tool-black-theme .gonye-corner-label {
+    color: #ffffff !important; 
+    text-shadow: none !important;
+    font-weight: bold;
+}
+
+/* C. Açı Ölçer Yazıları (DIŞARIDA oldukları için SİYAH) */
+.tool-black-theme .aciolcer-label {
+    color: #000000 !important; /* Beyaz kağıt üzerinde siyah yazı */
+    font-weight: bold;
+    /* Yazının etrafına hafif beyaz hale (garanti okunurluk için) */
+    text-shadow: 0 0 3px #ffffff, 0 0 3px #ffffff !important; 
+}
+
+/* 4. Pergel Özel Ayarları */
+#compass-container.tool-black-theme .pergel-leg {
+    /* Neon ve Siyah yerine; Tok, Doygun bir Mavi */
+    background-color: rgba(20, 80, 180, 0.95) !important; 
+    
+    /* Deseni kaldır, düz renk olsun */
+    background-image: none !important;
+    
+    /* Kenarları daha koyu mavi ile belirginleştir */
+    border: 1px solid #0d47a1 !important;
+    
+    /* Hafif gölge ile derinlik kat */
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3) !important;
+    
+    /* Üzerindeki yazılar (varsa) beyaz olsun ki okunsun */
+    color: #ffffff !important;
+}
+
+/* İğne ve Kalem tutucuları (Daha Koyu Lacivert) */
+#compass-container.tool-black-theme .needle-tip,
+#compass-container.tool-black-theme .pen-tip {
+    background: #002171 !important; /* Çok koyu mavi */
+    box-shadow: none !important;
+    border: 1px solid #000000;
+}
+
+/* Tepe Tutamaç (Handle) - Mavi Geçişli */
+#compass-container.tool-black-theme .handle-top {
+    background: linear-gradient(180deg, #64b5f6 0%, #1565c0 100%) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4) !important;
+    border: 1px solid #0d47a1;
+}
+
+/* Menteşe (Kafa) */
+#compass-container.tool-black-theme .rotate-head {
+    background-color: #1565c0 !important; /* Orta koyulukta mavi */
+    box-shadow: none !important;
+    border: 1px solid #0d47a1;
+}
+/* --- DOKUNMATİK KİLİDİ (ZOOM İÇİN ŞART) --- */
+html, body {
+    overflow: hidden;     /* Sayfa taşmasını engelle */
+    touch-action: none;   /* Tarayıcı zoom'unu kapat */
+    overscroll-behavior: none; /* Yaylanma efektini kapat */
+}
+
+#drawing-canvas {
+    touch-action: none;   /* Kanvas üzerinde tarayıcı müdahalesini kapat */
+    width: 100%;
+    height: 100%;
+}
+
+/* --- DOKUNMATİK ÇİZİM İÇİN ZORUNLU KİLİT --- */
+html, body {
+    overscroll-behavior: none; /* Sayfa yaylanmasını kapat */
+    overflow: hidden;          /* Sayfa taşmasını kapat */
+}
+
+#drawing-canvas {
+    touch-action: none !important; /* Tarayıcının dokunma işlemlerini İPTAL ET */
+    display: block;
+    width: 100vw;
+    height: 100vh;
+}
+
+/* --- DOKUNMATİK ÇİZİM İÇİN ZORUNLU KİLİT --- */
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden !important;          /* Sayfa taşmasını ve kaydırmayı kapat */
+    overscroll-behavior: none !important; /* Yaylanma efektini kapat (iOS/Android) */
+    touch-action: none !important;        /* Tarayıcı zoom/pan hareketlerini kapat */
+}
+
+#drawing-canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    touch-action: none !important;        /* Kanvas üzerinde dokunmayı tamamen JS'e bırak */
+    user-select: none !important;         /* Metin seçimini engelle */
+    -webkit-user-select: none !important;
+}
+
+/* --- FİZİKSEL ARAÇLAR İÇİN TOK MAVİ TEMA (PROFESYONEL) --- */
+
+/* 1. Cetvel, Gönye, Açıölçer Gövdeleri */
+.tool-black-theme .ruler-body, 
+.tool-black-theme .gonye-body, 
+.tool-black-theme .aciolcer-body {
+    /* Tok Mavi Renk ve %50 Şeffaflık (Altı görünsün diye) */
+    background-color: rgba(10, 60, 160, 0.5) !important; 
+    
+    /* Eski neon desenleri kaldır */
+    background-image: none !important;
+    
+    /* Belirgin Koyu Çerçeve */
+    border: 2px solid #002171 !important;
+    
+    /* Derinlik katan gölge */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3) !important;
+    
+    /* Bulanıklığı kapat (Netlik için) */
+    backdrop-filter: none !important;
+    
+    color: #ffffff !important;
+}
+
+/* 2. Çizgiler ve Yazılar (BEYAZ - Mavi zemin üzerinde okunsun) */
+.tool-black-theme .ruler-tick,
+.tool-black-theme .gonye-tick,
+.tool-black-theme .aciolcer-tick,
+.tool-black-theme .aciolcer-red-line {
+    background-color: #ffffff !important; 
+}
+
+.tool-black-theme .ruler-label,
+.tool-black-theme .gonye-label,
+.tool-black-theme .gonye-corner-label {
+    color: #ffffff !important; 
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important; /* Okunurluk gölgesi */
+    font-weight: bold;
+}
+
+/* 3. Açı Ölçer Dış Yazıları (SİYAH - Beyaz kağıt üzerinde okunsun) */
+.tool-black-theme .aciolcer-label {
+    color: #000000 !important; 
+    font-weight: bold;
+    text-shadow: 0 0 3px #ffffff, 0 0 3px #ffffff !important; /* Beyaz hale */
+}
+
+/* 4. Pergel Özel Ayarları (Tok Mavi Gövde) */
+#compass-container.tool-black-theme .pergel-leg {
+    /* Bacaklar biraz daha koyu ve opak olabilir */
+    background-color: rgba(13, 71, 161, 0.9) !important; 
+    background-image: none !important;
+    border: 1px solid #002171 !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4) !important;
+    color: #ffffff !important;
+}
+
+/* Pergel Uçları (Koyu Lacivert) */
+#compass-container.tool-black-theme .needle-tip,
+#compass-container.tool-black-theme .pen-tip {
+    background: #000051 !important; /* Çok koyu lacivert */
+    box-shadow: none !important;
+    border: 1px solid #fff;
+}
+
+/* Pergel Tepesi (Metalik Mavi Geçiş) */
+#compass-container.tool-black-theme .handle-top {
+    background: linear-gradient(180deg, #42a5f5 0%, #0d47a1 100%) !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5) !important;
+    border: 1px solid #002171;
+}
+
+/* Pergel Kafası */
+#compass-container.tool-black-theme .rotate-head {
+    background-color: #1565c0 !important;
+    box-shadow: none !important;
+    border: 1px solid #002171;
+}
+
+/* --- style.css SONUNA EKLEYİN --- */
+body.cursor-snapshot {
+    cursor: crosshair !important;
+}
+
+/* --- SAĞ ALT KÖŞE BUTONU --- */
+#btn-help {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background-color: #0d0d2b;
+    color: #FFFF00;
+    border: 1px solid #FFFF00;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    z-index: 9000;
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+    font-family: sans-serif;
+}
+#btn-help:hover {
+    background-color: #FFFF00;
+    color: #000;
+}
+
+/* --- PENCERE (MODAL) TASARIMI --- */
+.help-modal {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 10000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px);
+}
+.help-modal.hidden { display: none; }
+
+.help-content {
+    width: 800px;
+    max-width: 95%;
+    height: 500px;
+    background: #0d0d2b;
+    border: 2px solid #FFFF00;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.help-header {
+    padding: 10px 15px;
+    background: rgba(255, 255, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #FFFF00;
+}
+.help-header h2 { color: #FFFF00; font-size: 18px; margin: 0; }
+.close-btn { background: none; border: none; color: #ff0055; font-size: 28px; cursor: pointer; }
+
+.help-body { display: flex; flex: 1; overflow: hidden; }
+
+/* Sol Liste */
+.video-list {
+    width: 30%;
+    background: rgba(255, 255, 255, 0.05);
+    overflow-y: auto;
+    border-right: 1px solid #333;
+}
+.video-item-btn {
+    width: 100%;
+    background: none;
+    border: none;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    color: #ccc;
+    padding: 12px;
+    text-align: left;
+    cursor: pointer;
+    font-size: 13px;
+}
+.video-item-btn:hover { background: rgba(255,255,0,0.1); color: #fff; }
+.video-item-btn.active { background: #FFFF00; color: #000; font-weight: bold; }
+
+/* Sağ Oynatıcı */
+.video-player-container {
+    width: 70%;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+}
+#main-video-player { width: 100%; max-height: 90%; outline: none; }
+.video-title { color: #FFFF00; margin-top: 10px; font-size: 14px; }
+
+/* --- SAĞ ALT KÖŞE BUTONU --- */
+#btn-help {
+    position: fixed;       /* Ekrana sabitler (Panele değil) */
+    bottom: 10px;          /* Ekranın en altından 10px yukarı */
+    right: 10px;           /* Ekranın en sağından 10px sola */
+    z-index: 9000;         /* Her şeyin üstünde */
+    
+    /* Görsel Stil */
+    background-color: #0d0d2b;
+    color: #FFFF00;
+    border: 1px solid #FFFF00;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+/* --- PDF KAPAT BUTONU (SAĞ PANELİN SOLUNDA - GÜNCELLENMİŞ) --- */
+.pdf-close-btn {
+    position: fixed !important; 
+    top: 15px !important;        /* Sayfanın tepesinden boşluk */
+    right: 150px !important;     /* Sağdan 120px içeride (Panelden iyice uzaklaşır) */
+    
+    width: 50px;
+    height: 50px;
+    background-color: #ff0000;
+    color: white;
+    border: 2px solid white;
+    border-radius: 50%;
+    
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    
+    font-size: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    
+    z-index: 9999 !important; 
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+    transition: transform 0.1s;
+}
+
+.pdf-close-btn:active {
+    transform: scale(0.95);
+}
+
+.pdf-close-btn.hidden {
+    display: none !important;
+}

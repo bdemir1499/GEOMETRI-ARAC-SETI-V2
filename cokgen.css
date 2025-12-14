@@ -1,0 +1,97 @@
+/* --- cokgen.css --- */
+:root {
+    --polygon-color: #ff00ff; /* Ana Mor Renk */
+    --polygon-glow: 0 0 10px #ff00ff, 0 0 20px rgba(255, 0, 255, 0.5);
+}
+
+/* Çokgen Taşıyıcısı (Kanvas Üzerinde Görünmez Konumlandırıcı) */
+.polygon-container {
+    position: fixed;
+    /* Merkezi taşıyıcının ortası olmalı */
+    transform-origin: center center;
+    pointer-events: none; /* Varsayılan olarak tıklama yok */
+    z-index: 4; /* Araçların (5) hemen altında */
+}
+
+/* Çokgenlerin Kendisi (SVG veya Canvas içinde çizilecek, bu sadece etiketler için) */
+
+/* Köşe Tutamaçları (Büyütme/Sürükleme) */
+.polygon-handle {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid var(--polygon-color);
+    box-shadow: 0 0 8px var(--polygon-color);
+    transform: translate(-50%, -50%); /* Merkezi noktaya hizala */
+    cursor: grab;
+    pointer-events: all; /* Tıklamaları yakala */
+    z-index: 10;
+}
+.polygon-handle:active {
+    cursor: grabbing;
+}
+
+/* Döndürme Tutamacı (Tekil) */
+.polygon-rotate-handle {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: rgba(0, 255, 0, 0.8); /* Yeşil */
+    border: 2px solid #0f0;
+    border-radius: 50%;
+    cursor: crosshair;
+    z-index: 10;
+    pointer-events: all;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translate(-50%, -50%); /* Merkezi noktaya hizala */
+}
+.polygon-rotate-handle::before {
+    content: '↺';
+    color: #0f0;
+    text-shadow: 0 0 5px #000;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+
+/* Etiketler (Kenar Uzunluğu / Açı Ölçüsü) */
+.polygon-label {
+    position: fixed;
+    background: #fff;
+    color: #000;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 1003;
+    white-space: nowrap;
+}
+.polygon-label.hidden {
+    display: none;
+}
+
+/* Önizleme Etiketi (Gerçek Zamanlı Kenar Uzunluğu) */
+#polygon-preview-label {
+    position: fixed;
+    z-index: 1005; /* Her şeyin üstünde */
+    pointer-events: none;
+    transform: translate(15px, 15px); /* Fareden biraz uzakta */
+    
+    /* Stil (Mevcut .polygon-label'iniz yoksa) */
+    background: #fff;
+    color: #000;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.polygon-label.hidden {
+    display: none;
+}

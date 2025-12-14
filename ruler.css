@@ -1,0 +1,237 @@
+/* --- ruler.css (YENİ DOSYA) --- */
+
+/* 2. Madde: Cetvel Butonunun Şeklini Değiştirme */
+#btn-cetvel {
+    /* (Bu seçici, style.css'deki .tool-button stilini 
+       ezmek için burada, ancak simge stilleri kaldırıldı) */
+    
+    /* Metni (index.html'den gelen "Cetvel" yazısını) görünür yap */
+    color: #0a0a1f; /* .tool-button ile aynı metin rengi */
+    font-size: 16px; /* .tool-button ile aynı font boyutu */
+    position: static; /* 'relative' kaldırıldı */
+    
+    /* Simge stilleri kaldırıldı */
+    background-image: none;
+    
+    /* Ana .tool-button stillerini koru */
+    background: linear-gradient(145deg, #f0f, #0ff);
+    border: none;
+    border-radius: 12px;
+    padding: 12px 18px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 
+                inset 0 2px 4px rgba(255, 255, 255, 0.4);
+    transition: all 0.2s ease;
+    min-width: 120px;
+}
+
+#btn-cetvel:hover {
+    /* .tool-button:hover ile aynı stil */
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4),
+                inset 0 2px 4px rgba(255, 255, 255, 0.4);
+}
+
+/* Aktif stilini (style.css'den) koru */
+#btn-cetvel.active {
+    background: #00ffcc;
+    color: #0d0d2b;
+    box-shadow: 0 0 20px #00ffcc;
+}
+
+
+/* 1. Madde: Cetvelin Ana Konteyneri */
+.ruler-container {
+    position: fixed;
+    /* Başlangıçta 300px genişlik, 60px yükseklik */
+    width: 300px;
+    height: 60px; 
+    /* Başlangıç konumu (merkez) */
+    top: 50%;
+    left: 50%;
+    /* DÜZELTME: 'transform' (konumlandırma) buradan kaldırıldı, 
+       çünkü artık JS (updateTransform) tarafından yönetiliyor */
+    
+    /* 11. Madde: Cyberpunk Stil */
+    background: rgba(0, 100, 200, 0.7); /* Yarı saydam mavi */
+    border: 2px solid #00ffff;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 0 15px #00ffff;
+    border-radius: 5px;
+    
+    z-index: 5; /* DÜZELTME: Diğer panellerin altında (10) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    /* Dönüş merkezi (JS tarafından yönetilecek) */
+    transform-origin: center center;
+}
+
+/* 4. Madde: Sürükleme için gövde */
+.ruler-body {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    cursor: grab;
+    
+    /* 11. Madde: Matematiksel desenler */
+    background-image: linear-gradient(45deg, rgba(0, 255, 255, 0.1) 25%, transparent 25%, transparent 75%, rgba(0, 255, 255, 0.1) 75%),
+                      linear-gradient(45deg, rgba(0, 255, 255, 0.1) 25%, transparent 25%, transparent 75%, rgba(0, 255, 255, 0.1) 75%);
+    background-size: 30px 30px;
+    background-position: 0 0, 15px 15px;
+    overflow: hidden; /* İşaretler taşmasın */
+}
+.ruler-body:active {
+    cursor: grabbing;
+}
+
+/* 3. & 11. Madde: Cetvel İşaretleri (Dinamik olarak JS ile eklenecek) */
+.ruler-markings {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Tıklamayı engellemesin */
+}
+.ruler-tick {
+    position: absolute;
+    top: 0;
+    width: 2px;
+    background: #00ffff;
+}
+.ruler-tick.small { height: 10px; }
+.ruler-tick.medium { height: 15px; }
+.ruler-tick.large { height: 25px; }
+
+.ruler-label {
+    position: absolute;
+    top: 28px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #00ffff; /* 11. Madde: Belli olacak renk */
+    transform: translateX(-50%);
+}
+
+/* 5. Madde: Yeniden Boyutlandırma Tutamaçları (Uzatma) */
+.resize-handle {
+    position: absolute;
+    top: 50%;
+    width: 16px;
+    height: 30px;
+    background: rgba(255, 0, 255, 0.8); /* Cyberpunk pembe */
+    border: 2px solid #f0f;
+    transform: translateY(-50%);
+    cursor: e-resize;
+    z-index: 1001;
+    border-radius: 3px;
+    
+    /* SEMBOL EKLENDİ (Ortalamak için) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.resize-handle::before {
+    content: '↔';
+    color: #f0f;
+    text-shadow: 0 0 5px #000;
+    font-size: 14px;
+    font-weight: bold;
+}
+.resize-handle.left {
+    left: -10px;
+    cursor: w-resize;
+}
+.resize-handle.right {
+    right: -10px;
+}
+
+/* 7. Madde: Döndürme Tutamaçları */
+.rotate-handle {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: rgba(0, 255, 0, 0.8); /* Cyberpunk yeşil */
+    border: 2px solid #0f0;
+    border-radius: 50%;
+    cursor: crosshair; /* Döndürme imleci */
+    z-index: 1001;
+    
+    /* SEMBOL EKLENDİ (Ortalamak için) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+/* SEMBOL EKLENDİ */
+.rotate-handle::before {
+    content: '↺';
+    color: #0f0;
+    text-shadow: 0 0 5px #000;
+    font-size: 14px;
+    font-weight: bold;
+}
+.rotate-handle.top-left {
+    top: -25px;
+    left: -10px;
+}
+.rotate-handle.bottom-right {
+    bottom: -25px;
+    right: -10px;
+}
+
+/* 8. & 10. Madde: Çizim Tutamacı (Kırmızı) */
+.draw-handle {
+    position: absolute;
+    top: auto; /* Üstü sıfırla */
+    bottom: -10px; /* 10px Dışarıda (altta) */
+    left: 0; /* JS ile pozisyonu değişecek */
+    width: 20px; 
+    height: 8px; 
+    background: rgba(255, 0, 0, 0.8); /* Kırmızı */
+    border: 1px solid #ffaaaa;
+    border-radius: 2px;
+    cursor: e-resize; /* Yatay hareket */
+    z-index: 1002;
+    transition: left 0.05s ease-out; 
+    
+    /* SEMBOL EKLENDİ (Ortalamak için) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+/* SEMBOL EKLENDİ (Çizim kalemi) */
+.draw-handle::before {
+    content: '✎';
+    color: #fff;
+    font-size: 10px;
+    line-height: 8px; /* Dikey ortalama */
+}
+/* SEMBOL EKLENDİ (Çizim kalemi) */
+.draw-handle::before {
+    content: '✎';
+    color: #fff;
+    font-size: 10px;
+    line-height: 8px; /* Dikey ortalama */
+}
+.draw-handle-label {
+    position: absolute;
+    top: auto; /* Üstü sıfırla */
+    bottom: 10px; /* Tutamacın üstünde (alt kenara göre) */
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff;
+    color: #000;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: bold;
+    display: none; /* Sadece sürüklerken JS ile gösterilecek */
+}
+.draw-handle:hover .draw-handle-label,
+.draw-handle:active .draw-handle-label {
+    display: block;
+}
