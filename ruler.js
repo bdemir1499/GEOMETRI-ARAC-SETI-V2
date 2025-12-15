@@ -457,28 +457,18 @@ this.drawCtx.stroke();
   const cx = this.state.x + width / 2;
   const cy = this.state.y + height / 2;
 
+  // Başlangıç noktası: üst kenarın sol ucu
   const startX_local = 0;
-  const startY_local = height;
+  const startY_local = 0;
+
+  // Tutamac mesafesi: önizlemeden gelen state
   const handleX = this.state.currentHandleX;
 
-  // Platform kontrolü
-  const isMobile = /Android|iPhone|iPad|HarmonyOS/i.test(navigator.userAgent);
-
-  const toGlobal = (lx, ly) => {
-    if (isMobile) {
-      // Mobilde offset daha az uygulanıyor
-      return {
-        x: cx + lx * cosA - ly * sinA,
-        y: cy + lx * sinA + ly * cosA
-      };
-    } else {
-      // PC’de offset tam uygulanıyor
-      return {
-        x: cx + lx * cosA - ly * sinA - rect.left,
-        y: cy + lx * sinA + ly * cosA - rect.top
-      };
-    }
-  };
+  // Global dönüşüm fonksiyonu
+  const toGlobal = (lx, ly) => ({
+    x: cx + lx * cosA - ly * sinA - rect.left,
+    y: cy + lx * sinA + ly * cosA - rect.top
+  });
 
   const p1 = toGlobal(startX_local, startY_local);
   const p2 = toGlobal(startX_local + handleX, startY_local);
@@ -501,6 +491,7 @@ this.drawCtx.stroke();
 
   this.isDrawingLine = false;
 }
+
 
 
 
