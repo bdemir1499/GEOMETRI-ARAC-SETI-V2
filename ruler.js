@@ -441,11 +441,12 @@ this.drawCtx.stroke();
 
 },
 
-    finalizeDraw: function() {
+   finalizeDraw: function() {
   if (!this.isDrawingLine) return;
 
   const mainCanvas = document.querySelector('canvas');
-  const rect = mainCanvas.getBoundingClientRect();
+  const offsetX = mainCanvas.offsetLeft;
+  const offsetY = mainCanvas.offsetTop;
 
   const angleRad = this.state.angle * Math.PI / 180;
   const cosA = Math.cos(angleRad);
@@ -457,15 +458,13 @@ this.drawCtx.stroke();
   const cx = this.state.x + width / 2;
   const cy = this.state.y + height / 2;
 
-  // Üst kenarın sol ucu (önizleme ile aynı olmalı)
   const startX_local = -width / 2;
   const startY_local = -height / 2;
-
   const handleX = this.state.currentHandleX;
 
   const toGlobal = (lx, ly) => ({
-    x: cx + lx * cosA - ly * sinA - rect.left,
-    y: cy + lx * sinA + ly * cosA - rect.top
+    x: cx + lx * cosA - ly * sinA - offsetX - window.scrollX,
+    y: cy + lx * sinA + ly * cosA - offsetY - window.scrollY
   });
 
   const p1 = toGlobal(startX_local, startY_local);
@@ -489,6 +488,7 @@ this.drawCtx.stroke();
 
   this.isDrawingLine = false;
 }
+
 
 
 
