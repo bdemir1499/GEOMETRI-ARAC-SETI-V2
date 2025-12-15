@@ -445,7 +445,10 @@ this.drawCtx.stroke();
   if (!this.isDrawingLine) return;
 
   const mainCanvas = document.querySelector('canvas');
-  const rect = mainCanvas.getBoundingClientRect();
+
+  // PC ve mobil farkını azaltmak için offsetLeft/offsetTop kullan
+  const offsetX = mainCanvas.offsetLeft || 0;
+  const offsetY = mainCanvas.offsetTop || 0;
 
   const angleRad = this.state.angle * Math.PI / 180;
   const cosA = Math.cos(angleRad);
@@ -457,23 +460,15 @@ this.drawCtx.stroke();
   const cx = this.state.x + width / 2;
   const cy = this.state.y + height / 2;
 
+  // Üst kenarın sol ucu
   const startX_local = -width / 2;
   const startY_local = -height / 2;
   const handleX = this.state.currentHandleX;
 
-  const isMobile = /Android|iPhone|iPad|HarmonyOS/i.test(navigator.userAgent);
-
-  const toGlobal = (lx, ly) => {
-    let gx = cx + lx * cosA - ly * sinA - rect.left;
-    let gy = cy + lx * sinA + ly * cosA - rect.top;
-
-    if (isMobile) {
-      // Mobilde çizgi biraz aşağıda kaldığı için yukarı kaydır
-      gy -= 3;   // 3px yukarı
-      gx -= 1;   // 1px sola (sağa kaymayı düzeltmek için)
-    }
-    return { x: gx, y: gy };
-  };
+  const toGlobal = (lx, ly) => ({
+    x: cx + lx * cosA - ly * sinA - offsetX,
+    y: cy + lx * sinA + ly * cosA - offsetY
+  });
 
   const p1 = toGlobal(startX_local, startY_local);
   const p2 = toGlobal(startX_local + handleX, startY_local);
@@ -494,8 +489,20 @@ this.drawCtx.stroke();
     window.redrawAllStrokes();
   }
 
+  // --- Tutamac çizgisini ana canvas'a da ekle ---
+  if (this.drawCtx) {
+    this.drawCtx.beginPath();
+    this.drawCtx.moveTo(p1.x, p1.y);
+    this.drawCtx.lineTo(p2.x, p2.y);
+    this.drawCtx.strokeStyle = '#FFFFFF';
+    this.drawCtx.lineWidth = 3;
+    this.drawCtx.stroke();
+  }
+
   this.isDrawingLine = false;
 }
+
+
 
  // <-- finalizeDraw fonksiyonu burada biter
 
