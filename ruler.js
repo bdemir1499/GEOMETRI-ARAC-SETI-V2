@@ -445,7 +445,6 @@ this.drawCtx.stroke();
   if (!this.isDrawingLine) return;
 
   const mainCanvas = document.querySelector('canvas');
-  const rect = mainCanvas.getBoundingClientRect();
 
   const angleRad = this.state.angle * Math.PI / 180;
   const cosA = Math.cos(angleRad);
@@ -454,21 +453,19 @@ this.drawCtx.stroke();
   const width = this.state.width;
   const height = this.bodyElement.offsetHeight;
 
-  // Cetvelin merkezi
   const cx = this.state.x + width / 2;
   const cy = this.state.y + height / 2;
 
-  // Başlangıç noktası: sayı etiketli kenarın sol ucu
+  // Başlangıç noktası
   const startX_local = 0;
   const startY_local = height;
 
-  // Tutamacın uzunluğu (önizlemeden gelen state)
+  // Tutamac mesafesi
   const handleX = this.state.currentHandleX;
 
-  // Global dönüşüm fonksiyonu
   const toGlobal = (lx, ly) => ({
-    x: cx + lx * cosA - ly * sinA - rect.left,
-    y: cy + lx * sinA + ly * cosA - rect.top
+    x: cx + lx * cosA - ly * sinA,
+    y: cy + lx * sinA + ly * cosA
   });
 
   const p1 = toGlobal(startX_local, startY_local);
@@ -488,15 +485,10 @@ this.drawCtx.stroke();
       lengthLabelPos: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
     });
     window.redrawAllStrokes();
-  } else {
-    console.error("Hata: drawnStrokes veya redrawAllStrokes globalda bulunamadı!");
   }
 
   this.isDrawingLine = false;
-},
-
-
-
+}
 
 
  // <-- finalizeDraw fonksiyonu burada biter
