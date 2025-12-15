@@ -444,14 +444,16 @@ this.drawCtx.stroke();
    finalizeDraw: function() {
   if (!this.isDrawingLine) return;
 
-alert("rect.top: " + rect.top + 
-      " offsetTop: " + offsetY + 
-      " scrollY: " + window.scrollY);
 
   const mainCanvas = document.querySelector('canvas');
   const rect = mainCanvas.getBoundingClientRect();
   const offsetX = mainCanvas.offsetLeft || 0;
   const offsetY = mainCanvas.offsetTop || 0;
+
+alert("rect.top: " + rect.top + 
+      " offsetTop: " + offsetY + 
+      " scrollY: " + window.scrollY);
+
 
   // --- Debug loglar ---
   console.log("=== DEBUG finalizeDraw ===");
