@@ -447,14 +447,36 @@ this.drawCtx.stroke();
   const mainCanvas = document.querySelector('canvas');
   const rect = mainCanvas.getBoundingClientRect();
 
-  const rulerTopY = this.state.y;
-  const rulerLeftX = this.state.x;
+  const angleRad = this.state.angle * Math.PI / 180;
+  const cosA = Math.cos(angleRad);
+  const sinA = Math.sin(angleRad);
 
-  const p1 = { x: rulerLeftX - rect.left, y: rulerTopY - rect.top };
+  const width = this.state.width;
+  const height = this.bodyElement.offsetHeight;
+
+  // Cetvelin merkezi
+  const cx = this.state.x + width / 2;
+  const cy = this.state.y + height / 2;
+
+  // Sol-üst kenarı local koordinatta (-width/2, -height/2)
+  const localX = -width / 2;
+  const localY = -height / 2;
+
+  // Global koordinata dönüştür
+  const p1 = {
+    x: cx + localX * cosA - localY * sinA - rect.left,
+    y: cy + localX * sinA + localY * cosA - rect.top
+  };
+
+  // Tutamacın uzunluğu (local X mesafesi)
   const handleX = this.state.currentHandleX;
-  const p2 = { x: rulerLeftX + handleX - rect.left, y: rulerTopY - rect.top };
 
-  // ✅ if + else doğru şekilde yazıldı
+  // Bitiş noktası: p1 + handleX mesafesi, açıyı kullanarak
+  const p2 = {
+    x: p1.x + handleX * cosA,
+    y: p1.y + handleX * sinA
+  };
+
   if (window.drawnStrokes && window.redrawAllStrokes) {
     window.drawnStrokes.push({
       type: 'straightLine',
@@ -465,12 +487,15 @@ this.drawCtx.stroke();
       lengthLabel: (handleX / this.PIXELS_PER_CM).toFixed(1).replace('.', ',') + ' cm',
       lengthLabelPos: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
     });
-
     window.redrawAllStrokes();
   } else {
     console.error("Hata: drawnStrokes veya redrawAllStrokes globalda bulunamadı!");
   }
 },
+
+
+
+
  // <-- finalizeDraw fonksiyonu burada biter
 
 // LÜTFEN KODUNUZUN KALANINI OLDUĞU GİBİ BIRAKIN
