@@ -445,8 +445,16 @@ this.drawCtx.stroke();
   if (!this.isDrawingLine) return;
 
   const mainCanvas = document.querySelector('canvas');
+  const rect = mainCanvas.getBoundingClientRect();
   const offsetX = mainCanvas.offsetLeft || 0;
   const offsetY = mainCanvas.offsetTop || 0;
+
+  // --- Debug loglar ---
+  console.log("=== DEBUG finalizeDraw ===");
+  console.log("rect.left/top:", rect.left, rect.top);
+  console.log("offsetLeft/Top:", offsetX, offsetY);
+  console.log("scrollX/Y:", window.scrollX, window.scrollY);
+  console.log("canvas size:", width, height);
 
   const angleRad = this.state.angle * Math.PI / 180;
   const cosA = Math.cos(angleRad);
@@ -507,6 +515,7 @@ this.drawCtx.stroke();
 
   this.isDrawingLine = false;
 }
+
 
  // <-- finalizeDraw fonksiyonu burada biter
 
