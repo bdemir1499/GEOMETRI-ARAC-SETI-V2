@@ -489,6 +489,7 @@ this.drawCtx.stroke();
 });
 
 
+
   const p1 = toGlobal(startX_local, startY_local);
   const p2 = toGlobal(startX_local + handleX, startY_local);
 
