@@ -468,9 +468,9 @@ this.drawCtx.stroke();
     let gy = cy + lx * sinA + ly * cosA - rect.top;
 
     if (isMobile) {
-      // Mobilde çok az sağa ve aşağıya kaymayı düzelt
-      gx -= 2;  // 2px sola kaydır
-      gy -= 2;  // 2px yukarı kaydır
+      // Mobilde çizgi biraz aşağıda kaldığı için yukarı kaydır
+      gy -= 3;   // 3px yukarı
+      gx -= 1;   // 1px sola (sağa kaymayı düzeltmek için)
     }
     return { x: gx, y: gy };
   };
@@ -496,12 +496,6 @@ this.drawCtx.stroke();
 
   this.isDrawingLine = false;
 }
-
-
-
-
-
-
 
  // <-- finalizeDraw fonksiyonu burada biter
 
