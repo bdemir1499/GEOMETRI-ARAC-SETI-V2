@@ -466,30 +466,25 @@ this.drawCtx.stroke();
   const width = this.state.width;
   const height = this.bodyElement.offsetHeight;
 
-  const cx = this.state.x + width / 2;
-  const cy = this.state.y + height / 2;
+  // cx, cy artık doğrudan state değerleri
+  const cx = this.state.x;
+  const cy = this.state.y;
 
   // Üst kenarın sol ucu
   let startX_local = -width / 2;
   let startY_local = -height / 2;
 
-  // Mobilde birkaç px yukarı kaydır
-  const isMobile = /Android|iPhone|iPad|HarmonyOS/i.test(navigator.userAgent);
-  if (isMobile) {
-    startY_local -= 3;   // 3px yukarı
-    startX_local -= 1;   // 1px sola
-  }
+  // Mobil düzeltmeleri şimdilik kaldırıyoruz
+  // (gerekirse sonra ekleriz)
+  // const isMobile = /Android|iPhone|iPad|HarmonyOS/i.test(navigator.userAgent);
 
   const handleX = this.state.currentHandleX;
 
-  // Artık rect.left/top kullanıyoruz
+  // Offset/scroll çıkarma yok
   const toGlobal = (lx, ly) => ({
-  x: cx + lx * cosA - ly * sinA,
-  y: cy + lx * sinA + ly * cosA
-});
-
-
-
+    x: cx + lx * cosA - ly * sinA,
+    y: cy + lx * sinA + ly * cosA
+  });
 
   const p1 = toGlobal(startX_local, startY_local);
   const p2 = toGlobal(startX_local + handleX, startY_local);
@@ -522,9 +517,6 @@ this.drawCtx.stroke();
 
   this.isDrawingLine = false;
 }
-
-
-
 
  // <-- finalizeDraw fonksiyonu burada biter
 
