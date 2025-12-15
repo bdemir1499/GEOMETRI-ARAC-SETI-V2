@@ -445,8 +445,7 @@ this.drawCtx.stroke();
   if (!this.isDrawingLine) return;
 
   const mainCanvas = document.querySelector('canvas');
-  const offsetX = mainCanvas.offsetLeft;
-  const offsetY = mainCanvas.offsetTop;
+  const rect = mainCanvas.getBoundingClientRect();
 
   const angleRad = this.state.angle * Math.PI / 180;
   const cosA = Math.cos(angleRad);
@@ -462,10 +461,19 @@ this.drawCtx.stroke();
   const startY_local = -height / 2;
   const handleX = this.state.currentHandleX;
 
-  const toGlobal = (lx, ly) => ({
-    x: cx + lx * cosA - ly * sinA - offsetX - window.scrollX,
-    y: cy + lx * sinA + ly * cosA - offsetY - window.scrollY
-  });
+  const isMobile = /Android|iPhone|iPad|HarmonyOS/i.test(navigator.userAgent);
+
+  const toGlobal = (lx, ly) => {
+    let gx = cx + lx * cosA - ly * sinA - rect.left;
+    let gy = cy + lx * sinA + ly * cosA - rect.top;
+
+    if (isMobile) {
+      // Mobilde çok az sağa ve aşağıya kaymayı düzelt
+      gx -= 2;  // 2px sola kaydır
+      gy -= 2;  // 2px yukarı kaydır
+    }
+    return { x: gx, y: gy };
+  };
 
   const p1 = toGlobal(startX_local, startY_local);
   const p2 = toGlobal(startX_local + handleX, startY_local);
@@ -488,6 +496,7 @@ this.drawCtx.stroke();
 
   this.isDrawingLine = false;
 }
+
 
 
 
