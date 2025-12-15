@@ -81,7 +81,8 @@ window.RulerTool = {
         this.drawCanvas.style.position = 'absolute';
         
         // Çizim Çizgisini ÜSTE Taşı
-        this.drawCanvas.style.top = '-10px'; // 10px Dışarıda (üstte)
+        this.drawCanvas.style.top = '0'; // doğrudan cetvelin üst kenarına hizala
+
         this.drawCanvas.style.bottom = 'auto'; // Altı sıfırla
         
         this.drawCanvas.style.left = '0';
@@ -147,10 +148,11 @@ window.RulerTool = {
     
     // Cetvelin çizim alanını (canvas) yeniden boyutlandır
     updateDrawCanvasSize: function() {
-        if (!this.drawCanvas) return; // Güvenlik kontrolü
-        this.drawCanvas.width = this.state.width;
-        this.drawCanvas.height = 10; // Dışarıdaki kanvasın yüksekliği
-    },
+    if (!this.drawCanvas) return;
+    this.drawCanvas.width = this.state.width;
+    this.drawCanvas.height = this.bodyElement.offsetHeight; // cetvel yüksekliği
+},
+
 
     // Tıklama Sorunu Düzeltmesi
     addListeners: function() {
@@ -429,44 +431,47 @@ window.audio_draw.play();
     
     // Çizgiyi (üste taşınan) kanvasa çiz
     this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
-    this.drawCtx.beginPath();
-    this.drawCtx.moveTo(0, 4); 
-    this.drawCtx.lineTo(handleX, 4); 
-    this.drawCtx.strokeStyle = '#FFFFFF'; 
-    this.drawCtx.lineWidth = 3; 
-    this.drawCtx.stroke();
+this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
+this.drawCtx.beginPath();
+this.drawCtx.moveTo(0, 0);                  // üst kenar
+this.drawCtx.lineTo(handleX, 0);            // üst kenar boyunca
+this.drawCtx.strokeStyle = '#FFFFFF';
+this.drawCtx.lineWidth = 3;
+this.drawCtx.stroke();
+
 },
 
-    // 8. Madde: Çizimi ana kanvasa (app.js) gönderme (Zıplama Hatası Düzeltildi)
-    // --- ruler.js ---
-// LÜTFEN MEVCUT finalizeDraw FONKSİYONUNUZU BU BLOK İLE DEĞİŞTİRİN:
-
-finalizeDraw: function(x, y) {
+    finalizeDraw: function(x, y) {
   if (!this.isDrawingLine) return;
 
   const mainCanvas = document.querySelector('canvas');
   const rect = mainCanvas.getBoundingClientRect();
 
-  // Start ve end noktalarını global -> canvas koordinatlarına çevir
-  const p1 = { x: this.startPos.x - rect.left, y: this.startPos.y - rect.top };
-  const p2 = { x: x - rect.left, y: y - rect.top };
+  const rulerTopY = this.state.y;
+  const rulerLeftX = this.state.x;
 
+  const p1 = { x: rulerLeftX - rect.left, y: rulerTopY - rect.top };
+  const handleX = this.state.currentHandleX;
+  const p2 = { x: rulerLeftX + handleX - rect.left, y: rulerTopY - rect.top };
+
+  // ✅ if + else doğru şekilde yazıldı
   if (window.drawnStrokes && window.redrawAllStrokes) {
-  window.drawnStrokes.push({
-    type: 'straightLine',
-    p1, p2,
-    color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
-    width: 3,
-    lengthLabel: (Math.hypot(p2.x - p1.x, p2.y - p1.y) / this.PIXELS_PER_CM).toFixed(1).replace('.', ',') + ' cm',
-    lengthLabelPos: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
-  });
+    window.drawnStrokes.push({
+      type: 'straightLine',
+      p1,
+      p2,
+      color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
+      width: 3,
+      lengthLabel: (handleX / this.PIXELS_PER_CM).toFixed(1).replace('.', ',') + ' cm',
+      lengthLabelPos: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+    });
 
-  window.redrawAllStrokes();
-} else {
-  console.error("Hata: drawnStrokes veya redrawAllStrokes globalda bulunamadı!");
-}
-
-}, // <-- finalizeDraw fonksiyonu burada biter
+    window.redrawAllStrokes();
+  } else {
+    console.error("Hata: drawnStrokes veya redrawAllStrokes globalda bulunamadı!");
+  }
+},
+ // <-- finalizeDraw fonksiyonu burada biter
 
 // LÜTFEN KODUNUZUN KALANINI OLDUĞU GİBİ BIRAKIN
 // (window.RulerTool.init(); satırını SİLMEYİN)
