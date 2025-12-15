@@ -484,9 +484,10 @@ this.drawCtx.stroke();
 
   // Artık rect.left/top kullanıyoruz
   const toGlobal = (lx, ly) => ({
-    x: cx + lx * cosA - ly * sinA - rect.left,
-    y: cy + lx * sinA + ly * cosA - rect.top
-  });
+  x: cx + lx * cosA - ly * sinA,
+  y: cy + lx * sinA + ly * cosA
+});
+
 
   const p1 = toGlobal(startX_local, startY_local);
   const p2 = toGlobal(startX_local + handleX, startY_local);
