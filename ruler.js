@@ -445,6 +445,7 @@ this.drawCtx.stroke();
   if (!this.isDrawingLine) return;
 
   const mainCanvas = document.querySelector('canvas');
+  const rect = mainCanvas.getBoundingClientRect();
 
   const angleRad = this.state.angle * Math.PI / 180;
   const cosA = Math.cos(angleRad);
@@ -456,17 +457,28 @@ this.drawCtx.stroke();
   const cx = this.state.x + width / 2;
   const cy = this.state.y + height / 2;
 
-  // Başlangıç noktası
   const startX_local = 0;
   const startY_local = height;
-
-  // Tutamac mesafesi
   const handleX = this.state.currentHandleX;
 
-  const toGlobal = (lx, ly) => ({
-    x: cx + lx * cosA - ly * sinA,
-    y: cy + lx * sinA + ly * cosA
-  });
+  // Platform kontrolü
+  const isMobile = /Android|iPhone|iPad|HarmonyOS/i.test(navigator.userAgent);
+
+  const toGlobal = (lx, ly) => {
+    if (isMobile) {
+      // Mobilde offset daha az uygulanıyor
+      return {
+        x: cx + lx * cosA - ly * sinA,
+        y: cy + lx * sinA + ly * cosA
+      };
+    } else {
+      // PC’de offset tam uygulanıyor
+      return {
+        x: cx + lx * cosA - ly * sinA - rect.left,
+        y: cy + lx * sinA + ly * cosA - rect.top
+      };
+    }
+  };
 
   const p1 = toGlobal(startX_local, startY_local);
   const p2 = toGlobal(startX_local + handleX, startY_local);
@@ -489,6 +501,7 @@ this.drawCtx.stroke();
 
   this.isDrawingLine = false;
 }
+
 
 
  // <-- finalizeDraw fonksiyonu burada biter
