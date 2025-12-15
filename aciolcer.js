@@ -327,114 +327,117 @@ const resize = this.resizeHandle;
     },
 
   onUp: function(e) {
-    if (this.interactionMode === 'drawing') {
-      window.audio_draw.pause();
-      window.audio_draw.currentTime = 0;
+  if (this.interactionMode === 'drawing') {
+    window.audio_draw.pause();
+    window.audio_draw.currentTime = 0;
 
-      const pos = currentMousePos;
-      this.finalizeDraw(pos.x, pos.y);
+    // 🔧 Burada currentMousePos yerine getPos(e) kullan
+    const pos = this.getPos(e);
+    this.finalizeDraw(pos.x, pos.y);
 
-      this.state.isDrawing = false;
-      this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
-
-      setTimeout(() => {
-        this.previewCanvas.style.display = 'none';
-        this.redLine.style.transition = 'transform 0.05s ease-out';
-        this.redLine.style.transform = 'rotate(0deg)';
-        this.drawHandleLabel.style.display = 'none';
-      }, 50);
-    }
-    if (this.interactionMode === 'dragging') {
-      this.bodyElement.style.cursor = 'grab';
-    }
-    this.interactionMode = 'none';
-  },
-
-  handleDraw: function(currPos) {
-    this.state.hasDragged = true;
-    const cx = this.state.x;
-    const cy = this.state.y;
-
+    this.state.isDrawing = false;
     this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
-    this.previewCtx.beginPath();
-    this.previewCtx.moveTo(cx, cy);
-    this.previewCtx.lineTo(currPos.x, currPos.y);
-    this.previewCtx.strokeStyle = '#FFFFFF';
-    this.previewCtx.lineWidth = 3;
-    this.previewCtx.setLineDash([5, 5]);
-    this.previewCtx.stroke();
-    this.previewCtx.setLineDash([]);
 
-    const gdx = currPos.x - cx;
-    const gdy = currPos.y - cy;
-    const rad = -this.state.angle * Math.PI / 180;
-    const ldx = gdx * Math.cos(rad) - gdy * Math.sin(rad);
-    const ldy = gdx * Math.sin(rad) + gdy * Math.cos(rad);
+    setTimeout(() => {
+      this.previewCanvas.style.display = 'none';
+      this.redLine.style.transition = 'transform 0.05s ease-out';
+      this.redLine.style.transform = 'rotate(0deg)';
 
-    let localAngleDeg;
-    if (ldy > 0) {
-      localAngleDeg = ldx > 0 ? 0 : 180;
-    } else {
-      localAngleDeg = Math.atan2(-ldy, ldx) * 180 / Math.PI;
-    }
+      // ✅ Çizim butonunu merkeze döndür
+      this.drawHandle.style.transition = 'transform 0.05s ease-out';
+      this.drawHandle.style.transform = 'translateX(-50%) translate(0px, 0px)';
 
-    this.drawHandle.style.transform = `translateX(-50%) translate(${ldx}px, ${ldy + 5}px)`;
-    this.drawHandleLabel.style.transform = `translateX(-50%) translate(${ldx}px, ${ldy - 20}px)`;
-
-    this.state.currentDrawAngleLocal = localAngleDeg;
-    this.drawHandleLabel.innerText = `${localAngleDeg.toFixed(0)}°`;
-
-    this.redLine.style.transition = 'none';
-    this.redLine.style.transform = `rotate(${-localAngleDeg}deg)`;
-  },
-
-  finalizeDraw: function(x, y) {
-    if (!this.state.isDrawing) return;
-
-    const mainCanvas = document.querySelector('canvas');
-    const rect = mainCanvas.getBoundingClientRect();
-    const p1 = { x: this.state.x - rect.left, y: this.state.y - rect.top };
-
-    if (typeof x === 'number' && typeof y === 'number') {
-      const p2 = { x: x - rect.left, y: y - rect.top };
-      window.drawnStrokes.push({
-        type: 'ray',
-        p1,
-        p2,
-        color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
-        width: 3
-      });
-      window.redrawAllStrokes();
-      return;
-    }
-
-    const localAngleDeg = this.state.currentDrawAngleLocal;
-    const globalAngleRad = ((360 - localAngleDeg) + this.state.angle) * Math.PI / 180;
-    const p2 = {
-      x: p1.x + Math.cos(globalAngleRad) * 1000,
-      y: p1.y + Math.sin(globalAngleRad) * 1000
-    };
-
-    if (window.drawnStrokes && window.redrawAllStrokes) {
-      let l1 = '', l2 = '';
-      if (window.nextPointChar && window.advanceChar) {
-        l1 = window.nextPointChar;
-        window.nextPointChar = window.advanceChar(l1);
-        l2 = window.nextPointChar;
-        window.nextPointChar = window.advanceChar(l2);
-      }
-      window.drawnStrokes.push({
-        type: 'ray',
-        p1,
-        p2,
-        color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
-        width: 3,
-        label1: l1,
-        label2: l2
-      });
-      window.redrawAllStrokes();
-    }
+      // ✅ Etiketi gizle
+      this.drawHandleLabel.style.display = 'none';
+    }, 50);
   }
+  if (this.interactionMode === 'dragging') {
+    this.bodyElement.style.cursor = 'grab';
+  }
+  this.interactionMode = 'none';
+},
+
+handleDraw: function(currPos) {
+  this.state.hasDragged = true;
+  const cx = this.state.x;
+  const cy = this.state.y;
+
+  this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+  this.previewCtx.beginPath();
+  this.previewCtx.moveTo(cx, cy);
+  this.previewCtx.lineTo(currPos.x, currPos.y);
+  this.previewCtx.strokeStyle = '#FFFFFF';
+  this.previewCtx.lineWidth = 3;
+  this.previewCtx.setLineDash([5, 5]);
+  this.previewCtx.stroke();
+  this.previewCtx.setLineDash([]);
+
+  const gdx = currPos.x - cx;
+  const gdy = currPos.y - cy;
+  const rad = -this.state.angle * Math.PI / 180;
+  const ldx = gdx * Math.cos(rad) - gdy * Math.sin(rad);
+  const ldy = gdx * Math.sin(rad) + gdy * Math.cos(rad);
+
+  let localAngleDeg;
+  if (ldy > 0) {
+    localAngleDeg = ldx > 0 ? 0 : 180;
+  } else {
+    localAngleDeg = Math.atan2(-ldy, ldx) * 180 / Math.PI;
+  }
+
+  this.drawHandle.style.transform = `translateX(-50%) translate(${ldx}px, ${ldy + 5}px)`;
+  this.drawHandleLabel.style.transform = `translateX(-50%) translate(${ldx}px, ${ldy - 20}px)`;
+
+  // 🔧 Açıyı state’e kaydet
+  this.state.currentDrawAngleLocal = localAngleDeg;
+  this.drawHandleLabel.innerText = `${localAngleDeg.toFixed(0)}°`;
+
+  this.redLine.style.transition = 'none';
+  this.redLine.style.transform = `rotate(${-localAngleDeg}deg)`;
+},
+
+finalizeDraw: function(x, y) {
+  if (!this.state.isDrawing) return;
+
+  const mainCanvas = document.querySelector('canvas');
+  const rect = mainCanvas.getBoundingClientRect();
+  const p1 = { x: this.state.x - rect.left, y: this.state.y - rect.top };
+
+  if (typeof x === 'number' && typeof y === 'number') {
+    const p2 = { x: x - rect.left, y: y - rect.top };
+    window.drawnStrokes.push({
+      type: 'ray',
+      p1,
+      p2,
+      color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
+      width: 3
+    });
+    window.redrawAllStrokes();
+    return;
+  }
+
+  // 🔧 Parametre yoksa, kaydedilen local açıya göre hesapla
+  const localAngleDeg = this.state.currentDrawAngleLocal || 0;
+  const globalAngleRad = (localAngleDeg + this.state.angle) * Math.PI / 180;
+
+  const p2 = {
+    x: p1.x + Math.cos(globalAngleRad) * 1000,
+    y: p1.y + Math.sin(globalAngleRad) * 1000
+  };
+
+  window.drawnStrokes.push({
+    type: 'ray',
+    p1,
+    p2,
+    color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
+    width: 3
+  });
+  window.redrawAllStrokes();
+}
+
+
+
+  
 }; // ✅ tüm fonksiyonlar tek nesne içinde
 
 // Nesne tanımı kapandıktan sonra init çağrısı yapılabilir
