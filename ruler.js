@@ -457,14 +457,12 @@ this.drawCtx.stroke();
   const cx = this.state.x + width / 2;
   const cy = this.state.y + height / 2;
 
-  // Başlangıç noktası: üst kenarın sol ucu
-  const startX_local = 0;
-  const startY_local = 0;
+  // Üst kenarın sol ucu (önizleme ile aynı olmalı)
+  const startX_local = -width / 2;
+  const startY_local = -height / 2;
 
-  // Tutamac mesafesi: önizlemeden gelen state
   const handleX = this.state.currentHandleX;
 
-  // Global dönüşüm fonksiyonu
   const toGlobal = (lx, ly) => ({
     x: cx + lx * cosA - ly * sinA - rect.left,
     y: cy + lx * sinA + ly * cosA - rect.top
@@ -491,6 +489,7 @@ this.drawCtx.stroke();
 
   this.isDrawingLine = false;
 }
+
 
 
 
