@@ -444,21 +444,6 @@ this.drawCtx.stroke();
   finalizeDraw: function() {
   if (!this.isDrawingLine) return;
 
-  const mainCanvas = document.querySelector('canvas');
-  const rect = mainCanvas.getBoundingClientRect();
-
-  // --- Debug kutusu ---
-  const dbg = document.createElement("div");
-  dbg.style.position = "fixed";
-  dbg.style.bottom = "0";
-  dbg.style.left = "0";
-  dbg.style.background = "yellow";
-  dbg.style.zIndex = "9999";
-  dbg.style.padding = "5px";
-  dbg.innerText = "rect.left: " + rect.left +
-                  " rect.top: " + rect.top;
-  document.body.appendChild(dbg);
-
   const angleRad = this.state.angle * Math.PI / 180;
   const cosA = Math.cos(angleRad);
   const sinA = Math.sin(angleRad);
@@ -466,7 +451,7 @@ this.drawCtx.stroke();
   const width = this.state.width;
   const height = this.bodyElement.offsetHeight;
 
-  // cx, cy artık doğrudan state değerleri
+  // cx, cy doğrudan state değerleri
   const cx = this.state.x;
   const cy = this.state.y;
 
@@ -474,13 +459,9 @@ this.drawCtx.stroke();
   let startX_local = -width / 2;
   let startY_local = -height / 2;
 
-  // Mobil düzeltmeleri şimdilik kaldırıyoruz
-  // (gerekirse sonra ekleriz)
-  // const isMobile = /Android|iPhone|iPad|HarmonyOS/i.test(navigator.userAgent);
-
   const handleX = this.state.currentHandleX;
 
-  // Offset/scroll çıkarma yok
+  // Offset/scroll çıkarma yok, sadece açı dönüşümü
   const toGlobal = (lx, ly) => ({
     x: cx + lx * cosA - ly * sinA,
     y: cy + lx * sinA + ly * cosA
@@ -490,7 +471,9 @@ this.drawCtx.stroke();
   const p2 = toGlobal(startX_local + handleX, startY_local);
 
   const lengthPx = Math.abs(handleX);
-  const labelText = (lengthPx / this.PIXELS_PER_CM).toFixed(1).replace('.', ',') + ' cm';
+  const labelText = (lengthPx / this.PIXELS_PER_CM)
+                      .toFixed(1)
+                      .replace('.', ',') + ' cm';
 
   if (window.drawnStrokes && window.redrawAllStrokes) {
     window.drawnStrokes.push({
@@ -517,6 +500,7 @@ this.drawCtx.stroke();
 
   this.isDrawingLine = false;
 }
+
 
  // <-- finalizeDraw fonksiyonu burada biter
 
