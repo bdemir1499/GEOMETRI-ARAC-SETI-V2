@@ -441,7 +441,7 @@ this.drawCtx.stroke();
 
 },
 
-    finalizeDraw: function(x, y) {
+    finalizeDraw: function() {
   if (!this.isDrawingLine) return;
 
   const mainCanvas = document.querySelector('canvas');
@@ -458,24 +458,24 @@ this.drawCtx.stroke();
   const cx = this.state.x + width / 2;
   const cy = this.state.y + height / 2;
 
-  // Sol-üst kenarı local koordinatta (-width/2, -height/2)
-  const localX = -width / 2;
-  const localY = -height / 2;
+  // Başlangıç noktası: sayı etiketli kenarın sol ucu
+  const startX_local = 0;
+  const startY_local = height;
 
-  // Global koordinata dönüştür
-  const p1 = {
-    x: cx + localX * cosA - localY * sinA - rect.left,
-    y: cy + localX * sinA + localY * cosA - rect.top
-  };
-
-  // Tutamacın uzunluğu (local X mesafesi)
+  // Tutamacın uzunluğu (önizlemeden gelen state)
   const handleX = this.state.currentHandleX;
 
-  // Bitiş noktası: p1 + handleX mesafesi, açıyı kullanarak
-  const p2 = {
-    x: p1.x + handleX * cosA,
-    y: p1.y + handleX * sinA
-  };
+  // Global dönüşüm fonksiyonu
+  const toGlobal = (lx, ly) => ({
+    x: cx + lx * cosA - ly * sinA - rect.left,
+    y: cy + lx * sinA + ly * cosA - rect.top
+  });
+
+  const p1 = toGlobal(startX_local, startY_local);
+  const p2 = toGlobal(startX_local + handleX, startY_local);
+
+  const lengthPx = Math.abs(handleX);
+  const labelText = (lengthPx / this.PIXELS_PER_CM).toFixed(1).replace('.', ',') + ' cm';
 
   if (window.drawnStrokes && window.redrawAllStrokes) {
     window.drawnStrokes.push({
@@ -484,14 +484,17 @@ this.drawCtx.stroke();
       p2,
       color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
       width: 3,
-      lengthLabel: (handleX / this.PIXELS_PER_CM).toFixed(1).replace('.', ',') + ' cm',
+      lengthLabel: labelText,
       lengthLabelPos: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
     });
     window.redrawAllStrokes();
   } else {
     console.error("Hata: drawnStrokes veya redrawAllStrokes globalda bulunamadı!");
   }
+
+  this.isDrawingLine = false;
 },
+
 
 
 
