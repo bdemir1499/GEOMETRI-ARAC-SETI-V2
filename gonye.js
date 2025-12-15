@@ -395,77 +395,98 @@ window.GonyeTool.updateMarkings = function() {
 };
 
 // 8. Madde: Çizim Tutamacı Mantığı
+// Önizleme (sol kenar boyunca)
 window.GonyeTool.handleDraw = function(e) {
-    
-    const pos = this.getEventPos(e);
-    
-    // Farenin pozisyonunu, gönyenin döndürülmüş 'lokal' koordinatına çevir
-    const centerX = this.state.x + (this.state.width / 2);
-    const centerY = this.state.y + (this.state.height / 2);
-    const relativeX_to_center = pos.x - centerX;
-    const relativeY_to_center = pos.y - centerY;
-    const angleRad = -this.state.angle * (Math.PI / 180);
-    const cosAngle = Math.cos(angleRad);
-    const sinAngle = Math.sin(angleRad);
-    const localY_from_center = (relativeX_to_center * sinAngle) + (relativeY_to_center * cosAngle);
-    const localY_from_top = localY_from_center + (this.state.height / 2);
-    let handleY = Math.max(0, Math.min(this.state.height - 20, localY_from_top)); 
-    // ... (hesaplama bitti) ...
-    
-    this.state.currentHandleY = handleY; 
-    
-   
-    
-    // --- KRİTİK DÜZELTME (Hesaplamayı Eşitle) ---
-    // (Eski cm hesaplamasını siliyoruz)
-    
-    // 1. finalizeDraw'daki gibi yerel bitiş noktasını bul
-    const startY_local = this.state.height;
-    const endY_local = handleY + 10; // Tutamacın ortası
-    
-    // 2. Gerçek piksel uzunluğunu hesapla
-    const lengthPx = Math.abs(startY_local - endY_local);
-    
-    // 3. Pikseli CM'ye çevir ve virgül kullan
-    const cm = (lengthPx / this.PIXELS_PER_CM).toFixed(1).replace('.', ',');
-    // --- DÜZELTME SONU ---
-    
-    this.drawHandleLabel.innerText = `${cm} cm`;
-    
-    // Çizgiyi anlık (preview) çiz
-    this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
-    this.drawCtx.beginPath();
-    this.drawCtx.moveTo(4, this.state.height); // B (0) noktası
-    this.drawCtx.lineTo(4, endY_local); // Tutamacın ortası (endY_local kullandık)
-    this.drawCtx.strokeStyle = '#FFFFFF'; 
-    this.drawCtx.lineWidth = 3; 
-    this.drawCtx.stroke();
+  const pos = this.getEventPos(e);
+
+  const centerX = this.state.x + (this.state.width / 2);
+  const centerY = this.state.y + (this.state.height / 2);
+  const relativeX = pos.x - centerX;
+  const relativeY = pos.y - centerY;
+
+  const angleRadInv = -this.state.angle * Math.PI / 180;
+  const cosInv = Math.cos(angleRadInv);
+  const sinInv = Math.sin(angleRadInv);
+
+  // Lokal Y (sol kenar boyunca)
+  const localY_from_center = (relativeX * sinInv) + (relativeY * cosInv);
+  const localY_from_top = localY_from_center + (this.state.height / 2);
+
+  // Tutamac konumu (kenar boyunca clamp)
+  let handleY = Math.max(0, Math.min(this.state.height, localY_from_top));
+  this.state.currentHandleY = handleY;
+
+  // Başlangıç ve bitiş noktaları (local)
+  const startY_local = this.state.height;   // sol kenarın altı
+  const endY_local = handleY;               // tutamacın konumu
+
+  // Uzunluk etiketi
+  const lengthPx = Math.abs(startY_local - endY_local);
+  const cm = (lengthPx / this.PIXELS_PER_CM).toFixed(1).replace('.', ',');
+  this.drawHandleLabel.innerText = `${cm} cm`;
+
+  // Önizleme çizimi
+  this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
+  this.drawCtx.beginPath();
+  this.drawCtx.moveTo(0, startY_local);
+  this.drawCtx.lineTo(0, endY_local);
+  this.drawCtx.strokeStyle = '#FFFFFF';
+  this.drawCtx.lineWidth = 3;
+  this.drawCtx.stroke();
 };
 
-// 8. Madde: Çizimi ana kanvasa (app.js) gönderme
+
+// Kalıcı çizim (sol kenar boyunca)
 window.GonyeTool.finalizeDraw = function(x, y) {
   if (!this.isDrawingLine) return;
 
   const mainCanvas = document.querySelector('canvas');
   const rect = mainCanvas.getBoundingClientRect();
 
-  const p1 = { x: this.startPos.x - rect.left, y: this.startPos.y - rect.top };
-  const p2 = { x: x - rect.left, y: y - rect.top };
+  const angleRad = this.state.angle * Math.PI / 180;
+  const cosA = Math.cos(angleRad);
+  const sinA = Math.sin(angleRad);
+
+  const width = this.state.width;
+  const height = this.state.height ?? this.bodyElement.offsetHeight;
+
+  const cx = this.state.x + width / 2;
+  const cy = this.state.y + height / 2;
+
+  // Sol kenarın alt ucu (önizleme ile aynı)
+  const startX_local = -width / 2;
+  const startY_local = +height / 2;
+
+  // Tutamac mesafesi (önizlemeden gelen)
+  const endY_local = +height / 2 - (height - this.state.currentHandleY);
+
+  const toGlobal = (lx, ly) => ({
+    x: cx + lx * cosA - ly * sinA - rect.left,
+    y: cy + lx * sinA + ly * cosA - rect.top
+  });
+
+  const p1 = toGlobal(startX_local, startY_local);
+  const p2 = toGlobal(startX_local, endY_local);
+
+  const lengthPx = Math.abs(endY_local - startY_local);
+  const labelText = (lengthPx / this.PIXELS_PER_CM).toFixed(1).replace('.', ',') + ' cm';
 
   if (window.drawnStrokes && window.redrawAllStrokes) {
     window.drawnStrokes.push({
-      type: 'segment',
-      p1, p2,
+      type: 'straightLine',
+      p1,
+      p2,
       color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
-      width: 3
+      width: 3,
+      lengthLabel: labelText,
+      lengthLabelPos: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
     });
     window.redrawAllStrokes();
-  } else {
-    console.error("Hata: drawnStrokes veya redrawAllStrokes globalda bulunamadı!");
   }
 
   this.isDrawingLine = false;
 };
+
 
 // 9. Madde: Boyutlandırma Mantığı
 window.GonyeTool.handleResize = function(dx, dy) {
