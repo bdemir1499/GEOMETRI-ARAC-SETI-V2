@@ -444,23 +444,34 @@ this.drawCtx.stroke();
    finalizeDraw: function() {
   if (!this.isDrawingLine) return;
 
-
   const mainCanvas = document.querySelector('canvas');
   const rect = mainCanvas.getBoundingClientRect();
   const offsetX = mainCanvas.offsetLeft || 0;
   const offsetY = mainCanvas.offsetTop || 0;
 
-alert("rect.top: " + rect.top + 
-      " offsetTop: " + offsetY + 
-      " scrollY: " + window.scrollY);
+  // Popup denemesi
+  alert("rect.top: " + rect.top + 
+        " offsetTop: " + offsetY + 
+        " scrollY: " + window.scrollY);
 
+  // Sayfaya debug kutusu ekle (popup çıkmazsa buradan göreceksin)
+  const dbg = document.createElement("div");
+  dbg.style.position = "fixed";
+  dbg.style.bottom = "0";
+  dbg.style.left = "0";
+  dbg.style.background = "yellow";
+  dbg.style.zIndex = "9999";
+  dbg.style.padding = "5px";
+  dbg.innerText = "rect.top: " + rect.top +
+                  " offsetTop: " + offsetY +
+                  " scrollY: " + window.scrollY;
+  document.body.appendChild(dbg);
 
   // --- Debug loglar ---
   console.log("=== DEBUG finalizeDraw ===");
   console.log("rect.left/top:", rect.left, rect.top);
   console.log("offsetLeft/Top:", offsetX, offsetY);
   console.log("scrollX/Y:", window.scrollX, window.scrollY);
-  console.log("canvas size:", width, height);
 
   const angleRad = this.state.angle * Math.PI / 180;
   const cosA = Math.cos(angleRad);
@@ -521,6 +532,7 @@ alert("rect.top: " + rect.top +
 
   this.isDrawingLine = false;
 }
+
 
 
  // <-- finalizeDraw fonksiyonu burada biter
