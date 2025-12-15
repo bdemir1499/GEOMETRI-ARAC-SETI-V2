@@ -458,8 +458,17 @@ this.drawCtx.stroke();
   const cx = this.state.x + width / 2;
   const cy = this.state.y + height / 2;
 
-  const startX_local = -width / 2;
-  const startY_local = -height / 2;
+  // Üst kenarın sol ucu
+  let startX_local = -width / 2;
+  let startY_local = -height / 2;
+
+  // Mobilde birkaç px yukarı kaydır
+  const isMobile = /Android|iPhone|iPad|HarmonyOS/i.test(navigator.userAgent);
+  if (isMobile) {
+    startY_local -= 3;   // 3px yukarı
+    startX_local -= 1;   // 1px sola
+  }
+
   const handleX = this.state.currentHandleX;
 
   const toGlobal = (lx, ly) => ({
@@ -498,9 +507,6 @@ this.drawCtx.stroke();
 
   this.isDrawingLine = false;
 }
-
-
-
 
  // <-- finalizeDraw fonksiyonu burada biter
 
