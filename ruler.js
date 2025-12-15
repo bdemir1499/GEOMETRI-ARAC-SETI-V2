@@ -445,8 +445,6 @@ this.drawCtx.stroke();
   if (!this.isDrawingLine) return;
 
   const mainCanvas = document.querySelector('canvas');
-
-  // PC ve mobil farkını azaltmak için offsetLeft/offsetTop kullan
   const offsetX = mainCanvas.offsetLeft || 0;
   const offsetY = mainCanvas.offsetTop || 0;
 
@@ -460,14 +458,13 @@ this.drawCtx.stroke();
   const cx = this.state.x + width / 2;
   const cy = this.state.y + height / 2;
 
-  // Üst kenarın sol ucu
   const startX_local = -width / 2;
   const startY_local = -height / 2;
   const handleX = this.state.currentHandleX;
 
   const toGlobal = (lx, ly) => ({
-    x: cx + lx * cosA - ly * sinA - offsetX,
-    y: cy + lx * sinA + ly * cosA - offsetY
+    x: cx + lx * cosA - ly * sinA - offsetX - window.scrollX,
+    y: cy + lx * sinA + ly * cosA - offsetY - window.scrollY
   });
 
   const p1 = toGlobal(startX_local, startY_local);
@@ -489,7 +486,7 @@ this.drawCtx.stroke();
     window.redrawAllStrokes();
   }
 
-  // --- Tutamac çizgisini ana canvas'a da ekle ---
+  // Tutamac çizgisini ana canvas'a da ekle
   if (this.drawCtx) {
     this.drawCtx.beginPath();
     this.drawCtx.moveTo(p1.x, p1.y);
@@ -501,6 +498,7 @@ this.drawCtx.stroke();
 
   this.isDrawingLine = false;
 }
+
 
 
 
