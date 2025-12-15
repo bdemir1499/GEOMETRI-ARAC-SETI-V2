@@ -441,20 +441,13 @@ this.drawCtx.stroke();
 
 },
 
-   finalizeDraw: function() {
+  finalizeDraw: function() {
   if (!this.isDrawingLine) return;
 
   const mainCanvas = document.querySelector('canvas');
   const rect = mainCanvas.getBoundingClientRect();
-  const offsetX = mainCanvas.offsetLeft || 0;
-  const offsetY = mainCanvas.offsetTop || 0;
 
-  // Popup denemesi
-  alert("rect.top: " + rect.top + 
-        " offsetTop: " + offsetY + 
-        " scrollY: " + window.scrollY);
-
-  // Sayfaya debug kutusu ekle (popup çıkmazsa buradan göreceksin)
+  // --- Debug kutusu ---
   const dbg = document.createElement("div");
   dbg.style.position = "fixed";
   dbg.style.bottom = "0";
@@ -462,16 +455,9 @@ this.drawCtx.stroke();
   dbg.style.background = "yellow";
   dbg.style.zIndex = "9999";
   dbg.style.padding = "5px";
-  dbg.innerText = "rect.top: " + rect.top +
-                  " offsetTop: " + offsetY +
-                  " scrollY: " + window.scrollY;
+  dbg.innerText = "rect.left: " + rect.left +
+                  " rect.top: " + rect.top;
   document.body.appendChild(dbg);
-
-  // --- Debug loglar ---
-  console.log("=== DEBUG finalizeDraw ===");
-  console.log("rect.left/top:", rect.left, rect.top);
-  console.log("offsetLeft/Top:", offsetX, offsetY);
-  console.log("scrollX/Y:", window.scrollX, window.scrollY);
 
   const angleRad = this.state.angle * Math.PI / 180;
   const cosA = Math.cos(angleRad);
@@ -496,9 +482,10 @@ this.drawCtx.stroke();
 
   const handleX = this.state.currentHandleX;
 
+  // Artık rect.left/top kullanıyoruz
   const toGlobal = (lx, ly) => ({
-    x: cx + lx * cosA - ly * sinA - offsetX - window.scrollX,
-    y: cy + lx * sinA + ly * cosA - offsetY - window.scrollY
+    x: cx + lx * cosA - ly * sinA - rect.left,
+    y: cy + lx * sinA + ly * cosA - rect.top
   });
 
   const p1 = toGlobal(startX_local, startY_local);
@@ -532,6 +519,7 @@ this.drawCtx.stroke();
 
   this.isDrawingLine = false;
 }
+
 
 
 
