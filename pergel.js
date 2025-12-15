@@ -504,26 +504,26 @@ onFlip: function(e) {
     
     // Anlık önizleme (Sürüklerken)
     drawPreviewArc: function() {
-        if (!this.previewCtx) return; // Güvenlik
-        
-        this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
-        this.previewCtx.lineDashOffset = (this.previewCtx.lineDashOffset - 0.5) % 16;
-        
-        this.previewCtx.beginPath();
-        this.previewCtx.arc(
-            this.state.pivot.x,
-            this.state.pivot.y,
-            this.state.radius,
-            this.state.startAngle * (Math.PI / 180), 
-            this.state.rotation * (Math.PI / 180), 
-            false // 180 derece hatası düzeltildiği için yön hep 'false'
-        );
-        this.previewCtx.strokeStyle = "rgba(255, 0, 255, 0.7)"; 
-        this.previewCtx.lineWidth = 3;
-        this.previewCtx.setLineDash([5, 5]);
-        this.previewCtx.stroke();
-        this.previewCtx.setLineDash([]);
-    },
+  if (!this.previewCtx) return;
+
+  this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+  this.previewCtx.lineDashOffset = (this.previewCtx.lineDashOffset - 0.5) % 16;
+
+  this.previewCtx.beginPath();
+  this.previewCtx.arc(
+    this.state.pivot.x,
+    this.state.pivot.y,
+    this.state.radius,
+    this.state.startAngle * (Math.PI / 180),
+    this.state.rotation * (Math.PI / 180),
+    false
+  );
+  this.previewCtx.strokeStyle = "rgba(255, 0, 255, 0.7)";
+  this.previewCtx.lineWidth = 3;
+  this.previewCtx.setLineDash([5, 5]);
+  this.previewCtx.stroke();
+  this.previewCtx.setLineDash([]);
+},
     
     // Çizimi bitir (Ana kanvasa gönder)
     finalizeDraw: function(x, y) {
@@ -532,13 +532,17 @@ onFlip: function(e) {
   const mainCanvas = document.querySelector('canvas');
   const rect = mainCanvas.getBoundingClientRect();
 
+  // Önizleme ile aynı pivot ve açı değerleri kullanılmalı
+  const cx = this.state.pivot.x - rect.left;
+  const cy = this.state.pivot.y - rect.top;
+
   const centerLabel = window.nextPointChar;
   window.nextPointChar = window.advanceChar(centerLabel);
 
   window.drawnStrokes.push({
     type: 'arc',
-    cx: this.startState.pivot.x - rect.left,
-    cy: this.startState.pivot.y - rect.top,
+    cx: cx,
+    cy: cy,
     radius: this.state.radius,
     startAngle: this.state.startAngle,
     endAngle: this.state.rotation,
@@ -548,7 +552,9 @@ onFlip: function(e) {
   });
 
   window.redrawAllStrokes();
+  this.state.isDrawing = false;
 }
+
 
 
 };
