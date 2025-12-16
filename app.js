@@ -2965,33 +2965,41 @@ setInterval(() => {
     }
 }, 1000);
 
-// --- OTOMATİK PWA YÜKLEME PENCERESİ (Gelişmiş Versiyon) ---
+// --- AKILLI PWA YÜKLEME PENCERESİ (HAFIZALI VERSİYON) ---
 
 (function() {
-    let deferredPrompt; // Android yükleme olayını saklar
+    let deferredPrompt; 
     const popup = document.getElementById('install-popup');
     const installBtn = document.getElementById('btn-popup-install');
     const closeBtn = document.getElementById('btn-popup-close');
     const iosInstructions = document.getElementById('ios-instructions');
     const pwaText = document.getElementById('pwa-text');
 
-    // Cihazın iOS olup olmadığını ve yüklü olup olmadığını kontrol et
-    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    // 1. KONTROL: Uygulama zaten yüklü mü veya "Yüklü" modunda mı çalışıyor?
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    
+    // 2. KONTROL: Kullanıcı daha önce "Hayır" dedi mi veya yükledi mi?
+    const isDismissed = localStorage.getItem('pwa_popup_seen') === 'true';
+
+    // 3. Cihaz iOS mu?
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    // --- EĞER UYGULAMA YÜKLÜYSE VEYA REDDEDİLDİYSE HİÇBİR ŞEY YAPMA ---
+    if (isStandalone || isDismissed) {
+        return; // Kod buradan aşağıya inmez, pencere açılmaz.
+    }
 
     // --- SENARYO 1: ANDROID / HARMONYOS / CHROME ---
     window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault(); // Tarayıcının kendi çirkin uyarısını engelle
-        deferredPrompt = e; // Olayı sakla
+        e.preventDefault(); 
+        deferredPrompt = e; 
         
-        // PENCEREYİ OTOMATİK AÇ
+        // Şartlar uygunsa pencereyi aç
         popup.style.display = 'flex';
     });
 
     // --- SENARYO 2: IOS (IPAD/IPHONE) ---
-    // iOS 'beforeinstallprompt' desteklemez, o yüzden manuel kontrol yapıyoruz.
     if (isIos && !isStandalone) {
-        // Sayfa yüklendikten 1 saniye sonra pencereyi aç (Kullanıcı siteyi görsün sonra çıksın)
         setTimeout(() => {
             popup.style.display = 'flex';
         }, 1000);
@@ -2999,40 +3007,44 @@ setInterval(() => {
 
     // --- BUTON İŞLEMLERİ ---
 
-    // 1. "Evet, İndir" butonuna basılınca
+    // 1. "Evet, İndir" Butonu
     if (installBtn) {
         installBtn.addEventListener('click', async () => {
             
-            // A) Android/HarmonyOS ise: Gerçek yükleme ekranını tetikle
+            // A) Android/HarmonyOS
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
-                console.log(`Kurulum sonucu: ${outcome}`);
-                deferredPrompt = null;
-                // Kabul ederse pencereyi kapat
+                
+                // Eğer kullanıcı kabul ederse hafızaya al ve bir daha sorma
                 if (outcome === 'accepted') {
+                    localStorage.setItem('pwa_popup_seen', 'true'); // <--- HAFIZAYA KAYDET
                     popup.style.display = 'none';
                 }
+                deferredPrompt = null;
             }
-            // B) iOS ise: Talimatları göster (Çünkü Apple otomatik yüklemeye izin vermez)
+            // B) iOS
             else if (isIos) {
-                pwaText.style.display = 'none'; // Soru yazısını gizle
-                iosInstructions.style.display = 'block'; // Talimatları göster
-                installBtn.style.display = 'none'; // İndir butonunu gizle (artık işlevsiz)
-                closeBtn.innerText = "Tamam, Anladım"; // Kapat butonunun yazısını değiştir
+                pwaText.style.display = 'none'; 
+                iosInstructions.style.display = 'block'; 
+                installBtn.style.display = 'none'; 
+                closeBtn.innerText = "Tamam, Anladım"; 
             }
         });
     }
 
-    // 2. "Hayır / Kapat" butonuna basılınca
+    // 2. "Hayır / Kapat" Butonu
     if (closeBtn) {
         closeBtn.addEventListener('click', () => {
+            // Kullanıcı "Hayır" dedi, bunu hafızaya yaz ve bir daha sorma
+            localStorage.setItem('pwa_popup_seen', 'true'); // <--- HAFIZAYA KAYDET
             popup.style.display = 'none';
         });
     }
 
-    // 3. Uygulama zaten yüklendiyse pencereyi asla gösterme
+    // 3. Uygulama Yüklendiği Anda
     window.addEventListener('appinstalled', () => {
+        localStorage.setItem('pwa_popup_seen', 'true'); // <--- HAFIZAYA KAYDET
         popup.style.display = 'none';
         deferredPrompt = null;
     });
