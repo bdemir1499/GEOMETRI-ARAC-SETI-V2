@@ -1,29 +1,37 @@
-// --- app.js EN ÜST SATIRINA ---
-// Hareket geçmişini tutacak liste (Sıçrama önleyici tampon)
-window.touchHistoryBuffer = [];
-// ------------------------------+
+// --- TABLET/MOBİL SIÇRAMA ENGELLEYİCİ (GHOST CLICK BLOCKER) ---
+// Bu kod, parmak kaldırıldıktan sonra gelen sahte mouse olaylarını iptal eder.
 
-// --- app.js EN ÜST SATIRINA YAPIŞTIR ---
-// Tablet Sıçrama Önleyici: Son güvenli konumu sakla
-window.lastSafeDrawPos = { x: 0, y: 0 };
+let lastTouchTime = 0;
 
-document.addEventListener('touchmove', function(e) {
-    // Sadece tek parmakla çizim yaparken kayıt al
-    if (e.touches.length === 1) {
-        window.lastSafeDrawPos = {
-
-            x: e.touches[0].clientX,
-            y: e.touches[0].clientY
-        };
+// Dokunma bitiş zamanını kaydet
+document.addEventListener('touchend', function(e) {
+    lastTouchTime = new Date().getTime();
+    // Tutamaç gibi araçlarda varsayılan davranışı durdur (Zıplamayı önler)
+    if(e.target.closest('.draw-handle, .rotate-handle, .resize-handle')) {
+        e.preventDefault(); 
     }
 }, { passive: false });
-// ---------------------------------------
-// Android/iOS sıçrama önleyici (Ghost Click Blocker)
-let lastTouchTime = 0;
-document.addEventListener('touchstart', function() { 
-lastTouchTime = new Date().getTime();
- }, {passive: false});
 
+// Dokunmadan sonra gelen mouse olaylarını yakala ve öldür
+document.addEventListener('click', function(e) {
+    const timeSinceTouch = new Date().getTime() - lastTouchTime;
+    // Eğer son 500ms içinde dokunmatik işlem yapıldıysa, bu sahte bir mouse tıklamasıdır.
+    if (timeSinceTouch < 500 && timeSinceTouch > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+}, true); // 'true' ile yakalama (capture) modunda çalışır
+
+document.addEventListener('mousedown', function(e) {
+    const timeSinceTouch = new Date().getTime() - lastTouchTime;
+    if (timeSinceTouch < 500 && timeSinceTouch > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+}, true);
+// -------------------------------------------------------------
 
 document.addEventListener('mousedown', function(e) {
     const now = new Date().getTime();
