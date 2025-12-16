@@ -1,37 +1,54 @@
-// --- TABLET/MOBİL SIÇRAMA ENGELLEYİCİ (GHOST CLICK BLOCKER) ---
-// Bu kod, parmak kaldırıldıktan sonra gelen sahte mouse olaylarını iptal eder.
+// --- TABLET/MOBİL SIÇRAMA ENGELLEYİCİ (AKILLI VERSİYON) ---
+// Bu kod, çizim yaparken oluşan hatalı tıklamaları engeller
+// AMA butonlara basılmasına izin verir.
 
 let lastTouchTime = 0;
 
-// Dokunma bitiş zamanını kaydet
+// 1. Dokunma Bitişini Kaydet
 document.addEventListener('touchend', function(e) {
     lastTouchTime = new Date().getTime();
-    // Tutamaç gibi araçlarda varsayılan davranışı durdur (Zıplamayı önler)
+    
+    // Sadece ÇİZİM araçları (tutamaçlar) üzerindeyse varsayılanı engelle
+    // Butonlar üzerinde engelleme YAPMA!
     if(e.target.closest('.draw-handle, .rotate-handle, .resize-handle')) {
         e.preventDefault(); 
     }
 }, { passive: false });
 
-// Dokunmadan sonra gelen mouse olaylarını yakala ve öldür
-document.addEventListener('click', function(e) {
+// 2. Tıklama Olaylarını Filtrele
+const clickBlocker = function(e) {
     const timeSinceTouch = new Date().getTime() - lastTouchTime;
-    // Eğer son 500ms içinde dokunmatik işlem yapıldıysa, bu sahte bir mouse tıklamasıdır.
+    
+    // Eğer son 500ms içinde dokunmatik işlem yapıldıysa ve bu bir Mouse olayıysa...
     if (timeSinceTouch < 500 && timeSinceTouch > 0) {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-    }
-}, true); // 'true' ile yakalama (capture) modunda çalışır
+        
+        // KRİTİK NOKTA: Tıklanan şey bir BUTON, INPUT veya ETİKET ise engelleme!
+        if (e.target.closest('button, .tool-btn, input, label, a, .pwa-btn')) {
+            return; // İzin ver, fonksiyondan çık
+        }
 
-document.addEventListener('mousedown', function(e) {
-    const timeSinceTouch = new Date().getTime() - lastTouchTime;
-    if (timeSinceTouch < 500 && timeSinceTouch > 0) {
+        // Değilse (Canvas üzerindeyse) engelle
         e.preventDefault();
         e.stopPropagation();
         return false;
     }
-}, true);
-// -------------------------------------------------------------
+};
+
+// Bu filtreyi hem click hem mousedown için uygula
+document.addEventListener('click', clickBlocker, true);
+document.addEventListener('mousedown', clickBlocker, true);
+
+// 3. CSS Dokunma İyileştirmesi (Tüm butonlar için)
+// Bu kod butonların daha hızlı tepki vermesini sağlar
+const style = document.createElement('style');
+style.innerHTML = `
+    button, .tool-btn, .pwa-btn, a {
+        touch-action: manipulation; /* Çift tıklama zoom'unu kapatır, hızlandırır */
+        cursor: pointer;
+    }
+`;
+document.head.appendChild(style);
+// -------------------------------------------------------------// -------------------------------------------------------------
 
 document.addEventListener('mousedown', function(e) {
     const now = new Date().getTime();
