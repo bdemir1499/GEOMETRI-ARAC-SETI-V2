@@ -57,7 +57,11 @@
         <button id="btn-kalem" class="tool-button">Kalem</button>
         <div id="pen-options" class="tool-options hidden">
             <div class="color-box" style="background-color: #FFFFFF;"></div> 
-            
+            <div class="color-box" style="background-color: #000000;" data-color="#000000"></div>
+
+<div class="color-box" style="background-color: #0000FF;" data-color="#0000FF"></div>
+
+<div class="color-box" style="background-color: #FF0000;" data-color="#FF0000"></div>
             <div class="color-box" style="background-color: #FF69B4;"></div> 
             <div class="color-box" style="background-color: #00FFCC;"></div> 
             <div class="color-box" style="background-color: #FFA500;"></div> 
@@ -155,48 +159,7 @@
         </div>
     </div>
 
-<div id="install-popup" class="pwa-overlay" style="display: none;">
-    <div class="pwa-box">
-        <h3>📲 Uygulamayı İndir</h3>
-        <p id="pwa-text">Geometri Araç Setini tabletinize/telefonunuza yüklemek ister misiniz? (İnternetsiz çalışır)</p>
-        
-        <div id="ios-instructions" style="display: none; text-align: left; font-size: 14px; background: #f0f0f0; padding: 10px; border-radius: 5px; margin: 10px 0;">
-            <strong>iPad/iPhone için:</strong><br>
-            1. 📤 <strong>Paylaş</strong> butonuna basın.<br>
-            2. Listeden <strong>"Ana Ekrana Ekle"</strong> seçeneğini seçin.<br>
-            3. Sağ üstten <strong>"Ekle"</strong> deyin.
-        </div>
 
-        <div class="pwa-buttons">
-            <button id="btn-popup-install" class="pwa-btn confirm">✅ Evet, İndir</button>
-            <button id="btn-popup-close" class="pwa-btn cancel">❌ Hayır, İstemem</button>
-        </div>
-    </div>
-</div>
-
-<style>
-    .pwa-overlay {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.7); /* Arka planı karart */
-        z-index: 99999; /* En üstte olsun */
-        display: flex; justify-content: center; align-items: center;
-        backdrop-filter: blur(5px); /* Arkadaki çizimleri bulanıklaştır */
-    }
-    .pwa-box {
-        background: white; width: 90%; max-width: 400px;
-        padding: 25px; border-radius: 15px; text-align: center;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-        font-family: Arial, sans-serif;
-    }
-    .pwa-box h3 { margin-top: 0; color: #333; }
-    .pwa-buttons { margin-top: 20px; display: flex; gap: 10px; justify-content: center; }
-    .pwa-btn {
-        padding: 10px 20px; border: none; border-radius: 8px;
-        font-size: 16px; cursor: pointer; font-weight: bold;
-    }
-    .pwa-btn.confirm { background-color: #28a745; color: white; }
-    .pwa-btn.cancel { background-color: #dc3545; color: white; }
-</style>
 
     <script src="pdf.min.js"></script>
     <script src="app.js"></script>
