@@ -1318,44 +1318,21 @@ if (window.shapeTimer) {
 });
 
 canvas.addEventListener('mousemove', (e) => {
-    // --- ÇEMBER ALGILAMA (KESİN ÇÖZÜM) ---
-    // Sadece Kalem seçiliyse VE Sol Tık basılıysa
+    // --- SADELEŞTİRİLMİŞ ÇİZİM KAYDI ---
     if (window.currentTool === 'pen' && e.buttons === 1) { 
-
-        // 1. Koordinatı Hesapla
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         
-        // 2. Yola Ekle
+        // Sadece noktayı kaydet, hesaplama yapma
+        if (!window.penPath) window.penPath = [];
         window.penPath.push({x, y});
+    }    
 
-        // 3. Kontrol (En az 30 nokta çizilmişse)
-        if (window.penPath.length > 30) {
-            const start = window.penPath[0];
-            // Başlangıca uzaklık (Pisagor)
-            const dist = Math.sqrt(Math.pow(x - start.x, 2) + Math.pow(y - start.y, 2));
 
-            // EĞER BAŞLANGICA 50px KADAR YAKLAŞTIYSA (Toleransı artırdık)
-            if (dist < 50) {
-                if (!window.shapeTimer) {
-                    // Zamanlayıcıyı başlat
-                    window.shapeTimer = setTimeout(() => {
-                        window.convertPenToCircle();
-                    }, 800); // 0.8 saniye bekle
-                }
-            } else {
-                // Uzaklaştıysa iptal et
-                if (window.shapeTimer) {
-                    clearTimeout(window.shapeTimer);
-                    window.shapeTimer = null;
-                }
-            }
-        }
-    }
-    
-    // ... (Buradan aşağıda sizin mevcut çizim kodlarınız devam etmeli) ...
-});    // 1. TAŞIMA (MOVE) MANTIĞI
+    // --- BURADA HİÇBİR KAPATMA PARANTEZİ OLMAMALI ---
+
+    // 1. TAŞIMA (MOVE) MANTIĞI
     if (currentTool === 'move' && isMoving) {
         const pos = getEventPosition(e);
         const dx = pos.x - dragStartPos.x;
@@ -1407,27 +1384,15 @@ canvas.addEventListener('mousemove', (e) => {
                 }
             }
         }
-        
         redrawAllStrokes();
-        return; 
     }
 
     // Araç Kontrolü
-    // --- ESKİ HATALI SATIRI SİL, YERİNE BUNU YAPIŞTIR ---
-if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciolcer' || currentTool === 'pergel') {
-    // 1. Çizim bayrağını indir
-    isDrawing = false;
-    
-    // 2. Yolu mutlaka kapat (Sıçramayı engelleyen asıl komut)
-    if (ctx) ctx.beginPath();
+    if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciolcer' || currentTool === 'pergel') {
+        isDrawing = false;
+        if (ctx) ctx.beginPath();
+    }
 
-    // 3. Varsa bu araçların kendi özel sürükleme/döndürme bayraklarını da sıfırla
-    // (Kodunda bu değişkenlerin adları farklı olabilir ama mantık budur)
-    // isRotating = false; 
-    // isDraggingRuler = false; 
-
-    return; // ŞİMDİ çıkış yapabilirsin
-}
     if (currentTool === 'none') return;
     
     const pos = getEventPosition(e);
@@ -1436,7 +1401,6 @@ if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciol
     // Akıllı Yakalama
     clearTimeout(snapHoverTimer);
     snapHoverTimer = null;
-    
     const canSnap = (currentTool === 'point' || currentTool === 'straightLine' || currentTool === 'pen' || currentTool === 'segment');
     
     if (canSnap) {
@@ -1470,7 +1434,6 @@ if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciol
     let previewActive = false;
     ctx.globalAlpha = 0.6; 
     ctx.setLineDash([8, 4]);
-
     const endPos = snapTarget || currentMousePos;
 
     if (currentTool === 'straightLine' && isDrawingLine) {
@@ -1548,22 +1511,16 @@ if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciol
         else labelText = `Kenar: ${((2 * currentRadius * Math.sin(Math.PI / type)) / 30).toFixed(1)} cm`;
         polygonPreviewLabel.innerText = labelText;
     }
-
-    // --- CANLANDIRMA (KUTU) ÖNİZLEMESİ ---
-    // (Burası artık 'isDrawing' kontrolünün ÜSTÜNDE)
     else if (currentTool === 'snapshot' && snapshotStart) {
         redrawAllStrokes(); 
-        
         const w = currentMousePos.x - snapshotStart.x;
         const h = currentMousePos.y - snapshotStart.y;
-        
         ctx.save();
         ctx.setLineDash([5, 5]); 
         ctx.strokeStyle = '#FF0000'; 
         ctx.lineWidth = 2;
         ctx.strokeRect(snapshotStart.x, snapshotStart.y, w, h); 
         ctx.restore();
-        
         previewActive = true; 
     }
 
@@ -1573,7 +1530,6 @@ if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciol
     if (previewActive) return; 
 
     // --- ÇİZİM İŞLEMLERİ (KALEM/SİLGİ) ---
-    // Bu kontrol artık Canlandırma'yı engellemeyecek
     if (!isDrawing) return;
 
     if (currentTool === 'pen') {
@@ -1586,13 +1542,11 @@ if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciol
         
         for (const stroke of drawnStrokes) {
             let touched = false;
-
-            if (stroke.type === 'pen') {
+            // ... (Silgi mantığı kısaltıldı, zaten aynı) ...
+             if (stroke.type === 'pen') {
                 for (const point of stroke.path) { if (distance(point, pos) < 10) { touched = true; break; } }
             } 
-            else if (stroke.type === 'point') {
-                if (distance(stroke, pos) < 10) { touched = true; }
-            } 
+            else if (stroke.type === 'point') { if (distance(stroke, pos) < 10) touched = true; } 
             else if (stroke.type === 'straightLine' || stroke.type === 'line' || stroke.type === 'segment' || stroke.type === 'ray') {
                 const p1 = stroke.p1; const p2 = stroke.p2;
                 const steps = Math.max(1, Math.floor(distance(p1, p2) / 5)); 
@@ -1635,7 +1589,6 @@ if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciol
                 }
             } 
             else if (stroke.type === 'image') {
-                // Arka plan koruması
                 if (!stroke.isBackground) { 
                     const dx = pos.x - stroke.x;
                     const dy = pos.y - stroke.y;
@@ -1657,7 +1610,10 @@ if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciol
             redrawAllStrokes(); 
         }
     }
-}); // <--- 4. BURASI DOĞRU (Mousemove olayını kapatır)
+}); // <--- YENİ EKLENEN KAPATMA PARANTEZİ 
+
+
+// <--- 4. BURASI DOĞRU (Mousemove olayını kapatır)
 
 canvas.addEventListener('mouseup', () => {
 
@@ -3073,54 +3029,49 @@ setInterval(() => {
 
 // --- AKILLI PWA YÜKLEME PENCERESİ (DÜZELTİLMİŞ) ---
 (function() {
+    // 1. Değişkenleri Tanımla
     let deferredPrompt; 
-    
-    // Önce sadece popup'ı tanımla
     const popup = document.getElementById('install-popup');
 
     // --- GÜVENLİK KONTROLÜ ---
-    // Eğer HTML'de 'install-popup' yoksa dur (Hata verme)
+    // Eğer HTML'de 'install-popup' yoksa, fonksiyonu burada durdur.
+    // Bu 'return' komutu, '(function() { ... })' içinde olduğu için artık HATA VERMEZ.
     if (!popup) return; 
 
-    // Şimdi diğerlerini tanımla
     const installBtn = document.getElementById('btn-popup-install');
     const closeBtn = document.getElementById('btn-popup-close');
     const iosInstructions = document.getElementById('ios-instructions');
     const pwaText = document.getElementById('pwa-text');
 
-    // 1. KONTROL: Uygulama zaten yüklü mü?
+    // 2. Kontroller
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-    
-    // 2. KONTROL: Kullanıcı daha önce "Hayır" dedi mi?
     const isDismissed = localStorage.getItem('pwa_popup_seen') === 'true';
-
-    // 3. Cihaz iOS mu?
     const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-    // --- EĞER YÜKLÜYSE VEYA REDDEDİLDİYSE ÇIK ---
+    // 3. Zaten yüklüyse veya reddedildiyse çık
     if (isStandalone || isDismissed) {
         return; 
     }
 
-    // --- SENARYO 1: ANDROID / CHROME ---
+    // 4. Android / Chrome Tetikleyicisi
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault(); 
         deferredPrompt = e; 
         popup.style.display = 'flex';
     });
 
-    // --- SENARYO 2: IOS ---
+    // 5. iOS Tetikleyicisi
     if (isIos && !isStandalone) {
         setTimeout(() => {
             popup.style.display = 'flex';
         }, 1000);
     }
 
-    // --- BUTON İŞLEMLERİ ---
+    // 6. Buton Olayları
     if (installBtn) {
         installBtn.addEventListener('click', async () => {
-            // A) Android
             if (deferredPrompt) {
+                // Android Yükleme
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
                 if (outcome === 'accepted') {
@@ -3128,9 +3079,8 @@ setInterval(() => {
                     popup.style.display = 'none';
                 }
                 deferredPrompt = null;
-            }
-            // B) iOS
-            else if (isIos) {
+            } else if (isIos) {
+                // iOS Yönergesi
                 if(pwaText) pwaText.style.display = 'none'; 
                 if(iosInstructions) iosInstructions.style.display = 'block'; 
                 installBtn.style.display = 'none'; 
@@ -3152,20 +3102,24 @@ setInterval(() => {
         deferredPrompt = null;
     });
 
-})();
+})(); // <--- Fonksiyon burada kapanıyor, bu yüzden içindeki return'ler geçerli.
 
-// --- ÇEMBER DÖNÜŞTÜRME FONKSİYONU (BU KISIM DOĞRUYDU, AYNEN KALDI) ---
+
+// --- ÇEMBER DÖNÜŞTÜRME FONKSİYONU ---
 window.convertPenToCircle = function() {
     clearTimeout(window.shapeTimer);
     window.shapeTimer = null;
 
+    // Çizim modunu kapat
     window.isDrawing = false; 
     window.currentPath = null; 
 
+    // Son hatalı çizgiyi sil
     if (window.drawnStrokes.length > 0) {
         window.drawnStrokes.pop(); 
     }
 
+    // Sınırları hesapla
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     if (!window.penPath || window.penPath.length === 0) return;
 
@@ -3180,6 +3134,7 @@ window.convertPenToCircle = function() {
     const centerY = (minY + maxY) / 2;
     const radius = Math.max(maxX - minX, maxY - minY) / 2;
 
+    // Yeni Çember Ekle
     window.drawnStrokes.push({
         type: 'circle',
         cx: centerX,
@@ -3191,6 +3146,7 @@ window.convertPenToCircle = function() {
         p2: { x: centerX + radius, y: centerY + radius }
     });
 
+    // Sahneyi Yenile
     window.redrawAllStrokes();
     window.penPath = [];
     console.log("Çember oluşturuldu!");
