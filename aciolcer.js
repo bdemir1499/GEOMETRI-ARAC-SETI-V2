@@ -401,41 +401,40 @@ finalizeDraw: function(x, y) {
 
   const mainCanvas = document.querySelector('canvas');
   const rect = mainCanvas.getBoundingClientRect();
+  
+  // Başlangıç noktası (Açıölçerin merkezi)
   const p1 = { x: this.state.x - rect.left, y: this.state.y - rect.top };
 
+  // Hedef açıyı hesapla
+  let globalAngleRad;
+
   if (typeof x === 'number' && typeof y === 'number') {
-    const p2 = { x: x - rect.left, y: y - rect.top };
-    window.drawnStrokes.push({
-      type: 'ray',
-      p1,
-      p2,
-      color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
-      width: 3
-    });
-    window.redrawAllStrokes();
-    return;
+    // 1. Durum: Kullanıcı fareyi bir yere bırakmışsa, o noktanın açısını bul
+    const dx = (x - rect.left) - p1.x;
+    const dy = (y - rect.top) - p1.y;
+    globalAngleRad = Math.atan2(dy, dx);
+  } else {
+    // 2. Durum: Otomatik çizimse, gönyenin üzerindeki açıyı kullan
+    const localAngleDeg = this.state.currentDrawAngleLocal || 0;
+    globalAngleRad = (localAngleDeg + this.state.angle) * Math.PI / 180;
   }
 
-  // 🔧 Parametre yoksa, kaydedilen local açıya göre hesapla
-  const localAngleDeg = this.state.currentDrawAngleLocal || 0;
-  const globalAngleRad = (localAngleDeg + this.state.angle) * Math.PI / 180;
-
+  // Hile: Çizgiyi ışın gibi görünmesi için 5000px ileri uzatıyoruz
   const p2 = {
-    x: p1.x + Math.cos(globalAngleRad) * 1000,
-    y: p1.y + Math.sin(globalAngleRad) * 1000
+    x: p1.x + Math.cos(globalAngleRad) * 5000,
+    y: p1.y + Math.sin(globalAngleRad) * 5000
   };
 
   window.drawnStrokes.push({
-    type: 'ray',
+    type: 'straightLine', // DEĞİŞİKLİK: 'ray' yerine 'straightLine' (Noktasız çizim)
     p1,
     p2,
     color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
     width: 3
   });
+  
   window.redrawAllStrokes();
 }
-
-
 
   
 }; // ✅ tüm fonksiyonlar tek nesne içinde

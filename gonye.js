@@ -29,87 +29,74 @@ window.GonyeTool = {
     drawCanvas: null, 
     drawCtx: null,
     
-    // 1. Madde: Gönyeyi oluştur ve sayfaya ekle (init)
+    // 1. Madde: Gönyeyi oluştur ve sayfaya ekle (SOL KENAR DIŞI DÜZELTMESİ)
+    // 1. Madde: Gönyeyi oluştur ve sayfaya ekle (KESİN SOL DIŞ KONUM)
     init: function() {
-        if (this.gonyeElement) return; // Zaten oluşturulmuş
+        if (this.gonyeElement) return;
 
-        // Ana Konteyner
         this.gonyeElement = document.createElement('div');
         this.gonyeElement.className = 'gonye-container';
         
-        // 3. Madde: Sürüklenebilir Gövde
         this.bodyElement = document.createElement('div');
         this.bodyElement.className = 'gonye-body';
         this.gonyeElement.appendChild(this.bodyElement);
         
-        // 6. Madde: İşaretler (cm, çizgiler)
         this.markingsElement = document.createElement('div');
         this.markingsElement.className = 'gonye-markings';
         this.bodyElement.appendChild(this.markingsElement);
         
-        // 5. Madde: Köşe Etiketleri
-        const labelA = document.createElement('div');
-        labelA.className = 'gonye-corner-label';
-        labelA.id = 'gonye-label-a';
-        labelA.innerText = 'A';
-        this.markingsElement.appendChild(labelA);
-        
-        const labelB = document.createElement('div');
-        labelB.className = 'gonye-corner-label';
-        labelB.id = 'gonye-label-b';
-        labelB.innerText = 'B';
-        this.markingsElement.appendChild(labelB);
-        
-        const labelC = document.createElement('div');
-        labelC.className = 'gonye-corner-label';
-        labelC.id = 'gonye-label-c';
-        labelC.innerText = 'C';
-        this.markingsElement.appendChild(labelC);
+        // Etiketler
+        const labels = ['A', 'B', 'C'];
+        const ids = ['gonye-label-a', 'gonye-label-b', 'gonye-label-c'];
+        labels.forEach((text, i) => {
+            const lbl = document.createElement('div');
+            lbl.className = 'gonye-corner-label';
+            lbl.id = ids[i];
+            lbl.innerText = text;
+            this.markingsElement.appendChild(lbl);
+        });
 
-        // 7. Madde: Döndürme Butonu (Tek tane)
         const rotateA = document.createElement('div');
         rotateA.className = 'gonye-rotate-handle';
         this.gonyeElement.appendChild(rotateA);
         
-        // 8. Madde: Çizim Tutamacı (Kırmızı)
         this.drawHandleElement = document.createElement('div');
         this.drawHandleElement.className = 'gonye-draw-handle';
         this.gonyeElement.appendChild(this.drawHandleElement);
 
-        // 8. Madde: Çizim Etiketi
         this.drawHandleLabel = document.createElement('div');
         this.drawHandleLabel.className = 'gonye-draw-label';
         this.drawHandleLabel.innerText = '0.0 cm';
         this.drawHandleElement.appendChild(this.drawHandleLabel);
-        // --- YENİ: BOYUTLANDIRMA TUTAMACI ---
+        
         this.resizeHandle = document.createElement('div');
         this.resizeHandle.className = 'gonye-resize-handle';
         this.gonyeElement.appendChild(this.resizeHandle);
-        // 8. Madde (Çizim Alanı): 
-        // Çizimi göstermek için ayrı bir canvas
+
+        // --- DÜZELTME BURADA: RIGHT: 100% KULLANIMI ---
         this.drawCanvas = document.createElement('canvas');
         this.drawCanvas.style.position = 'absolute';
+        
+        // 'right: 100%' elemanı kapsayıcının SOL sınırının dışına iter.
+        this.drawCanvas.style.right = '100%'; 
+        this.drawCanvas.style.left = 'auto'; // Önceki 'left' ayarını sıfırla
         this.drawCanvas.style.top = '0';
-        this.drawCanvas.style.left = '-10px'; // Sol kenarın 10px dışı
-        this.drawCanvas.style.pointerEvents = 'none'; // Tıklanamaz
+        this.drawCanvas.style.pointerEvents = 'none';
+        
+        this.drawCanvas.width = 20; // Genişlik
+        
         this.drawCtx = this.drawCanvas.getContext('2d');
-        this.gonyeElement.appendChild(this.drawCanvas);
+        this.gonyeElement.appendChild(this.drawCanvas); 
 
-        // Gönyeyi sayfaya (body) ekle
         document.body.appendChild(this.gonyeElement);
         
-        // Başlangıçta gizle
         this.gonyeElement.style.display = 'none';
         
-        // Olay dinleyicilerini (Event Listeners) bağla
         this.addListeners();
-        
-        // Durumu (konum, genişlik) güncelle
         this.updateTransform();
         this.updateMarkings();
         this.updateDrawCanvasSize();
     },
-    
     // Gönyeyi göster/gizle (Toggle)
     toggle: function() {
         if (!this.gonyeElement) this.init(); 
@@ -149,11 +136,11 @@ window.GonyeTool = {
         this.updateDrawCanvasSize();
     },
     
-    // Gönyenin çizim alanını (canvas) yeniden boyutlandır
+    // Gönyenin çizim alanını (canvas) yeniden boyutlandır (GÜNCELLENMİŞ)
     updateDrawCanvasSize: function() {
         if (!this.drawCanvas) return;
-        this.drawCanvas.width = 10; // Çizgi kalınlığı için
-        this.drawCanvas.height = this.state.height;
+        this.drawCanvas.width = 20; // Genişlik sabit
+        this.drawCanvas.height = this.state.height; // Yükseklik dinamik
     }
 };
 // --- gonye.js (BÖLÜM 2/3) ---
@@ -275,7 +262,7 @@ case 'resizing':
     }
 };
 
-// MOUSE/TOUCH BİTİŞİ
+// MOUSE/TOUCH BİTİŞİ (TUTAMACIN GERİ DÖNMESİ DÜZELTİLDİ)
 window.GonyeTool.onMouseUp = function(e) {
     if (this.interactionMode === 'none') return;
 
@@ -288,30 +275,37 @@ window.GonyeTool.onMouseUp = function(e) {
         window.audio_draw.pause();
         window.audio_draw.currentTime = 0;
         
-        // --- KRİTİK FİNALİZE KONTROLÜ ---
-        // Çizimi kalıcı olarak kaydetmeye zorla (Silgi aktif olsa bile)
-        const pos = currentMousePos;   // app.js içinde zaten güncelleniyor
-this.finalizeDraw(pos.x, pos.y);
+        // 2. Çizimi Kalıcı Olarak Kaydet (Sıfırlamadan Önce!)
+        const pos = window.currentMousePos || {x:0, y:0}; // Hata önleyici
+        this.finalizeDraw(pos.x, pos.y);
 
-        // --- KONTROL SONU ---
-
-        // 2. Etiketi gizle 
+        // 3. Etiketi gizle 
         this.drawHandleLabel.style.display = 'none';
         
-        // --- KRİTİK DÜZELTME (Handle'ı Geri Çek) ---
-        // Çizim kaydından hemen sonra, temiz ve tek bir blokta geri dönüş yapılır.
+        // --- KRİTİK EKLEME: TUTAMACI "0" NOKTASINA GERİ YOLLA ---
         if(this.drawHandleElement) { 
-                        
-            // Bayrakları ve önizlemeyi temizle
+            
+            // A. Animasyonu aç (Yumuşak dönüş için)
+            this.drawHandleElement.style.transition = 'top 0.3s ease-out';
+            
+            // B. "0" Noktasını Hesapla (Gönyenin alt ucu - Tutamaç yüksekliği)
+            // (gonye.js'de tutamaç yüksekliği genelde 20px varsayılır)
+            const resetY = this.state.height - 20; 
+            
+            // C. Tutamacı Oraya Gönder
+            this.drawHandleElement.style.top = `${resetY}px`;
+            
+            // D. State'i güncelle (Sıfırla)
+            this.state.currentHandleY = resetY;
+            
+            // E. Önizlemeyi temizle
             this.isDrawingLine = false;
             this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
         }
-        // --- DÜZELTME SONU ---
     }
     
     this.interactionMode = 'none';
-};
-// --- gonye.js (BÖLÜM 3/3) ---
+};// --- gonye.js (BÖLÜM 3/3) ---
 // (Karmaşık Etkileşim Mantığı - Drag, Rotate, Draw)
 
 // 3. Madde: Sürükleme Mantığı
@@ -394,8 +388,7 @@ window.GonyeTool.updateMarkings = function() {
     this.drawHandleElement.style.top = `${height - 20}px`; // 20 = tutamaç yüksekliği
 };
 
-// 8. Madde: Çizim Tutamacı Mantığı
-// Önizleme (sol kenar boyunca)
+// 8. Madde: Çizim Tutamacı Mantığı (TUTAMAC HAREKETİ DÜZELTİLDİ)
 window.GonyeTool.handleDraw = function(e) {
   const pos = this.getEventPos(e);
 
@@ -408,33 +401,44 @@ window.GonyeTool.handleDraw = function(e) {
   const cosInv = Math.cos(angleRadInv);
   const sinInv = Math.sin(angleRadInv);
 
-  // Lokal Y (sol kenar boyunca)
   const localY_from_center = (relativeX * sinInv) + (relativeY * cosInv);
   const localY_from_top = localY_from_center + (this.state.height / 2);
 
-  // Tutamac konumu (kenar boyunca clamp)
   let handleY = Math.max(0, Math.min(this.state.height, localY_from_top));
   this.state.currentHandleY = handleY;
 
-  // Başlangıç ve bitiş noktaları (local)
-  const startY_local = this.state.height;   // sol kenarın altı
-  const endY_local = handleY;               // tutamacın konumu
+  // --- EKSİK OLAN PARÇA BURASIYDI ---
+  // Tutamacın (kırmızı kutunun) ekrandaki yerini güncelliyoruz
+  // (Daha yumuşak hareket için transition'ı kapatıyoruz)
+  this.drawHandleElement.style.transition = 'none';
+  
+  // Tutamacı tam parmağınızın olduğu yere (handleY) taşıyoruz.
+  // Not: Eğer tutamaç ucunun tam çizgiye basmasını isterseniz '-20' gibi bir değer ekleyebilirsiniz.
+  // Şimdilik cetvel mantığıyla birebir aynı yapıyorum:
+  this.drawHandleElement.style.top = `${handleY}px`; 
+  // -----------------------------------
 
-  // Uzunluk etiketi
-  const lengthPx = Math.abs(startY_local - endY_local);
+  // Etiket
+  const lengthPx = Math.abs(this.state.height - handleY);
   const cm = (lengthPx / this.PIXELS_PER_CM).toFixed(1).replace('.', ',');
   this.drawHandleLabel.innerText = `${cm} cm`;
 
-  // Önizleme çizimi
+  // --- ÇİZİM İŞLEMİ (İNCE 1px) ---
   this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
   this.drawCtx.beginPath();
-  this.drawCtx.moveTo(0, startY_local);
-  this.drawCtx.lineTo(0, endY_local);
-  this.drawCtx.strokeStyle = '#FFFFFF';
-  this.drawCtx.lineWidth = 3;
-  this.drawCtx.stroke();
-};
+  
+  const lineX = this.drawCanvas.width - 2;
 
+  this.drawCtx.moveTo(lineX, this.state.height);
+  this.drawCtx.lineTo(lineX, handleY);
+  
+  this.drawCtx.strokeStyle = '#FFFFFF'; // Beyaz
+  this.drawCtx.lineWidth = 1;           // 1px İnce
+  this.drawCtx.setLineDash([6, 6]);     // Kesikli
+  this.drawCtx.stroke();
+  
+  this.drawCtx.setLineDash([]);
+};
 
 // Kalıcı çizim (sol kenar boyunca)
 window.GonyeTool.finalizeDraw = function(x, y) {
