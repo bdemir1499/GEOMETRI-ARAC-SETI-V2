@@ -2209,29 +2209,36 @@ canvas.addEventListener('touchend', (e) => {
     if (e && e.cancelable) e.preventDefault();
 
     // =========================================================================
-    // 1. ADIM: AGRESİF SIÇRAMA ENGELLEYİCİ (ZAMAN MAKİNESİ V2)
+    // 1. ADIM: AKILLI SIÇRAMA ENGELLEYİCİ (KALEM KORUMALI)
     // =========================================================================
     
     let finalSafePos = currentMousePos;
     const buffer = window.touchHistoryBuffer;
 
-    // Eğer elimizde yeterince geçmiş verisi varsa (En az 6 kare)
-    if (buffer && buffer.length >= 6) {
-        // Sondan 5. veya 6. noktayı al! (Bu zıplamayı önler ama silme yapmaz)
-        finalSafePos = buffer[buffer.length - 6]; 
+    // KURAL: Eğer araç KALEM (Pen) ise ASLA geriye sarma! Olduğu gibi bırak.
+    // Çünkü kalemle yazı yazarken son milisaniyeler önemlidir.
+    if (currentTool === 'pen') {
+        // Kalemde son konum neyse o kalır, müdahale etme.
+        if (buffer && buffer.length > 0) {
+            finalSafePos = buffer[buffer.length - 1]; // En son nokta
+        }
     } 
-    // Eğer buffer azsa (çok kısa çizim) en başa dön
-    else if (buffer && buffer.length > 0) {
-        finalSafePos = buffer[0];
+    // Diğer araçlar (Cetvel, Gönye, Taşıma vb.) için geriye sar (Zıplamayı önle)
+    else {
+        if (buffer && buffer.length >= 6) {
+            // 6 kare geriye git (Tutamaçları sabitler)
+            finalSafePos = buffer[buffer.length - 6]; 
+        } 
+        else if (buffer && buffer.length > 0) {
+            finalSafePos = buffer[0];
+        }
     }
 
-    // ARTIK ENDPOS ÇOK DAHA GÜVENLİ
+    // Karar verilen güvenli konumu kullan
     const endPos = snapTarget || finalSafePos;
 
-    // --- BURADA ARTIK "KUYRUK KESME (SPLICE)" KODU YOK ---
-
     // Buffer'ı temizle
-    window.touchHistoryBuffer = [];    // =========================================================================
+    window.touchHistoryBuffer = [];=========================================================================
     
     // ... (Kodun geri kalanı aynen devam eder: Snapshot, Ruler vb.) ...
 
