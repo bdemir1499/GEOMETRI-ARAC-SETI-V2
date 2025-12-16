@@ -3217,33 +3217,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- app.js EN ALT SATIRA YAPIŞTIRIN ---
 
-// Sayfa tamamen yüklendiğinde çalışsın
+// --- app.js EN ALT SATIRA EKLE (KESİN ÇÖZÜM) ---
+
+// --- app.js EN ALT SATIR (RESİM/PDF YÜKLEME BUTONU RESETLEME) ---
+
 window.addEventListener('load', function() {
-    setTimeout(function() {
+    console.log("Temizlik operasyonu başlıyor...");
+
+    // 1. ADIM: ESKİ SERVICE WORKER'LARI ZORLA SİL (Hafızayı Temizle)
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for(let registration of registrations) {
+                registration.unregister();
+                console.log("Eski Service Worker bulundu ve yok edildi.");
+            }
+        });
+    }
+
+    // 2. ADIM: BUTONU VE INPUT'U SIFIRLA (En önemlisi bu)
+    setTimeout(() => {
         const eskiButon = document.getElementById('btn-upload');
         const dosyaInput = document.getElementById('file-input');
 
         if (eskiButon && dosyaInput) {
-            console.log("Upload butonu temizleniyor...");
+            // A. Input ayarlarını zorla düzelt (Kamera isteğini sil)
+            dosyaInput.removeAttribute('capture'); 
+            dosyaInput.setAttribute('accept', '.pdf, .jpg, .jpeg, .png');
 
-            // 1. Butonun kopyasını oluştur (Bu işlem üzerindeki tüm eski olayları/virüsleri siler)
+            // B. Butonu KLONLA (Bu işlem, butona yapışmış tüm eski/hatalı kodları koparır atar)
             const yeniButon = eskiButon.cloneNode(true);
             
-            // 2. Eski butonu sil, yerine yenisini koy
+            // C. Eski butonu çöpe at, yenisini yerine koy
             eskiButon.parentNode.replaceChild(yeniButon, eskiButon);
 
-            // 3. Yeni butona SADECE dosya açma görevi ver
+            // D. Yeni butona SADECE dosya açma görevi ver
             yeniButon.addEventListener('click', function(e) {
-                e.preventDefault(); 
+                // Varsayılan her şeyi durdur
+                e.preventDefault();
                 e.stopPropagation();
-                // Sadece dosya kutusunu tetikle
+                
+                // Sadece dosya kutusuna tıkla
+                console.log("Dosya seçici açılıyor...");
                 dosyaInput.click(); 
             });
             
-            // 4. Input'un da temiz olduğundan emin olalım
-            dosyaInput.removeAttribute('capture'); // Varsa capture özelliğini sök at
-            
-            console.log("Buton sıfırlandı. Artık sadece dosya açacak.");
+            // Dokunmatik ekranlar için de aynısını yap (Garanti olsun)
+            yeniButon.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dosyaInput.click();
+            }, { passive: false });
+
+            console.log("Upload butonu 'Fabrika Ayarlarına' döndürüldü.");
         }
-    }, 1000); // 1 saniye gecikmeli çalışsın ki diğer scriptler yüklendikten sonra temizlik yapsın
+    }, 1000); // Diğer kodlar yüklendikten 1 saniye sonra devreye girer
 });
