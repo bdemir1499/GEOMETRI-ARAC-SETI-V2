@@ -3,6 +3,10 @@
 // 1. Hareket Geçmişi (Buffer) - Zıplama Önleyici
 window.touchHistoryBuffer = [];
 window.lastSafeDrawPos = { x: 0, y: 0 };
+// --- ÇEMBER ALGILAMA DEĞİŞKENLERİ ---
+window.penPath = [];        // Kalem yolunu tutar
+window.shapeTimer = null;   // Bekleme süresini sayar
+window.isShapeSnapping = false; // Şu an düzeltme yapıyor mu?
 
 // 2. Touch Move Kaydedici
 document.addEventListener('touchmove', function(e) {
@@ -1304,6 +1308,47 @@ canvas.addEventListener('mousedown', (e) => {
 
 canvas.addEventListener('mousemove', (e) => {
 
+// --- MOUSE İLE ÇEMBER ALGILAMA (GÜÇLENDİRİLMİŞ) ---
+    if (window.currentTool === 'pen' && e.buttons === 1) { // Sadece sol tık basılıysa
+        
+        // 1. Koordinatı Kesin Olarak Hesapla
+        const rect = canvas.getBoundingClientRect();
+        const rawX = e.clientX - rect.left;
+        const rawY = e.clientY - rect.top;
+        
+        const p = { x: rawX, y: rawY };
+        
+        // Yolu kaydet
+        window.penPath.push(p);
+
+        // 2. Yeterince uzun çizildiyse kontrol et (40 nokta)
+        if (window.penPath.length > 40) {
+            const startPoint = window.penPath[0];
+            
+            // Başlangıç noktasına uzaklık (Pisagor)
+            const dx = p.x - startPoint.x;
+            const dy = p.y - startPoint.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+
+            // 3. Başlangıç noktasına 30 piksel yaklaştı mı?
+            if (dist < 30) {
+                // Eğer sayaç yoksa başlat
+                if (!window.shapeTimer) {
+                    // console.log("Çember algılandı, bekleniyor..."); // Test için
+                    window.shapeTimer = setTimeout(() => {
+                        window.convertPenToCircle(); 
+                    }, 800); // 0.8 saniye bekle
+                }
+            } else {
+                // Uzaklaştıysa sayacı iptal et
+                if (window.shapeTimer) {
+                    clearTimeout(window.shapeTimer);
+                    window.shapeTimer = null;
+                }
+            }
+        }
+    }
+    
     // 1. TAŞIMA (MOVE) MANTIĞI
     if (currentTool === 'move' && isMoving) {
         const pos = getEventPosition(e);
@@ -1610,6 +1655,12 @@ if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciol
 
 canvas.addEventListener('mouseup', () => {
 
+// Mouse bırakıldı, çember takibini sıfırla
+    if (window.shapeTimer) {
+        clearTimeout(window.shapeTimer);
+        window.shapeTimer = null;
+    }
+    window.penPath = [];
     if (currentTool === 'move' && isMoving) {
         // Taşıma sesini durdur
    
@@ -1885,6 +1936,43 @@ if (['point', 'straightLine', 'line', 'segment', 'ray'].includes(currentTool)) {
 
 canvas.addEventListener('touchmove', (e) => {
     e.preventDefault(); // Sayfa kaymasını engelle
+
+// --- ÇEMBER ALGILAMA BAŞLANGICI ---
+    // Eğer şu an seçili araç Kalem ise:
+    if (window.currentTool === 'pen') {
+        
+        // 1. Koordinatı al (Mobil veya Mouse fark etmez, currentMousePos günceldir)
+        const p = { x: window.currentMousePos.x, y: window.currentMousePos.y };
+        window.penPath.push(p);
+
+        // 2. Yeterince çizim yapıldıysa (En az 40 nokta) kontrol et
+        if (window.penPath.length > 40) {
+            const startPoint = window.penPath[0];
+            
+            // Başlangıç noktasına olan uzaklığı ölç (Pisagor)
+            const dx = p.x - startPoint.x;
+            const dy = p.y - startPoint.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+
+            // 3. Eğer başlangıca 30 pikselden fazla yaklaştıysa (Uç uca geldi)
+            if (dist < 30) {
+                // Daha önce sayaç başlatılmadıysa başlat
+                if (!window.shapeTimer) {
+                    window.shapeTimer = setTimeout(() => {
+                        // 800ms (0.8 sn) beklerse dönüşümü yap
+                        window.convertPenToCircle(); 
+                    }, 800); 
+                }
+            } else {
+                // Uzaklaşırsa sayacı iptal et (Vazgeçti)
+                if (window.shapeTimer) {
+                    clearTimeout(window.shapeTimer);
+                    window.shapeTimer = null;
+                }
+            }
+        }
+    }
+    // --- ÇEMBER ALGILAMA BİTİŞİ ---
     
     // -----------------------------------------------------------
     // 1. HESAPLAMA VE SIÇRAMA ÖNLEYİCİ (EN KRİTİK KISIM)
@@ -2209,6 +2297,13 @@ canvas.addEventListener('touchmove', (e) => {
 // <-- FONKSİYON BURADA SAĞLAM ŞEKİLDE KAPANIYOR
 canvas.addEventListener('touchend', (e) => { 
     if (e && e.cancelable) e.preventDefault();
+
+// Çizim bitti, çember sayacını ve yolunu sıfırla
+    if (window.shapeTimer) {
+        clearTimeout(window.shapeTimer);
+        window.shapeTimer = null;
+    }
+    window.penPath = [];
 
     // =========================================================================
     // 1. ADIM: AKILLI SIÇRAMA ENGELLEYİCİ (KALEM KORUMALI)
@@ -3052,3 +3147,56 @@ setInterval(() => {
     });
 
 })();
+
+// --- EL ÇİZİMİNİ ÇEMBERE DÖNÜŞTÜRME FONKSİYONU ---
+window.convertPenToCircle = function() {
+    clearTimeout(window.shapeTimer);
+    window.shapeTimer = null;
+    
+    // 1. Son çizilen eğriyi (stroke) iptal et/sil
+    if(window.drawnStrokes.length > 0) {
+        window.drawnStrokes.pop();
+    }
+
+    // 2. Çizilen yolun sınırlarını (Bounding Box) bul
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    
+    window.penPath.forEach(p => {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+    });
+
+    // 3. Matematiksel Merkezi ve Yarıçapı Hesapla
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    
+    // Eni ve boyu ortala, yarıçapı bul
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const radius = Math.max(width, height) / 2;
+
+    // 4. Yeni 'circle' (Çember) nesnesi oluştur
+    // (Taşıma aracının tanıması için p1 ve p2 de ekliyoruz)
+    const newCircle = {
+        type: 'circle', 
+        cx: centerX,
+        cy: centerY,
+        r: radius,
+        color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
+        width: 3,
+        // Taşıma mantığı için köşe noktaları (Bounding Box)
+        p1: { x: centerX - radius, y: centerY - radius },
+        p2: { x: centerX + radius, y: centerY + radius }
+    };
+
+    // 5. Listeye ekle ve sahneyi yenile
+    window.drawnStrokes.push(newCircle);
+    window.redrawAllStrokes();
+    
+    window.penPath = []; // Yolu temizle
+
+    // Başardım sinyali (Titreşim - Android telefonlarda çalışır)
+    if (navigator.vibrate) navigator.vibrate(50);
+};
