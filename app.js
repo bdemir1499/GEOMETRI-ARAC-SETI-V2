@@ -2950,3 +2950,77 @@ setInterval(() => {
         resizeCanvas();
     }
 }, 1000);
+
+// --- OTOMATİK PWA YÜKLEME PENCERESİ (Gelişmiş Versiyon) ---
+
+(function() {
+    let deferredPrompt; // Android yükleme olayını saklar
+    const popup = document.getElementById('install-popup');
+    const installBtn = document.getElementById('btn-popup-install');
+    const closeBtn = document.getElementById('btn-popup-close');
+    const iosInstructions = document.getElementById('ios-instructions');
+    const pwaText = document.getElementById('pwa-text');
+
+    // Cihazın iOS olup olmadığını ve yüklü olup olmadığını kontrol et
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+    // --- SENARYO 1: ANDROID / HARMONYOS / CHROME ---
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault(); // Tarayıcının kendi çirkin uyarısını engelle
+        deferredPrompt = e; // Olayı sakla
+        
+        // PENCEREYİ OTOMATİK AÇ
+        popup.style.display = 'flex';
+    });
+
+    // --- SENARYO 2: IOS (IPAD/IPHONE) ---
+    // iOS 'beforeinstallprompt' desteklemez, o yüzden manuel kontrol yapıyoruz.
+    if (isIos && !isStandalone) {
+        // Sayfa yüklendikten 1 saniye sonra pencereyi aç (Kullanıcı siteyi görsün sonra çıksın)
+        setTimeout(() => {
+            popup.style.display = 'flex';
+        }, 1000);
+    }
+
+    // --- BUTON İŞLEMLERİ ---
+
+    // 1. "Evet, İndir" butonuna basılınca
+    if (installBtn) {
+        installBtn.addEventListener('click', async () => {
+            
+            // A) Android/HarmonyOS ise: Gerçek yükleme ekranını tetikle
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`Kurulum sonucu: ${outcome}`);
+                deferredPrompt = null;
+                // Kabul ederse pencereyi kapat
+                if (outcome === 'accepted') {
+                    popup.style.display = 'none';
+                }
+            }
+            // B) iOS ise: Talimatları göster (Çünkü Apple otomatik yüklemeye izin vermez)
+            else if (isIos) {
+                pwaText.style.display = 'none'; // Soru yazısını gizle
+                iosInstructions.style.display = 'block'; // Talimatları göster
+                installBtn.style.display = 'none'; // İndir butonunu gizle (artık işlevsiz)
+                closeBtn.innerText = "Tamam, Anladım"; // Kapat butonunun yazısını değiştir
+            }
+        });
+    }
+
+    // 2. "Hayır / Kapat" butonuna basılınca
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            popup.style.display = 'none';
+        });
+    }
+
+    // 3. Uygulama zaten yüklendiyse pencereyi asla gösterme
+    window.addEventListener('appinstalled', () => {
+        popup.style.display = 'none';
+        deferredPrompt = null;
+    });
+
+})();
