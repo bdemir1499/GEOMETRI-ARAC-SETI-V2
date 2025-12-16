@@ -3215,60 +3215,97 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// --- app.js EN ALT SATIRA YAPIŞTIRIN ---
-
-// --- app.js EN ALT SATIRA EKLE (KESİN ÇÖZÜM) ---
-
-// --- app.js EN ALT SATIR (RESİM/PDF YÜKLEME BUTONU RESETLEME) ---
+// --- app.js EN ALT SATIR (EDGE & CHROME UYUMLU ÇÖZÜM) ---
 
 window.addEventListener('load', function() {
-    console.log("Temizlik operasyonu başlıyor...");
-
-    // 1. ADIM: ESKİ SERVICE WORKER'LARI ZORLA SİL (Hafızayı Temizle)
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-            for(let registration of registrations) {
-                registration.unregister();
-                console.log("Eski Service Worker bulundu ve yok edildi.");
-            }
-        });
-    }
-
-    // 2. ADIM: BUTONU VE INPUT'U SIFIRLA (En önemlisi bu)
     setTimeout(() => {
+        // 1. Zombi Service Worker'ları Temizle
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister();
+                }
+            });
+        }
+
         const eskiButon = document.getElementById('btn-upload');
-        const dosyaInput = document.getElementById('file-input');
+        // HTML'deki eski inputu sil
+        const eskiInput = document.getElementById('file-input');
+        if (eskiInput) eskiInput.remove(); 
 
-        if (eskiButon && dosyaInput) {
-            // A. Input ayarlarını zorla düzelt (Kamera isteğini sil)
-            dosyaInput.removeAttribute('capture'); 
-            dosyaInput.setAttribute('accept', '.pdf, .jpg, .jpeg, .png');
-
-            // B. Butonu KLONLA (Bu işlem, butona yapışmış tüm eski/hatalı kodları koparır atar)
-            const yeniButon = eskiButon.cloneNode(true);
+        if (eskiButon) {
+            // 2. Tertemiz, Yeni Bir Dosya Seçici Yarat
+            const yeniInput = document.createElement('input');
+            yeniInput.type = 'file';
+            yeniInput.id = 'dynamic-file-input';
+            yeniInput.style.display = 'none';
             
-            // C. Eski butonu çöpe at, yenisini yerine koy
+            // --- KRİTİK DEĞİŞİKLİK BURADA ---
+            // Edge'in kamera açmasını engellemek için 'image/jpeg' yerine '.jpg' yazıyoruz.
+            // Bu sayede tarayıcı bunu bir "medya isteği" değil, basit bir "dosya isteği" olarak görür.
+            yeniInput.accept = '.pdf, .jpg, .jpeg, .png'; 
+            
+            document.body.appendChild(yeniInput);
+
+            // 3. Butonu Sıfırla (Eski olayları sil)
+            const yeniButon = eskiButon.cloneNode(true);
             eskiButon.parentNode.replaceChild(yeniButon, eskiButon);
 
-            // D. Yeni butona SADECE dosya açma görevi ver
-            yeniButon.addEventListener('click', function(e) {
-                // Varsayılan her şeyi durdur
+            // 4. Yeni Tıklama Olayı
+            yeniButon.addEventListener('click', (e) => {
                 e.preventDefault();
-                e.stopPropagation();
-                
-                // Sadece dosya kutusuna tıkla
-                console.log("Dosya seçici açılıyor...");
-                dosyaInput.click(); 
+                // Edge için ekstra güvenlik: Input değerini sıfırla
+                yeniInput.value = '';
+                yeniInput.click(); 
             });
             
-            // Dokunmatik ekranlar için de aynısını yap (Garanti olsun)
-            yeniButon.addEventListener('touchstart', function(e) {
+            yeniButon.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                e.stopPropagation();
-                dosyaInput.click();
+                yeniInput.value = '';
+                yeniInput.click();
             }, { passive: false });
 
-            console.log("Upload butonu 'Fabrika Ayarlarına' döndürüldü.");
+            // 5. Dosya Seçilince Çalışacak Kod
+            yeniInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                if (file.type === 'application/pdf') {
+                    // PDF Yükleme...
+                    const fileReader = new FileReader();
+                    fileReader.onload = async function() {
+                        const typedarray = new Uint8Array(this.result);
+                        if (window.pdfjsLib) {
+                            window.currentPDF = await pdfjsLib.getDocument(typedarray).promise;
+                            window.totalPDFPages = window.currentPDF.numPages;
+                            let startPage = prompt(`Kitap ${window.totalPDFPages} sayfa. Başlangıç sayfası?`, "1");
+                            window.currentPDFPage = parseInt(startPage) || 1;
+                            
+                            const controls = document.getElementById('pdf-controls');
+                            if(controls) {
+                                controls.classList.remove('hidden');
+                                controls.style.display = 'flex';
+                            }
+                            if(typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage);
+                        }
+                    };
+                    fileReader.readAsArrayBuffer(file);
+                } 
+                else {
+                    // Resim Yükleme...
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            if(typeof addToCanvasAsObject === 'function') addToCanvasAsObject(img);
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            console.log("Edge uyumlu dosya yükleyici aktif.");
         }
-    }, 1000); // Diğer kodlar yüklendikten 1 saniye sonra devreye girer
+    }, 500);
 });
