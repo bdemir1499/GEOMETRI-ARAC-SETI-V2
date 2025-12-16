@@ -1,5 +1,9 @@
 // --- app.js EN ÜST SATIRI ---
 
+// --- ŞEKİL ALGILAMA DEĞİŞKENLERİ ---
+window.penPath = [];      
+window.shapeTimer = null;
+
 // 1. Hareket Geçmişi (Buffer) - Zıplama Önleyici
 window.touchHistoryBuffer = [];
 window.lastSafeDrawPos = { x: 0, y: 0 };
@@ -1071,6 +1075,13 @@ if (animateButton) {
 
 canvas.addEventListener('mousedown', (e) => {
 
+// Yeni çizim başlıyor, hafızayı temizle
+window.penPath = [];
+if (window.shapeTimer) {
+    clearTimeout(window.shapeTimer);
+    window.shapeTimer = null;
+}
+
     // --- 1. FİZİKSEL ARAÇ KONTROLÜ ---
     const isToolElementClicked = e.target.closest('.ruler-container, .gonye-container, .aciolcer-container, #compass-container');
     if (isToolElementClicked) { 
@@ -1307,29 +1318,30 @@ canvas.addEventListener('mousedown', (e) => {
 });
 
 canvas.addEventListener('mousemove', (e) => {
-
-// --- MOUSE İLE ÇEMBER ALGILAMA (HASSAS MOD) ---
-    // Eğer araç kalem ise ve sol tık basılıysa
+    // --- ÇEMBER ALGILAMA (KESİN ÇÖZÜM) ---
+    // Sadece Kalem seçiliyse VE Sol Tık basılıysa
     if (window.currentTool === 'pen' && e.buttons === 1) { 
-        
-        // App.js'in kendi hesapladığı doğru koordinatı kullanıyoruz
-        const p = { x: window.currentMousePos.x, y: window.currentMousePos.y };
-        
-        window.penPath.push(p);
 
-        // Şart 1: En az 20 nokta çizilmiş olsun (40 çok fazlaydı)
-        if (window.penPath.length > 20) {
-            const startPoint = window.penPath[0];
-            
-            const dx = p.x - startPoint.x;
-            const dy = p.y - startPoint.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
+        // 1. Koordinatı Hesapla
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // 2. Yola Ekle
+        window.penPath.push({x, y});
 
-            // Şart 2: Başlangıç noktasına 60 piksel yaklaştı mı? (30 çok azdı)
-            if (dist < 60) {
+        // 3. Kontrol (En az 30 nokta çizilmişse)
+        if (window.penPath.length > 30) {
+            const start = window.penPath[0];
+            // Başlangıca uzaklık (Pisagor)
+            const dist = Math.sqrt(Math.pow(x - start.x, 2) + Math.pow(y - start.y, 2));
+
+            // EĞER BAŞLANGICA 50px KADAR YAKLAŞTIYSA (Toleransı artırdık)
+            if (dist < 50) {
                 if (!window.shapeTimer) {
+                    // Zamanlayıcıyı başlat
                     window.shapeTimer = setTimeout(() => {
-                        window.convertPenToCircle(); 
+                        window.convertPenToCircle();
                     }, 800); // 0.8 saniye bekle
                 }
             } else {
@@ -1340,8 +1352,10 @@ canvas.addEventListener('mousemove', (e) => {
                 }
             }
         }
-    }    
-    // 1. TAŞIMA (MOVE) MANTIĞI
+    }
+    
+    // ... (Buradan aşağıda sizin mevcut çizim kodlarınız devam etmeli) ...
+});    // 1. TAŞIMA (MOVE) MANTIĞI
     if (currentTool === 'move' && isMoving) {
         const pos = getEventPosition(e);
         const dx = pos.x - dragStartPos.x;
@@ -1653,6 +1667,7 @@ canvas.addEventListener('mouseup', () => {
         window.shapeTimer = null;
     }
     window.penPath = [];
+
     if (currentTool === 'move' && isMoving) {
         // Taşıma sesini durdur
    
@@ -3056,38 +3071,45 @@ setInterval(() => {
 
 // --- AKILLI PWA YÜKLEME PENCERESİ (HAFIZALI VERSİYON) ---
 
+// --- AKILLI PWA YÜKLEME PENCERESİ (DÜZELTİLMİŞ) ---
 (function() {
     let deferredPrompt; 
+    
+    // Önce sadece popup'ı tanımla
     const popup = document.getElementById('install-popup');
+
+    // --- GÜVENLİK KONTROLÜ ---
+    // Eğer HTML'de 'install-popup' yoksa dur (Hata verme)
+    if (!popup) return; 
+
+    // Şimdi diğerlerini tanımla
     const installBtn = document.getElementById('btn-popup-install');
     const closeBtn = document.getElementById('btn-popup-close');
     const iosInstructions = document.getElementById('ios-instructions');
     const pwaText = document.getElementById('pwa-text');
 
-    // 1. KONTROL: Uygulama zaten yüklü mü veya "Yüklü" modunda mı çalışıyor?
+    // 1. KONTROL: Uygulama zaten yüklü mü?
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     
-    // 2. KONTROL: Kullanıcı daha önce "Hayır" dedi mi veya yükledi mi?
+    // 2. KONTROL: Kullanıcı daha önce "Hayır" dedi mi?
     const isDismissed = localStorage.getItem('pwa_popup_seen') === 'true';
 
     // 3. Cihaz iOS mu?
     const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-    // --- EĞER UYGULAMA YÜKLÜYSE VEYA REDDEDİLDİYSE HİÇBİR ŞEY YAPMA ---
+    // --- EĞER YÜKLÜYSE VEYA REDDEDİLDİYSE ÇIK ---
     if (isStandalone || isDismissed) {
-        return; // Kod buradan aşağıya inmez, pencere açılmaz.
+        return; 
     }
 
-    // --- SENARYO 1: ANDROID / HARMONYOS / CHROME ---
+    // --- SENARYO 1: ANDROID / CHROME ---
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault(); 
         deferredPrompt = e; 
-        
-        // Şartlar uygunsa pencereyi aç
         popup.style.display = 'flex';
     });
 
-    // --- SENARYO 2: IOS (IPAD/IPHONE) ---
+    // --- SENARYO 2: IOS ---
     if (isIos && !isStandalone) {
         setTimeout(() => {
             popup.style.display = 'flex';
@@ -3095,64 +3117,56 @@ setInterval(() => {
     }
 
     // --- BUTON İŞLEMLERİ ---
-
-    // 1. "Evet, İndir" Butonu
     if (installBtn) {
         installBtn.addEventListener('click', async () => {
-            
-            // A) Android/HarmonyOS
+            // A) Android
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
-                
-                // Eğer kullanıcı kabul ederse hafızaya al ve bir daha sorma
                 if (outcome === 'accepted') {
-                    localStorage.setItem('pwa_popup_seen', 'true'); // <--- HAFIZAYA KAYDET
+                    localStorage.setItem('pwa_popup_seen', 'true'); 
                     popup.style.display = 'none';
                 }
                 deferredPrompt = null;
             }
             // B) iOS
             else if (isIos) {
-                pwaText.style.display = 'none'; 
-                iosInstructions.style.display = 'block'; 
+                if(pwaText) pwaText.style.display = 'none'; 
+                if(iosInstructions) iosInstructions.style.display = 'block'; 
                 installBtn.style.display = 'none'; 
                 closeBtn.innerText = "Tamam, Anladım"; 
             }
         });
     }
 
-    // 2. "Hayır / Kapat" Butonu
     if (closeBtn) {
         closeBtn.addEventListener('click', () => {
-            // Kullanıcı "Hayır" dedi, bunu hafızaya yaz ve bir daha sorma
-            localStorage.setItem('pwa_popup_seen', 'true'); // <--- HAFIZAYA KAYDET
+            localStorage.setItem('pwa_popup_seen', 'true'); 
             popup.style.display = 'none';
         });
     }
 
-    // 3. Uygulama Yüklendiği Anda
     window.addEventListener('appinstalled', () => {
-        localStorage.setItem('pwa_popup_seen', 'true'); // <--- HAFIZAYA KAYDET
+        localStorage.setItem('pwa_popup_seen', 'true'); 
         popup.style.display = 'none';
         deferredPrompt = null;
     });
 
 })();
 
-// --- DÜZELTİLMİŞ ÇEMBERE DÖNÜŞTÜRME FONKSİYONU ---
+// --- ÇEMBER DÖNÜŞTÜRME FONKSİYONU (BU KISIM DOĞRUYDU, AYNEN KALDI) ---
 window.convertPenToCircle = function() {
     clearTimeout(window.shapeTimer);
     window.shapeTimer = null;
 
-    // ÖNEMLİ: Mouse ile çizilen 'yılanı' (squiggly line) iptal etmemiz lazım.
-    // Bunun için çizim modunu kapatıyoruz. Böylece mouseup olayı o çizgiyi kaydetmeyecek.
     window.isDrawing = false; 
+    window.currentPath = null; 
 
-    // Çizilen yolun sınırlarını hesapla
+    if (window.drawnStrokes.length > 0) {
+        window.drawnStrokes.pop(); 
+    }
+
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    
-    // Eğer yol boşsa çık
     if (!window.penPath || window.penPath.length === 0) return;
 
     window.penPath.forEach(p => {
@@ -3164,15 +3178,10 @@ window.convertPenToCircle = function() {
 
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
-    
-    // Yarıçapı hesapla
-    const width = maxX - minX;
-    const height = maxY - minY;
-    const radius = Math.max(width, height) / 2;
+    const radius = Math.max(maxX - minX, maxY - minY) / 2;
 
-    // Yeni Çember Nesnesi
-    const newCircle = {
-        type: 'circle', 
+    window.drawnStrokes.push({
+        type: 'circle',
         cx: centerX,
         cy: centerY,
         r: radius,
@@ -3180,14 +3189,9 @@ window.convertPenToCircle = function() {
         width: 3,
         p1: { x: centerX - radius, y: centerY - radius },
         p2: { x: centerX + radius, y: centerY + radius }
-    };
+    });
 
-    // Listeye ekle
-    window.drawnStrokes.push(newCircle);
-    
-    // Ekranı temizle ve yeni listeyi çiz (Bu işlem o anki el çizimini de ekrandan siler)
     window.redrawAllStrokes();
-    
-    // Yolu sıfırla
     window.penPath = [];
+    console.log("Çember oluşturuldu!");
 };
