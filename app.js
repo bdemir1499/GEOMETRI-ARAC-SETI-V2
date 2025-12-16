@@ -1617,6 +1617,20 @@ canvas.addEventListener('mousemove', (e) => {
 
 canvas.addEventListener('mouseup', () => {
 
+if (window.currentTool === 'pen' && window.penPath && window.penPath.length > 20) {
+        const start = window.penPath[0];
+        const end = window.penPath[window.penPath.length - 1];
+        
+        // Uçlar arasındaki mesafe
+        const dist = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+
+        // Eğer uçlar birleşmişse (60px tolerans)
+        if (dist < 60) {
+            window.convertPenToCircle();
+            return; // İşlem tamam, fonksiyondan çık
+        }
+    }
+
 /// Mouse bırakıldı, çember zamanlayıcısını iptal et
     if (window.shapeTimer) {
         clearTimeout(window.shapeTimer);
@@ -2260,6 +2274,21 @@ canvas.addEventListener('touchmove', (e) => {
 // <-- FONKSİYON BURADA SAĞLAM ŞEKİLDE KAPANIYOR
 canvas.addEventListener('touchend', (e) => { 
     if (e && e.cancelable) e.preventDefault();
+
+if (window.currentTool === 'pen' && window.penPath && window.penPath.length > 20) {
+        // Son noktayı güvenli al
+        let lastP = window.penPath[window.penPath.length - 1];
+        let firstP = window.penPath[0];
+        
+        const dist = Math.sqrt(Math.pow(lastP.x - firstP.x, 2) + Math.pow(lastP.y - firstP.y, 2));
+
+        if (dist < 60) {
+            window.convertPenToCircle();
+            // Buffer temizliği vs. yapıp çıkabiliriz
+            window.touchHistoryBuffer = [];
+            return; 
+        }
+    }
 
 // Çizim bitti, çember sayacını ve yolunu sıfırla
     if (window.shapeTimer) {
@@ -3105,24 +3134,22 @@ setInterval(() => {
 })(); // <--- Fonksiyon burada kapanıyor, bu yüzden içindeki return'ler geçerli.
 
 
-// --- ÇEMBER DÖNÜŞTÜRME FONKSİYONU ---
-window.convertPenToCircle = function() {
-    clearTimeout(window.shapeTimer);
-    window.shapeTimer = null;
+// --- app.js EN ALT KISIM ---
 
+window.convertPenToCircle = function() {
     // Çizim modunu kapat
     window.isDrawing = false; 
-    window.currentPath = null; 
+    
+    // Yeterli veri yoksa çık
+    if (!window.penPath || window.penPath.length < 10) return;
 
-    // Son hatalı çizgiyi sil
+    // Son eklenen "kalem çizimini" (yamuk olanı) sil
     if (window.drawnStrokes.length > 0) {
         window.drawnStrokes.pop(); 
     }
 
-    // Sınırları hesapla
+    // Sınırları hesapla (Bounding Box)
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    if (!window.penPath || window.penPath.length === 0) return;
-
     window.penPath.forEach(p => {
         if (p.x < minX) minX = p.x;
         if (p.x > maxX) maxX = p.x;
@@ -3132,22 +3159,58 @@ window.convertPenToCircle = function() {
 
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
-    const radius = Math.max(maxX - minX, maxY - minY) / 2;
+    // Yarıçapı ortalama alarak daha düzgün bir daire yapalım
+    const radiusX = (maxX - minX) / 2;
+    const radiusY = (maxY - minY) / 2;
+    const radius = (radiusX + radiusY) / 2;
 
-    // Yeni Çember Ekle
+    // Yeni Çember Ekle (Tipi 'arc' olmalı ki çizim fonksiyonu tanısın)
     window.drawnStrokes.push({
-        type: 'circle',
+        type: 'arc',           // DİKKAT: 'circle' değil 'arc' olmalı
         cx: centerX,
         cy: centerY,
-        r: radius,
-        color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#0000FF'),
+        radius: radius,        // DİKKAT: 'r' değil 'radius'
+        startAngle: 0,
+        endAngle: 360,
+        color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#FFFFFF'),
         width: 3,
-        p1: { x: centerX - radius, y: centerY - radius },
-        p2: { x: centerX + radius, y: centerY + radius }
+        fillColor: 'transparent',
+        label: '',
+        showCircleInfo: false
     });
 
     // Sahneyi Yenile
     window.redrawAllStrokes();
-    window.penPath = [];
-    console.log("Çember oluşturuldu!");
+    window.penPath = []; // Yolu temizle
+    console.log("Kusursuz çember oluşturuldu!");
+    
+    // Başarı sesi
+    if (window.audio_click) {
+        window.audio_click.currentTime = 0;
+        window.audio_click.play();
+    }
 };
+
+// --- app.js EN ALT SATIRA EKLE ---
+// --- BUTON TEMİZLİĞİ: Gizli kamera kodlarını söküp atar ---
+
+document.addEventListener('DOMContentLoaded', () => {
+    const eskiButon = document.getElementById('btn-upload');
+    const dosyaInput = document.getElementById('file-input');
+
+    if (eskiButon && dosyaInput) {
+        // 1. Butonun temiz bir kopyasını oluştur (Tüm eski olayları siler)
+        const yeniButon = eskiButon.cloneNode(true);
+        eskiButon.parentNode.replaceChild(yeniButon, eskiButon);
+
+        // 2. Yeni butona SADECE dosya açma görevi ver
+        yeniButon.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Dosya seçiciyi aç
+            dosyaInput.click(); 
+        });
+
+        console.log("Upload butonu temizlendi ve sıfırlandı.");
+    }
+});
