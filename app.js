@@ -23,7 +23,10 @@ const clickBlocker = function(e) {
     if (timeSinceTouch < 500 && timeSinceTouch > 0) {
         
         // KRİTİK NOKTA: Tıklanan şey bir BUTON, INPUT veya ETİKET ise engelleme!
-        if (e.target.closest('button, .tool-btn, input, label, a, .pwa-btn')) {
+        // KRİTİK NOKTA: Tıklanan şey bir BUTON, INPUT, ETİKET veya RENK KUTUSU ise engelleme!
+if (e.target.closest('button, .tool-btn, input, label, a, .pwa-btn, .color-box')) {
+    return; // İzin ver, fonksiyondan çık
+}
             return; // İzin ver, fonksiyondan çık
         }
 
