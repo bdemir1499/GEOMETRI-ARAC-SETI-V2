@@ -1,70 +1,69 @@
-// --- TABLET/MOBİL SIÇRAMA ENGELLEYİCİ (AKILLI VERSİYON) ---
-// Bu kod, çizim yaparken oluşan hatalı tıklamaları engeller
-// AMA butonlara basılmasına izin verir.
+// --- app.js EN ÜST SATIRI ---
 
+// 1. Hareket Geçmişi (Buffer) - Zıplama Önleyici
+window.touchHistoryBuffer = [];
+window.lastSafeDrawPos = { x: 0, y: 0 };
+
+// 2. Touch Move Kaydedici
+document.addEventListener('touchmove', function(e) {
+    if (e.touches.length === 1) {
+        window.lastSafeDrawPos = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY
+        };
+    }
+}, { passive: false });
+
+// 3. TABLET/MOBİL SIÇRAMA ENGELLEYİCİ (AKILLI VERSİYON)
 let lastTouchTime = 0;
 
-// 1. Dokunma Bitişini Kaydet
+// A) Dokunma Bitişini Kaydet
 document.addEventListener('touchend', function(e) {
     lastTouchTime = new Date().getTime();
     
-    // Sadece ÇİZİM araçları (tutamaçlar) üzerindeyse varsayılanı engelle
-    // Butonlar üzerinde engelleme YAPMA!
+    // Tutamaçlarda varsayılanı engelle (Zıplamayı keser)
     if(e.target.closest('.draw-handle, .rotate-handle, .resize-handle')) {
         e.preventDefault(); 
     }
 }, { passive: false });
 
-// 2. Tıklama Olaylarını Filtrele
+// B) Tıklama Filtresi Fonksiyonu
 const clickBlocker = function(e) {
     const timeSinceTouch = new Date().getTime() - lastTouchTime;
     
-    // Eğer son 500ms içinde dokunmatik işlem yapıldıysa ve bu bir Mouse olayıysa...
+    // Eğer son 500ms içinde dokunmatik işlem yapıldıysa:
     if (timeSinceTouch < 500 && timeSinceTouch > 0) {
         
-        // KRİTİK NOKTA: Tıklanan şey bir BUTON, INPUT veya ETİKET ise engelleme!
-        // KRİTİK NOKTA: Tıklanan şey bir BUTON, INPUT, ETİKET veya RENK KUTUSU ise engelleme!
-if (e.target.closest('button, .tool-btn, input, label, a, .pwa-btn, .color-box')) {
-    return; // İzin ver, fonksiyondan çık
-}
-            return; // İzin ver, fonksiyondan çık
+        // İZİN VERİLECEKLER LİSTESİ:
+        // Butonlar, Araçlar, Renk Kutuları, Inputlar, Etiketler, Linkler
+        if (e.target.closest('button, .tool-btn, input, label, a, .pwa-btn, .color-box')) {
+            return; // İzin ver, engelleme
         }
 
-        // Değilse (Canvas üzerindeyse) engelle
+        // Geri kalan her şeyi (Canvas tıklamaları vb.) engelle
         e.preventDefault();
         e.stopPropagation();
         return false;
     }
 };
 
-// Bu filtreyi hem click hem mousedown için uygula
+// C) Filtreyi Uygula
 document.addEventListener('click', clickBlocker, true);
 document.addEventListener('mousedown', clickBlocker, true);
 
-// 3. CSS Dokunma İyileştirmesi (Tüm butonlar için)
-// Bu kod butonların daha hızlı tepki vermesini sağlar
+// 4. CSS İyileştirmesi
 const style = document.createElement('style');
 style.innerHTML = `
-    button, .tool-btn, .pwa-btn, a {
-        touch-action: manipulation; /* Çift tıklama zoom'unu kapatır, hızlandırır */
+    button, .tool-btn, .pwa-btn, a, .color-box {
+        touch-action: manipulation;
         cursor: pointer;
     }
 `;
 document.head.appendChild(style);
-// -------------------------------------------------------------// -------------------------------------------------------------
 
-document.addEventListener('mousedown', function(e) {
-    const now = new Date().getTime();
-    // Eğer son 600ms içinde dokunmatik işlem yapıldıysa, gelen Mouse olayını iptal et
-    if (now - lastTouchTime < 600) {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-    }
-}, true); 
+// -------------------------------------------------------------
 
 
-// 'true' burası için önemlidir (Capture phase)
 // --- KANVAS AYARLARI ---
 const canvas = document.getElementById('drawing-canvas');
 const ctx = canvas.getContext('2d');
