@@ -2217,8 +2217,7 @@ canvas.addEventListener('touchend', (e) => {
 
     // Eğer elimizde yeterince geçmiş verisi varsa (En az 6 kare)
     if (buffer && buffer.length >= 6) {
-        // Sondan 5. veya 6. noktayı al!
-        // (Son 5 kare genellikle "kaldırma/titreme" anıdır, hepsini atlıyoruz)
+        // Sondan 5. veya 6. noktayı al! (Bu zıplamayı önler ama silme yapmaz)
         finalSafePos = buffer[buffer.length - 6]; 
     } 
     // Eğer buffer azsa (çok kısa çizim) en başa dön
@@ -2226,13 +2225,13 @@ canvas.addEventListener('touchend', (e) => {
         finalSafePos = buffer[0];
     }
 
-    // ARTIK ENDPOS ÇOK DAHA GÜVENLİ (Zıplamadan önceki an)
+    // ARTIK ENDPOS ÇOK DAHA GÜVENLİ
     const endPos = snapTarget || finalSafePos;
 
-    
+    // --- BURADA ARTIK "KUYRUK KESME (SPLICE)" KODU YOK ---
+
     // Buffer'ı temizle
-    window.touchHistoryBuffer = [];
-    // =========================================================================
+    window.touchHistoryBuffer = [];    // =========================================================================
     
     // ... (Kodun geri kalanı aynen devam eder: Snapshot, Ruler vb.) ...
 
