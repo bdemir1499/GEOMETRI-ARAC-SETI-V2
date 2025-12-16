@@ -3214,3 +3214,36 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Upload butonu temizlendi ve sıfırlandı.");
     }
 });
+
+// --- app.js EN ALT SATIRA YAPIŞTIRIN ---
+
+// Sayfa tamamen yüklendiğinde çalışsın
+window.addEventListener('load', function() {
+    setTimeout(function() {
+        const eskiButon = document.getElementById('btn-upload');
+        const dosyaInput = document.getElementById('file-input');
+
+        if (eskiButon && dosyaInput) {
+            console.log("Upload butonu temizleniyor...");
+
+            // 1. Butonun kopyasını oluştur (Bu işlem üzerindeki tüm eski olayları/virüsleri siler)
+            const yeniButon = eskiButon.cloneNode(true);
+            
+            // 2. Eski butonu sil, yerine yenisini koy
+            eskiButon.parentNode.replaceChild(yeniButon, eskiButon);
+
+            // 3. Yeni butona SADECE dosya açma görevi ver
+            yeniButon.addEventListener('click', function(e) {
+                e.preventDefault(); 
+                e.stopPropagation();
+                // Sadece dosya kutusunu tetikle
+                dosyaInput.click(); 
+            });
+            
+            // 4. Input'un da temiz olduğundan emin olalım
+            dosyaInput.removeAttribute('capture'); // Varsa capture özelliğini sök at
+            
+            console.log("Buton sıfırlandı. Artık sadece dosya açacak.");
+        }
+    }, 1000); // 1 saniye gecikmeli çalışsın ki diğer scriptler yüklendikten sonra temizlik yapsın
+});
