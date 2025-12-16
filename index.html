@@ -14,6 +14,22 @@
     <link rel="stylesheet" href="aciolcer.css">
     <link rel="stylesheet" href="pergel.css">
     <link rel="stylesheet" href="cokgen.css"> 
+
+<link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#333333">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Uygulama hazır:', reg))
+                    .catch(err => console.log('Hata:', err));
+            });
+        }
+    </script>
     
 </head>
 
