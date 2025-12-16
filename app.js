@@ -2238,7 +2238,7 @@ canvas.addEventListener('touchend', (e) => {
     const endPos = snapTarget || finalSafePos;
 
     // Buffer'ı temizle
-    window.touchHistoryBuffer = [];=========================================================================
+    window.touchHistoryBuffer = [];
     
     // ... (Kodun geri kalanı aynen devam eder: Snapshot, Ruler vb.) ...
 
