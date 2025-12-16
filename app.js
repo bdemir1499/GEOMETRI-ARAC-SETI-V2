@@ -2229,16 +2229,7 @@ canvas.addEventListener('touchend', (e) => {
     // ARTIK ENDPOS ÇOK DAHA GÜVENLİ (Zıplamadan önceki an)
     const endPos = snapTarget || finalSafePos;
 
-    // --- ÖNEMLİ EKLEME: SERBEST KALEM ÇİZİMİ İÇİN KUYRUK KESME ---
-    // Eğer kalemle çiziyorsan, ekrana ZATEN çizilmiş olan hatalı son kısmı silmemiz lazım.
-    if (currentTool === 'pen' && drawnStrokes.length > 0) {
-        const lastStroke = drawnStrokes[drawnStrokes.length - 1];
-        // Çizimin son 4-5 noktasını diziden uçur
-        if (lastStroke.path && lastStroke.path.length > 6) {
-             lastStroke.path.splice(-5); // Son 5 noktayı sil
-        }
-    }
-
+    
     // Buffer'ı temizle
     window.touchHistoryBuffer = [];
     // =========================================================================
