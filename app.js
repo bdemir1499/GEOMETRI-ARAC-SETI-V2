@@ -2795,42 +2795,38 @@ function resizeCanvas() {
 window.addEventListener('load', resizeCanvas);
 window.addEventListener('resize', resizeCanvas);
 
-// --- app.js EN ALT SATIR (UYGULAMA YÜKLEME - HATASIZ SÜRÜM) ---
+// --- app.js EN ALT KISIM (GÜNCELLENMİŞ) ---
 
-// Kodları { } içine aldık. Bu sayede 'zaten var' hatası vermez.
 {
     let deferredPrompt; 
     const installPopup = document.getElementById('install-popup');
     const btnInstall = document.getElementById('btn-popup-install');
     const btnClosePopup = document.getElementById('btn-popup-close');
 
-    // 1. Tarayıcı "Yüklenebilir" sinyali verdiğinde
+    // --- TEST KODU: PENCEREYİ ZORLA AÇ ---
+    // Eğer kodlar sağlamsa, sayfa açıldıktan 2 saniye sonra pencere görünmelidir.
+    setTimeout(() => {
+        if (installPopup) {
+            console.log("Test: Popup zorla açılıyor.");
+            installPopup.style.display = 'flex';
+        } else {
+            console.log("Hata: Popup kutusu (HTML) bulunamadı!");
+        }
+    }, 2000);
+    // -------------------------------------
+
+    // 1. Tarayıcı sinyali (Normal çalışma mantığı)
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
-        
-        // Popup'ı göster
-        if (installPopup) {
-            installPopup.style.display = 'flex';
-        }
+        if (installPopup) installPopup.style.display = 'flex';
     });
 
-    // 2. "Evet" butonuna basınca
+    // ... (Kalan kodlar aynı şekilde devam etsin) ...
     if (btnInstall) {
         btnInstall.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                deferredPrompt = null;
-            }
-            if (installPopup) installPopup.style.display = 'none';
+             // ...
         });
     }
-
-    // 3. "Hayır" butonuna basınca
-    if (btnClosePopup) {
-        btnClosePopup.addEventListener('click', () => {
-            if (installPopup) installPopup.style.display = 'none';
-        });
-    }
+    // ...
 }

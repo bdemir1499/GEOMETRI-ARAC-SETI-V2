@@ -154,38 +154,33 @@
         </div>
     </div>
 
+    <button id="btn-close-pdf" class="pdf-close-btn hidden">
+        <span>PDF</span>
+        <span style="font-size: 16px; margin-top: -2px;">✖</span>
+    </button>
+
+    <div id="install-popup" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #ffffff; padding: 20px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); z-index: 10000; width: 300px; flex-direction: column; align-items: center; text-align: center; border: 2px solid #00ffcc;">
+        
+        <div style="margin-bottom: 15px;">
+            <img src="icon.png" style="width: 50px; height: 50px; border-radius: 10px; margin-bottom: 10px;">
+            <h3 style="margin: 0 0 10px; color: #333;">Uygulamayı Yükle</h3>
+            <p style="margin: 0 0 15px; color: #666; font-size: 14px;">Tam ekran ve hızlı kullanım için ana ekrana ekle.</p>
+        </div>
+
+        <div style="display: flex; gap: 10px; width: 100%;">
+            <button id="btn-popup-close" style="flex: 1; padding: 10px; border: none; background: #f0f0f0; color: #333; border-radius: 8px; cursor: pointer; font-weight: bold;">Hayır</button>
+            <button id="btn-popup-install" style="flex: 1; padding: 10px; border: none; background: #00ffcc; color: #000; border-radius: 8px; cursor: pointer; font-weight: bold;">Evet, Yükle</button>
+        </div>
+    </div>
+
     <script src="pdf.min.js"></script>
-    <script src="app.js"></script>
-        <script src="ruler.js"></script>
+    <script src="ruler.js"></script>
     <script src="gonye.js"></script>
     <script src="aciolcer.js"></script>
     <script src="pergel.js"></script>
     <script src="cokgen.js"></script>
     <script src="oyunlar.js"></script>
-
-<button id="btn-close-pdf" class="pdf-close-btn hidden">
-        <span>PDF</span>
-        <span style="font-size: 16px; margin-top: -2px;">✖</span>
-    </button>
-
-    <script src="pdf.min.js"></script>
-    <script src="app.js"></script>    
-    </body>
-</html>
-
-
-<div id="install-popup" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #ffffff; padding: 20px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); z-index: 10000; width: 300px; flex-direction: column; align-items: center; text-align: center; border: 2px solid #00ffcc;">
+    <script src="app.js"></script>
     
-    <div style="margin-bottom: 15px;">
-        <img src="icon.png" style="width: 50px; height: 50px; border-radius: 10px; margin-bottom: 10px;">
-        <h3 style="margin: 0 0 10px; color: #333;">Uygulamayı Yükle</h3>
-        <p style="margin: 0 0 15px; color: #666; font-size: 14px;">Tam ekran ve hızlı kullanım için ana ekrana ekle.</p>
-    </div>
-
-    <div style="display: flex; gap: 10px; width: 100%;">
-        <button id="btn-popup-close" style="flex: 1; padding: 10px; border: none; background: #f0f0f0; color: #333; border-radius: 8px; cursor: pointer; font-weight: bold;">Hayır</button>
-        <button id="btn-popup-install" style="flex: 1; padding: 10px; border: none; background: #00ffcc; color: #000; border-radius: 8px; cursor: pointer; font-weight: bold;">Evet, Yükle</button>
-    </div>
-</div>
 </body>
 </html>
