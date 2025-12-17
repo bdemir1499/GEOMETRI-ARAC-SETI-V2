@@ -14,15 +14,6 @@
     <link rel="stylesheet" href="aciolcer.css">
     <link rel="stylesheet" href="pergel.css">
     <link rel="stylesheet" href="cokgen.css"> 
-
-<link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#333333">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="icon.png">
-
-    <script>
-            </script>
     
 </head>
 
@@ -50,11 +41,7 @@
         <button id="btn-kalem" class="tool-button">Kalem</button>
         <div id="pen-options" class="tool-options hidden">
             <div class="color-box" style="background-color: #FFFFFF;"></div> 
-            <div class="color-box" style="background-color: #000000;" data-color="#000000"></div>
-
-<div class="color-box" style="background-color: #0000FF;" data-color="#0000FF"></div>
-
-<div class="color-box" style="background-color: #FF0000;" data-color="#FF0000"></div>
+            
             <div class="color-box" style="background-color: #FF69B4;"></div> 
             <div class="color-box" style="background-color: #00FFCC;"></div> 
             <div class="color-box" style="background-color: #FFA500;"></div> 
@@ -110,7 +97,7 @@
                 <div class="color-box" style="background-color: #FFFF00;" data-color="#FFFF00"></div>
                 <div class="color-box" style="background-color: #9400D3;" data-color="#9400D3"></div>
             </div>
-            </div> 
+            </div> ```
 
         <button id="btn-oyunlar" class="tool-button">Oyunlar</button>
         <div id="oyunlar-options" class="tool-options hidden">
@@ -125,7 +112,7 @@
         <button id="btn-move" class="tool-button">Taşı</button>
         <button id="btn-upload" class="tool-button">Resim/Dosya(PDFKitap) Yükle</button>
         <button id="btn-animate" class="tool-button">Canlandır</button>
-        <input type="file" id="file-input" accept=".pdf, .jpg, .jpeg, .png" style="display: none;">
+        <input type="file" id="file-input" accept="image/*, application/pdf" style="display: none;">
         <div id="pdf-controls" class="tool-options-right hidden" style="flex-direction: column; align-items: center; margin-top: 10px; padding: 5px; width: 100%;">
             
             <div id="page-count-label" style="color: #00ffcc; font-size: 12px; margin-bottom: 5px; font-weight: bold;">Sayfa: 0 / 0</div>
@@ -152,39 +139,24 @@
         </div>
     </div>
 
-
-
-    <button id="btn-close-pdf" class="pdf-close-btn hidden">
-        <span>PDF</span>
-        <span style="font-size: 16px; margin-top: -2px;">✖</span>
-    </button>
-
-    <div id="install-popup" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 9999; flex-direction: column; align-items: center; width: 300px; text-align: center; font-family: sans-serif;">
-        
-        <div id="pwa-text">
-            <h3 style="margin: 0 0 10px; color: #333;">Uygulamayı Yükle</h3>
-            <p style="margin: 0 0 15px; color: #666; font-size: 14px;">Daha iyi performans ve tam ekran deneyimi için uygulamayı cihazına yükle.</p>
-        </div>
-
-        <div id="ios-instructions" style="display: none; margin-bottom: 15px;">
-            <p style="font-size: 13px; color: #444;">1. <img src="https://img.icons8.com/ios-glyphs/30/000000/share-rounded.png" style="vertical-align: middle; width: 20px;"> <strong>Paylaş</strong> butonuna bas.</p>
-            <p style="font-size: 13px; color: #444;">2. <strong>"Ana Ekrana Ekle"</strong> seçeneğini bul.</p>
-        </div>
-
-        <div style="display: flex; gap: 10px; width: 100%;">
-            <button id="btn-popup-close" style="flex: 1; padding: 10px; border: none; background: #f0f0f0; color: #333; border-radius: 8px; cursor: pointer; font-weight: bold;">Hayır</button>
-            <button id="btn-popup-install" style="flex: 1; padding: 10px; border: none; background: #007bff; color: white; border-radius: 8px; cursor: pointer; font-weight: bold;">Evet, Yükle</button>
-        </div>
-    </div>
-
     <script src="pdf.min.js"></script>
-    <script src="ruler.js"></script>
+    <script src="app.js"></script>
+        <script src="ruler.js"></script>
     <script src="gonye.js"></script>
     <script src="aciolcer.js"></script>
     <script src="pergel.js"></script>
     <script src="cokgen.js"></script>
     <script src="oyunlar.js"></script>
-    <script src="app.js?v=YeniSurum2"></script> 
-    
+
+<button id="btn-close-pdf" class="pdf-close-btn hidden">
+        <span>PDF</span>
+        <span style="font-size: 16px; margin-top: -2px;">✖</span>
+    </button>
+
+    <script src="pdf.min.js"></script>
+    <script src="app.js"></script>    
+    </body>
+</html>
+
 </body>
 </html>

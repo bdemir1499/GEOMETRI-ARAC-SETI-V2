@@ -27,21 +27,25 @@ window.RulerTool = {
     drawCanvas: null, // Çizim için ayrı bir katman (canvas)
     drawCtx: null,
     
-    // 1. Madde: Cetveli oluştur ve sayfaya ekle (ÜST KENAR DÜZELTMESİ)
+    // 1. Madde: Cetveli oluştur ve sayfaya ekle (init)
     init: function() {
-        if (this.rulerElement) return;
+        if (this.rulerElement) return; // Zaten oluşturulmuş
 
+        // Ana Konteyner
         this.rulerElement = document.createElement('div');
         this.rulerElement.className = 'ruler-container';
         
+        // 4. Madde: Sürüklenebilir Gövde
         this.bodyElement = document.createElement('div');
         this.bodyElement.className = 'ruler-body';
         this.rulerElement.appendChild(this.bodyElement);
         
+        // 3. Madde: İşaretler (cm, çizgiler)
         this.markingsElement = document.createElement('div');
         this.markingsElement.className = 'ruler-markings';
         this.bodyElement.appendChild(this.markingsElement);
         
+        // 5. Madde: Yeniden Boyutlandırma (Uzatma) Tutamaçları
         const resizeLeft = document.createElement('div');
         resizeLeft.className = 'resize-handle left';
         this.rulerElement.appendChild(resizeLeft);
@@ -50,6 +54,7 @@ window.RulerTool = {
         resizeRight.className = 'resize-handle right';
         this.rulerElement.appendChild(resizeRight);
 
+        // 7. Madde: Döndürme Tutamaçları
         const rotateTL = document.createElement('div');
         rotateTL.className = 'rotate-handle top-left';
         this.rulerElement.appendChild(rotateTL);
@@ -58,35 +63,42 @@ window.RulerTool = {
         rotateBR.className = 'rotate-handle bottom-right';
         this.rulerElement.appendChild(rotateBR);
         
+        // 8. Madde: Çizim Tutamacı (Kırmızı)
         this.drawHandleElement = document.createElement('div');
         this.drawHandleElement.className = 'draw-handle';
         this.rulerElement.appendChild(this.drawHandleElement);
 
+        // 9. Madde: Çizim Etiketi
         this.drawHandleLabel = document.createElement('div');
         this.drawHandleLabel.className = 'draw-handle-label';
         this.drawHandleLabel.innerText = '0.0 cm';
         this.drawHandleElement.appendChild(this.drawHandleLabel);
         
-        // --- DEĞİŞİKLİK BURADA: Canvas'ı ÜSTE (DIŞARIYA) TAŞIYORUZ ---
+        // 8. Madde (Çizim Alanı): 
+        // Çizimi göstermek için cetvelin üstüne ayrı bir canvas ekle
         this.drawCanvas = document.createElement('canvas');
         this.drawCanvas.className = 'ruler-draw-canvas'; 
         this.drawCanvas.style.position = 'absolute';
         
-        // 'bottom: 100%' demek, canvas'ın altı cetvelin tepesine değsin demektir (Yani üstte kalır).
-        this.drawCanvas.style.bottom = '100%'; 
+        // Çizim Çizgisini ÜSTE Taşı
+        this.drawCanvas.style.top = '-10px'; // 10px Dışarıda (üstte)
+        this.drawCanvas.style.bottom = 'auto'; // Altı sıfırla
+        
         this.drawCanvas.style.left = '0';
-        this.drawCanvas.style.pointerEvents = 'none';
-        
-        // Çizim alanı yüksekliği
-        this.drawCanvas.height = 20; 
-        
+        this.drawCanvas.style.pointerEvents = 'none'; // Tıklanamaz
         this.drawCtx = this.drawCanvas.getContext('2d');
-        this.rulerElement.insertBefore(this.drawCanvas, this.rulerElement.firstChild);
+        this.rulerElement.appendChild(this.drawCanvas);
 
+        // Cetveli sayfaya (body) ekle
         document.body.appendChild(this.rulerElement);
+        
+        // Başlangıçta gizle
         this.rulerElement.style.display = 'none';
         
+        // Olay dinleyicilerini (Event Listeners) bağla
         this.addListeners();
+        
+        // Durumu (konum, genişlik) güncelle
         this.updateTransform();
         this.updateMarkings();
         this.updateDrawCanvasSize();
@@ -133,12 +145,11 @@ window.RulerTool = {
         this.updateDrawCanvasSize();
     },
     
-    // Cetvelin çizim alanını (canvas) yeniden boyutlandır (GÜNCELLENMİŞ)
+    // Cetvelin çizim alanını (canvas) yeniden boyutlandır
     updateDrawCanvasSize: function() {
-        if (!this.drawCanvas) return;
+        if (!this.drawCanvas) return; // Güvenlik kontrolü
         this.drawCanvas.width = this.state.width;
-        // Yüksekliği 20px yapıyoruz (init fonksiyonundaki top: -20px ile uyumlu olması için)
-        this.drawCanvas.height = 20; 
+        this.drawCanvas.height = 10; // Dışarıdaki kanvasın yüksekliği
     },
 
     // Tıklama Sorunu Düzeltmesi
@@ -408,45 +419,45 @@ window.audio_draw.play();
         }
     },
 
-    // 8. & 9. Madde: Çizim Tutamacı Mantığı (ÜST KENARA BİTİŞİK)
+    // 8. & 9. Madde: Çizim Tutamacı Mantığı (Çalışan Kod)
     handleDraw: function(e) {
+        
         const pos = this.getEventPos(e);
-        const centerX = this.state.x + (this.state.width / 2);
-        const centerY = this.state.y + 30;
-        const relativeX_to_center = pos.x - centerX;
-        const relativeY_to_center = pos.y - centerY;
-        const angleRad = -this.state.angle * (Math.PI / 180);
-        const cosAngle = Math.cos(angleRad);
-        const sinAngle = Math.sin(angleRad);
-        const localX_from_center = (relativeX_to_center * cosAngle) - (relativeY_to_center * sinAngle);
-        const localX_from_left = localX_from_center + (this.state.width / 2);
-        let handleX = Math.max(0, Math.min(this.state.width, localX_from_left));
-        
-        this.state.currentHandleX = handleX; 
-        
-        this.drawHandleElement.style.transition = 'none'; 
-        this.drawHandleElement.style.left = `${handleX}px`;
-        
-        const cm = (handleX / this.PIXELS_PER_CM).toFixed(1).replace('.', ',');
-        this.drawHandleLabel.innerText = `${cm} cm`;
-        
-        // --- ÇİZİM İŞLEMİ ---
-        this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
-        this.drawCtx.beginPath();
+    const centerX = this.state.x + (this.state.width / 2);
+    const centerY = this.state.y + 30;
+    const relativeX_to_center = pos.x - centerX;
+    const relativeY_to_center = pos.y - centerY;
+    const angleRad = -this.state.angle * (Math.PI / 180);
+    const cosAngle = Math.cos(angleRad);
+    const sinAngle = Math.sin(angleRad);
+    const localX_from_center = (relativeX_to_center * cosAngle) - (relativeY_to_center * sinAngle);
+    const localX_from_left = localX_from_center + (this.state.width / 2);
+    let handleX = Math.max(0, Math.min(this.state.width, localX_from_left));
+    // ... (hesaplama bitti) ...
+    
+    this.state.currentHandleX = handleX; 
+    
+    this.drawHandleElement.style.transition = 'none'; 
+    this.drawHandleElement.style.left = `${handleX}px`;
+    
+    // --- KRİTİK DÜZELTME (Virgül Ekle) ---
+    const cm = (handleX / this.PIXELS_PER_CM).toFixed(1).replace('.', ',');
+    this.drawHandleLabel.innerText = `${cm} cm`;
+    // --- DÜZELTME SONU ---
+    
+    // Çizgiyi (üste taşınan) kanvasa çiz
+    this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
+    this.drawCtx.beginPath();
+    this.drawCtx.moveTo(0, 4); 
+    this.drawCtx.lineTo(handleX, 4); 
+    this.drawCtx.strokeStyle = '#FFFFFF'; 
+    this.drawCtx.lineWidth = 3; 
+    this.drawCtx.stroke();
+},
 
-        // Canvas yukarıda olduğu için, çizginin cetvele değmesi için EN ALTA çiziyoruz.
-        const lineY = this.drawCanvas.height - 2; 
-
-        this.drawCtx.moveTo(0, lineY);           
-        this.drawCtx.lineTo(handleX, lineY);     
-
-        this.drawCtx.strokeStyle = '#FFFFFF'; // BEYAZ
-        this.drawCtx.lineWidth = 3;           // 3px KALINLIK
-        this.drawCtx.setLineDash([6, 6]);     // KESİKLİ
-        this.drawCtx.stroke();
-        
-        this.drawCtx.setLineDash([]); 
-    },
+    // 8. Madde: Çizimi ana kanvasa (app.js) gönderme (Zıplama Hatası Düzeltildi)
+    // --- ruler.js ---
+// LÜTFEN MEVCUT finalizeDraw FONKSİYONUNUZU BU BLOK İLE DEĞİŞTİRİN:
 
 finalizeDraw: function() {
     

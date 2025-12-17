@@ -350,19 +350,24 @@ toggle: function() {
     if (this.interactionMode === 'none') return;
 
     if (this.interactionMode === 'drawing') {
-    window.audio_draw.pause();
-    window.audio_draw.currentTime = 0;
+        // Sesi durdur
+        window.audio_draw.pause();
+        window.audio_draw.currentTime = 0;
 
-    const pos = currentMousePos;   // app.js içinde güncelleniyor
-    this.finalizeDraw(pos.x, pos.y);   // parametreli çağrı
-
-    this.state.isDrawing = false;
-
-    setTimeout(() => {
-        if (this.previewCanvas) this.previewCanvas.style.display = 'none';
-        if (this.previewCtx) this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
-    }, 50);
-}
+        // --- KRİTİK FİNALİZE KONTROLÜ ---
+        // Çizimi kalıcı olarak kaydetmeye ZORLA (Silgi aktif olsa bile)
+        this.finalizeDraw();
+        // --- KONTROL SONU ---
+        
+        this.state.isDrawing = false;
+        
+        // --- KRİTİK DÜZELTME: GÖRSEL TEMİZLİĞİ GECİKTİR ---
+        setTimeout(() => {
+            if (this.previewCanvas) this.previewCanvas.style.display = 'none';
+            if (this.previewCtx) this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+        }, 50); // 50ms gecikme
+        // --- YENİ KOD SONU ---
+    }
     if (this.interactionMode === 'resizing') {
         if (this.radiusLabel) this.radiusLabel.style.display = 'none';
     }
@@ -504,59 +509,81 @@ onFlip: function(e) {
     
     // Anlık önizleme (Sürüklerken)
     drawPreviewArc: function() {
-  if (!this.previewCtx) return;
-
-  this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
-  this.previewCtx.lineDashOffset = (this.previewCtx.lineDashOffset - 0.5) % 16;
-
-  this.previewCtx.beginPath();
-  this.previewCtx.arc(
-    this.state.pivot.x,
-    this.state.pivot.y,
-    this.state.radius,
-    this.state.startAngle * (Math.PI / 180),
-    this.state.rotation * (Math.PI / 180),
-    false
-  );
-  this.previewCtx.strokeStyle = "rgba(255, 0, 255, 0.7)";
-  this.previewCtx.lineWidth = 3;
-  this.previewCtx.setLineDash([5, 5]);
-  this.previewCtx.stroke();
-  this.previewCtx.setLineDash([]);
-},
+        if (!this.previewCtx) return; // Güvenlik
+        
+        this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+        this.previewCtx.lineDashOffset = (this.previewCtx.lineDashOffset - 0.5) % 16;
+        
+        this.previewCtx.beginPath();
+        this.previewCtx.arc(
+            this.state.pivot.x,
+            this.state.pivot.y,
+            this.state.radius,
+            this.state.startAngle * (Math.PI / 180), 
+            this.state.rotation * (Math.PI / 180), 
+            false // 180 derece hatası düzeltildiği için yön hep 'false'
+        );
+        this.previewCtx.strokeStyle = "rgba(255, 0, 255, 0.7)"; 
+        this.previewCtx.lineWidth = 3;
+        this.previewCtx.setLineDash([5, 5]);
+        this.previewCtx.stroke();
+        this.previewCtx.setLineDash([]);
+    },
     
     // Çizimi bitir (Ana kanvasa gönder)
-    finalizeDraw: function(x, y) {
-  if (!this.state.isDrawing) return;
+    finalizeDraw: function() {
+        if (!this.state.isDrawing) return;
 
-  const mainCanvas = document.querySelector('canvas');
-  const rect = mainCanvas.getBoundingClientRect();
+        // --- HATA AYIKLAMA BAŞLANGIÇ ---
+        console.log("Pergel: finalizeDraw() çağrıldı. (Çizim bitti, kaydetmeye çalışıyor...)");
 
-  // Önizleme ile aynı pivot ve açı değerleri kullanılmalı
-  const cx = this.state.pivot.x - rect.left;
-  const cy = this.state.pivot.y - rect.top;
+        
+        const mainCanvas = document.querySelector('canvas');
+        if (!mainCanvas) {
+             console.error("Pergel HATASI: Ana <canvas> bulunamadı!");
+             return; 
+        }
+        
+        const rect = mainCanvas.getBoundingClientRect();
 
-  const centerLabel = window.nextPointChar;
-  window.nextPointChar = window.advanceChar(centerLabel);
+        // ANA KONTROL: app.js (motor) bulunabiliyor mu?
+        if (window.drawnStrokes && window.redrawAllStrokes) {
+            
+            console.log("Pergel BAŞARILI: app.js motoru bulundu (drawnStrokes ve redrawAllStrokes OK).");
 
-  window.drawnStrokes.push({
-    type: 'arc',
-    cx: cx,
-    cy: cy,
-    radius: this.state.radius,
-    startAngle: this.state.startAngle,
-    endAngle: this.state.rotation,
-    color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
-    width: 3,
-    label: centerLabel
-  });
+            // --- YENİ KOD BAŞLANGICI ---
+            // Merkez noktası için bir etiket al
+            const centerLabel = window.nextPointChar;
+            window.nextPointChar = window.advanceChar(centerLabel);
+            // --- YENİ KOD SONU ---
 
-  window.redrawAllStrokes();
-  this.state.isDrawing = false;
-}
-
-
-
+            window.drawnStrokes.push({
+                type: 'arc',
+                cx: this.startState.pivot.x - rect.left, // 'state' -> 'startState' olarak değişti
+                cy: this.startState.pivot.y - rect.top, // 'state' -> 'startState' olarak değişti
+                radius: this.state.radius,
+                startAngle: this.state.startAngle, // Derece
+                endAngle: this.state.rotation, // Derece (Birikmiş)
+                color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
+                width: 3,
+                label: centerLabel // <- YENİ EKLENEN SATIR
+            });
+            
+            console.log("Pergel: Çizim hafızaya (drawnStrokes) eklendi.");
+            
+            window.redrawAllStrokes(); 
+            
+            console.log("Pergel: redrawAllStrokes() çağrıldı. Çizimin şimdi görünmesi lazım.");
+            
+        } else {
+            // SORUN %99 BURADA
+            console.error("Pergel KRİTİK HATA: app.js motoru bulunamadı!");
+            console.log("window.drawnStrokes şu anda:", window.drawnStrokes);
+            console.log("window.redrawAllStrokes şu anda:", window.redrawAllStrokes);
+            console.error("Lütfen app.js dosyasının HTML'de pergel.js'den ÖNCE yüklendiğinden emin olun!");
+        }
+        // --- HATA AYIKLAMA SONU ---
+    }
 };
 
 // Aracı hemen başlat

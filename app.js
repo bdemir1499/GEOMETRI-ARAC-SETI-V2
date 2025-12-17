@@ -1,76 +1,3 @@
-// --- app.js EN ÜST SATIRI ---
-
-// --- ŞEKİL ALGILAMA DEĞİŞKENLERİ ---
-window.penPath = [];      
-window.shapeTimer = null;
-
-// 1. Hareket Geçmişi (Buffer) - Zıplama Önleyici
-window.touchHistoryBuffer = [];
-window.lastSafeDrawPos = { x: 0, y: 0 };
-// --- ÇEMBER ALGILAMA DEĞİŞKENLERİ ---
-window.penPath = [];        // Kalem yolunu tutar
-window.shapeTimer = null;   // Bekleme süresini sayar
-window.isShapeSnapping = false; // Şu an düzeltme yapıyor mu?
-
-// 2. Touch Move Kaydedici
-document.addEventListener('touchmove', function(e) {
-    if (e.touches.length === 1) {
-        window.lastSafeDrawPos = {
-            x: e.touches[0].clientX,
-            y: e.touches[0].clientY
-        };
-    }
-}, { passive: false });
-
-// 3. TABLET/MOBİL SIÇRAMA ENGELLEYİCİ (AKILLI VERSİYON)
-let lastTouchTime = 0;
-
-// A) Dokunma Bitişini Kaydet
-document.addEventListener('touchend', function(e) {
-    lastTouchTime = new Date().getTime();
-    
-    // Tutamaçlarda varsayılanı engelle (Zıplamayı keser)
-    if(e.target.closest('.draw-handle, .rotate-handle, .resize-handle')) {
-        e.preventDefault(); 
-    }
-}, { passive: false });
-
-// B) Tıklama Filtresi Fonksiyonu
-const clickBlocker = function(e) {
-    const timeSinceTouch = new Date().getTime() - lastTouchTime;
-    
-    // Eğer son 500ms içinde dokunmatik işlem yapıldıysa:
-    if (timeSinceTouch < 500 && timeSinceTouch > 0) {
-        
-        // İZİN VERİLECEKLER LİSTESİ:
-        // Butonlar, Araçlar, Renk Kutuları, Inputlar, Etiketler, Linkler
-        if (e.target.closest('button, .tool-btn, input, label, a, .pwa-btn, .color-box')) {
-            return; // İzin ver, engelleme
-        }
-
-        // Geri kalan her şeyi (Canvas tıklamaları vb.) engelle
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-    }
-};
-
-// C) Filtreyi Uygula
-document.addEventListener('click', clickBlocker, true);
-document.addEventListener('mousedown', clickBlocker, true);
-
-// 4. CSS İyileştirmesi
-const style = document.createElement('style');
-style.innerHTML = `
-    button, .tool-btn, .pwa-btn, a, .color-box {
-        touch-action: manipulation;
-        cursor: pointer;
-    }
-`;
-document.head.appendChild(style);
-
-// -------------------------------------------------------------
-
 
 // --- KANVAS AYARLARI ---
 const canvas = document.getElementById('drawing-canvas');
@@ -234,35 +161,13 @@ function resizeCanvas() {
     redrawAllStrokes();
 }
 
-// --- app.js ---
-
 function getEventPosition(e) {
-    // DÜZELTME: Parmak kalkarken (touchend) yeni hesap yapma, son konumu kullan (Zıplamayı Önler)
-    if (e.type === 'touchend' || e.type === 'touchcancel') return currentMousePos;
-
-    const rect = canvas.getBoundingClientRect();
-    
-    let clientX, clientY;
-
-    // Dokunmatik ve Mouse ayrımı
     if (e.touches && e.touches.length > 0) {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-    } else if (e.changedTouches && e.changedTouches.length > 0) {
-        clientX = e.changedTouches[0].clientX;
-        clientY = e.changedTouches[0].clientY;
-    } else {
-        clientX = e.clientX;
-        clientY = e.clientY;
+        return { x: e.touches[0].clientX, y: e.touches[0].clientY };
     }
-
-    // 2. HASSAS HESAPLAMA (ÖLÇEK DÜZELTMELİ)
-    // (Tıklanan Yer - Canvas Başlangıcı) * (İç Çözünürlük / Görsel Boyut)
-    return { 
-        x: (clientX - rect.left) * (canvas.width / rect.width),
-        y: (clientY - rect.top) * (canvas.height / rect.height)
-    };
+    return { x: e.clientX, y: e.clientY };
 }
+
 function drawDot(pos, color = '#00FFCC') {
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, 5, 0, 2 * Math.PI); 
@@ -1075,13 +980,6 @@ if (animateButton) {
 
 canvas.addEventListener('mousedown', (e) => {
 
-// Yeni çizim başlıyor, hafızayı temizle
-window.penPath = [];
-if (window.shapeTimer) {
-    clearTimeout(window.shapeTimer);
-    window.shapeTimer = null;
-}
-
     // --- 1. FİZİKSEL ARAÇ KONTROLÜ ---
     const isToolElementClicked = e.target.closest('.ruler-container, .gonye-container, .aciolcer-container, #compass-container');
     if (isToolElementClicked) { 
@@ -1318,19 +1216,6 @@ if (window.shapeTimer) {
 });
 
 canvas.addEventListener('mousemove', (e) => {
-    // --- SADELEŞTİRİLMİŞ ÇİZİM KAYDI ---
-    if (window.currentTool === 'pen' && e.buttons === 1) { 
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        
-        // Sadece noktayı kaydet, hesaplama yapma
-        if (!window.penPath) window.penPath = [];
-        window.penPath.push({x, y});
-    }    
-
-
-    // --- BURADA HİÇBİR KAPATMA PARANTEZİ OLMAMALI ---
 
     // 1. TAŞIMA (MOVE) MANTIĞI
     if (currentTool === 'move' && isMoving) {
@@ -1384,15 +1269,13 @@ canvas.addEventListener('mousemove', (e) => {
                 }
             }
         }
+        
         redrawAllStrokes();
+        return; 
     }
 
     // Araç Kontrolü
-    if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciolcer' || currentTool === 'pergel') {
-        isDrawing = false;
-        if (ctx) ctx.beginPath();
-    }
-
+    if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciolcer' || currentTool === 'pergel') return;
     if (currentTool === 'none') return;
     
     const pos = getEventPosition(e);
@@ -1401,6 +1284,7 @@ canvas.addEventListener('mousemove', (e) => {
     // Akıllı Yakalama
     clearTimeout(snapHoverTimer);
     snapHoverTimer = null;
+    
     const canSnap = (currentTool === 'point' || currentTool === 'straightLine' || currentTool === 'pen' || currentTool === 'segment');
     
     if (canSnap) {
@@ -1434,6 +1318,7 @@ canvas.addEventListener('mousemove', (e) => {
     let previewActive = false;
     ctx.globalAlpha = 0.6; 
     ctx.setLineDash([8, 4]);
+
     const endPos = snapTarget || currentMousePos;
 
     if (currentTool === 'straightLine' && isDrawingLine) {
@@ -1511,16 +1396,22 @@ canvas.addEventListener('mousemove', (e) => {
         else labelText = `Kenar: ${((2 * currentRadius * Math.sin(Math.PI / type)) / 30).toFixed(1)} cm`;
         polygonPreviewLabel.innerText = labelText;
     }
+
+    // --- CANLANDIRMA (KUTU) ÖNİZLEMESİ ---
+    // (Burası artık 'isDrawing' kontrolünün ÜSTÜNDE)
     else if (currentTool === 'snapshot' && snapshotStart) {
         redrawAllStrokes(); 
+        
         const w = currentMousePos.x - snapshotStart.x;
         const h = currentMousePos.y - snapshotStart.y;
+        
         ctx.save();
         ctx.setLineDash([5, 5]); 
         ctx.strokeStyle = '#FF0000'; 
         ctx.lineWidth = 2;
         ctx.strokeRect(snapshotStart.x, snapshotStart.y, w, h); 
         ctx.restore();
+        
         previewActive = true; 
     }
 
@@ -1530,6 +1421,7 @@ canvas.addEventListener('mousemove', (e) => {
     if (previewActive) return; 
 
     // --- ÇİZİM İŞLEMLERİ (KALEM/SİLGİ) ---
+    // Bu kontrol artık Canlandırma'yı engellemeyecek
     if (!isDrawing) return;
 
     if (currentTool === 'pen') {
@@ -1542,11 +1434,13 @@ canvas.addEventListener('mousemove', (e) => {
         
         for (const stroke of drawnStrokes) {
             let touched = false;
-            // ... (Silgi mantığı kısaltıldı, zaten aynı) ...
-             if (stroke.type === 'pen') {
+
+            if (stroke.type === 'pen') {
                 for (const point of stroke.path) { if (distance(point, pos) < 10) { touched = true; break; } }
             } 
-            else if (stroke.type === 'point') { if (distance(stroke, pos) < 10) touched = true; } 
+            else if (stroke.type === 'point') {
+                if (distance(stroke, pos) < 10) { touched = true; }
+            } 
             else if (stroke.type === 'straightLine' || stroke.type === 'line' || stroke.type === 'segment' || stroke.type === 'ray') {
                 const p1 = stroke.p1; const p2 = stroke.p2;
                 const steps = Math.max(1, Math.floor(distance(p1, p2) / 5)); 
@@ -1589,6 +1483,7 @@ canvas.addEventListener('mousemove', (e) => {
                 }
             } 
             else if (stroke.type === 'image') {
+                // Arka plan koruması
                 if (!stroke.isBackground) { 
                     const dx = pos.x - stroke.x;
                     const dy = pos.y - stroke.y;
@@ -1610,33 +1505,9 @@ canvas.addEventListener('mousemove', (e) => {
             redrawAllStrokes(); 
         }
     }
-}); // <--- YENİ EKLENEN KAPATMA PARANTEZİ 
-
-
-// <--- 4. BURASI DOĞRU (Mousemove olayını kapatır)
+}); // <--- 4. BURASI DOĞRU (Mousemove olayını kapatır)
 
 canvas.addEventListener('mouseup', () => {
-
-if (window.currentTool === 'pen' && window.penPath && window.penPath.length > 20) {
-        const start = window.penPath[0];
-        const end = window.penPath[window.penPath.length - 1];
-        
-        // Uçlar arasındaki mesafe
-        const dist = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
-
-        // Eğer uçlar birleşmişse (60px tolerans)
-        if (dist < 60) {
-            window.convertPenToCircle();
-            return; // İşlem tamam, fonksiyondan çık
-        }
-    }
-
-/// Mouse bırakıldı, çember zamanlayıcısını iptal et
-    if (window.shapeTimer) {
-        clearTimeout(window.shapeTimer);
-        window.shapeTimer = null;
-    }
-    window.penPath = [];
 
     if (currentTool === 'move' && isMoving) {
         // Taşıma sesini durdur
@@ -1912,65 +1783,12 @@ if (['point', 'straightLine', 'line', 'segment', 'ray'].includes(currentTool)) {
 });
 
 canvas.addEventListener('touchmove', (e) => {
-    e.preventDefault(); // Sayfa kaymasını engelle
-
-// --- ÇEMBER ALGILAMA BAŞLANGICI ---
-    // Eğer şu an seçili araç Kalem ise:
-    if (window.currentTool === 'pen') {
-        
-        // 1. Koordinatı al (Mobil veya Mouse fark etmez, currentMousePos günceldir)
-        const p = { x: window.currentMousePos.x, y: window.currentMousePos.y };
-        window.penPath.push(p);
-
-        // 2. Yeterince çizim yapıldıysa (En az 40 nokta) kontrol et
-        if (window.penPath.length > 40) {
-            const startPoint = window.penPath[0];
-            
-            // Başlangıç noktasına olan uzaklığı ölç (Pisagor)
-            const dx = p.x - startPoint.x;
-            const dy = p.y - startPoint.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-
-            // 3. Eğer başlangıca 30 pikselden fazla yaklaştıysa (Uç uca geldi)
-            if (dist < 30) {
-                // Daha önce sayaç başlatılmadıysa başlat
-                if (!window.shapeTimer) {
-                    window.shapeTimer = setTimeout(() => {
-                        // 800ms (0.8 sn) beklerse dönüşümü yap
-                        window.convertPenToCircle(); 
-                    }, 800); 
-                }
-            } else {
-                // Uzaklaşırsa sayacı iptal et (Vazgeçti)
-                if (window.shapeTimer) {
-                    clearTimeout(window.shapeTimer);
-                    window.shapeTimer = null;
-                }
-            }
-        }
-    }
-    // --- ÇEMBER ALGILAMA BİTİŞİ ---
+    e.preventDefault(); // Sayfanın kaymasını engelle
     
-    // -----------------------------------------------------------
-    // 1. HESAPLAMA VE SIÇRAMA ÖNLEYİCİ (EN KRİTİK KISIM)
-    // -----------------------------------------------------------
+    // 1. ÖNCE KONUMU GÜNCELLE (En Kritik Adım)
     const pos = getEventPosition(e);
     currentMousePos = pos; 
     const endPos = snapTarget || currentMousePos;
-
-    // --- Time Machine: Sıçrama Engelleyici Tampon ---
-    if (isDrawing) {
-        if (!window.touchHistoryBuffer) window.touchHistoryBuffer = [];
-        
-        window.touchHistoryBuffer.push({ x: currentMousePos.x, y: currentMousePos.y });
-        
-        // ÖNCEKİ KODDA BURASI 5 İDİ, ŞİMDİ 12 YAPIYORUZ
-        // (Daha geriye gidebilmek için hafızayı arttırdık)
-        if (window.touchHistoryBuffer.length > 12) {
-            window.touchHistoryBuffer.shift();
-        }
-    }
-    // -----------------------------------------------------------
 
     // 2. PINCH ZOOM (İKİ PARMAK)
     if (isPinching) {
@@ -1996,27 +1814,30 @@ canvas.addEventListener('touchmove', (e) => {
         return;
     }
 
-    // 3. SNAPSHOT (EKRAN GÖRÜNTÜSÜ) ÖNİZLEME
+    // 3. CANLANDIRMA (SNAPSHOT) ÖNİZLEMESİ (DOKUNMATİK)
     else if (currentTool === 'snapshot' && snapshotStart) {
-        redrawAllStrokes(); 
+        redrawAllStrokes(); // Ekranı temizle
+        
+        // Artık currentMousePos güncel olduğu için hesaplama doğru çalışır
         const w = currentMousePos.x - snapshotStart.x;
         const h = currentMousePos.y - snapshotStart.y;
         
+        // Kırmızı Kesikli Kutu
         ctx.save();
         ctx.setLineDash([5, 5]); 
         ctx.strokeStyle = '#FF0000'; 
         ctx.lineWidth = 2;
         ctx.strokeRect(snapshotStart.x, snapshotStart.y, w, h); 
         ctx.restore();
-        return; 
+        
+        return; // Önizleme yapıldı, başka işlem yapmadan çık
     }
 
-    // 4. FİZİKİ ARAÇ ENGELLEYİCİLERİ
-    // (Buffer yukarıda dolduğu için buradaki return sorun yaratmaz)
+    // Araç Kontrolleri (Engelleyiciler)
     if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciolcer' || currentTool === 'pergel') return;
     if (currentTool === 'none') return;
 
-    // 5. TAŞIMA (MOVE) MANTIĞI
+    // 4. TAŞIMA (MOVE) MANTIĞI
     if (currentTool === 'move' && isMoving) {
         const dx = pos.x - dragStartPos.x;
         const dy = pos.y - dragStartPos.y;
@@ -2067,11 +1888,12 @@ canvas.addEventListener('touchmove', (e) => {
                 }
             }
         }
+        
         redrawAllStrokes();
         return; 
     }
 
-    // 6. AKILLI YAKALAMA (SNAP)
+    // Akıllı Yakalama
     let snapTargetLocal = null;
     const canSnap = (currentTool === 'point' || currentTool === 'straightLine' || currentTool === 'pen' || currentTool === 'segment' || currentTool.startsWith('draw_polygon_'));
     if (canSnap) {
@@ -2080,7 +1902,7 @@ canvas.addEventListener('touchmove', (e) => {
             snapIndicator.style.left = `${snapTargetLocal.x}px`; 
             snapIndicator.style.top = `${snapTargetLocal.y}px`; 
             snapIndicator.style.display = 'block'; 
-            snapTarget = snapTargetLocal; 
+            snapTarget = snapTargetLocal; // Global değişkeni güncelle
         } else { 
             snapIndicator.style.display = 'none'; 
             snapTarget = null;
@@ -2090,7 +1912,7 @@ canvas.addEventListener('touchmove', (e) => {
         snapIndicator.style.display = 'none';
     }
 
-    // 7. CANLI ÖNİZLEMELER (Lines, Polygons vb.)
+    // --- DİĞER ÖN İZLEMELER ---
     let previewActive = false;
     ctx.globalAlpha = 0.6; 
     ctx.setLineDash([10, 5]);
@@ -2123,7 +1945,6 @@ canvas.addEventListener('touchmove', (e) => {
         drawDot(lineStartPoint, currentLineColor); drawDot(pos, currentLineColor);
         previewActive = true;
     }
-    // --- ÇOKGEN ÖNİZLEMESİ (Senin attığın kısım) ---
     else if (window.tempPolygonData && window.tempPolygonData.center) {
         const center = window.tempPolygonData.center;
         const type = window.tempPolygonData.type;
@@ -2161,19 +1982,16 @@ canvas.addEventListener('touchmove', (e) => {
 
     ctx.globalAlpha = 1.0; 
     ctx.setLineDash([]); 
-    
-    // Eğer önizleme yapıldıysa fonksiyondan çık
     if (previewActive) return; 
 
-    // 8. KALEM VE SİLGİ (ÇİZİM AŞAMASI)
+    // 5. KALEM/SİLGİ SÜRÜKLEME (Dokunmatik)
     if (!isDrawing) return;
     
     if (currentTool === 'pen') {
         drawnStrokes[drawnStrokes.length - 1].path.push(pos);
         redrawAllStrokes();
     }
-    
-    // --- SİLGİ ---
+    // --- BURASI YENİLENDİ: TAM KAPSAMLI DOKUNMATİK SİLGİ ---
     else if (currentTool === 'eraser') {
         let strokesToKeep = [];
         let needsRedraw = false;
@@ -2181,48 +1999,63 @@ canvas.addEventListener('touchmove', (e) => {
         for (const stroke of drawnStrokes) {
             let touched = false;
 
-            // Silgi mantığı (Her tür için)
+            // 1. Kalem Çizimleri (Pen)
             if (stroke.type === 'pen') {
                 for (const point of stroke.path) { 
-                    if (distance(point, pos) < 15) { touched = true; break; } 
+                    if (distance(point, pos) < 15) { // Dokunmatikte hassasiyet biraz arttırıldı (15px)
+                        touched = true; 
+                        break; 
+                    } 
                 }
             } 
+            // 2. Noktalar (Point)
             else if (stroke.type === 'point') {
                 if (distance(stroke, pos) < 15) { touched = true; }
             } 
+            // 3. Doğrular ve Çizgiler (Line, Ray, Segment, StraightLine)
             else if (stroke.type === 'straightLine' || stroke.type === 'line' || stroke.type === 'segment' || stroke.type === 'ray') {
-                const p1 = stroke.p1; const p2 = stroke.p2;
+                const p1 = stroke.p1; 
+                const p2 = stroke.p2;
+                // Çizgi boyunca örnekleme yap
                 const dist = distance(p1, p2);
                 const steps = Math.max(1, Math.floor(dist / 5)); 
                 for (let i = 0; i <= steps; i++) {
                     const t = i / steps;
-                    const sx = p1.x + (p2.x - p1.x) * t;
-                    const sy = p1.y + (p2.y - p1.y) * t;
-                    if (distance({x: sx, y: sy}, pos) < 15) { touched = true; break; }
+                    const sampleX = p1.x + (p2.x - p1.x) * t;
+                    const sampleY = p1.y + (p2.y - p1.y) * t;
+                    if (distance({x: sampleX, y: sampleY}, pos) < 15) { touched = true; break; }
                 }
             }
+            // 4. Çember ve Yaylar (Arc/Pergel)
             else if (stroke.type === 'arc') {
                 const centerPos = { x: stroke.cx, y: stroke.cy };
+                // Merkeze tıklandı mı?
                 if (distance(centerPos, pos) < 15) { touched = true; } 
                 else {
-                    const steps = 60; 
+                    // Yay boyunca tara
+                    const steps = 60; // Daha sık tarama
                     const startRad = stroke.startAngle * (Math.PI / 180);
                     const endRad = stroke.endAngle * (Math.PI / 180);
+                    const totalAngle = Math.abs(stroke.endAngle - stroke.startAngle);
+                    
                     for (let i = 0; i <= steps; i++) {
                         const t = i / steps;
                         const angle = startRad + t * (endRad - startRad);
-                        const sx = stroke.cx + stroke.radius * Math.cos(angle);
-                        const sy = stroke.cy + stroke.radius * Math.sin(angle);
-                        if (distance({x: sx, y: sy}, pos) < 15) { touched = true; break; }
+                        const sampleX = stroke.cx + stroke.radius * Math.cos(angle);
+                        const sampleY = stroke.cy + stroke.radius * Math.sin(angle);
+                        if (distance({x: sampleX, y: sampleY}, pos) < 15) { touched = true; break; }
                     }
                 }
             }
+            // 5. Çokgenler (Polygon)
             else if (stroke.type === 'polygon') {
                 if (stroke.center && distance(stroke.center, pos) < 15) { touched = true; } 
                 else if (stroke.vertices) {
+                    // Köşeleri kontrol et
                     for (const v of stroke.vertices) { 
                         if (distance(v, pos) < 15) { touched = true; break; } 
                     }
+                    // Kenarları kontrol et
                     if (!touched) {
                         for (let j = 0; j < stroke.vertices.length; j++) {
                             const v1 = stroke.vertices[j];
@@ -2240,14 +2073,25 @@ canvas.addEventListener('touchmove', (e) => {
                     }
                 }
             } 
+            // 6. RESİMLER VE CANLANDIRMA PARÇALARI (Image)
             else if (stroke.type === 'image') {
+                // Eğer "arka plan" olarak işaretli değilse silinebilir
+                // (Canlandır parçaları isBackground: undefined veya false gelir)
                 if (!stroke.isBackground) { 
+                    // Koordinatları resmin yerel eksenine çevir (Döndürme desteği)
                     const dx = pos.x - stroke.x;
                     const dy = pos.y - stroke.y;
                     const angleRad = -stroke.rotation * (Math.PI / 180);
+                    
+                    // Döndürülmüş koordinatlar
                     const localX = dx * Math.cos(angleRad) - dy * Math.sin(angleRad);
                     const localY = dx * Math.sin(angleRad) + dy * Math.cos(angleRad);
-                    if (localX > -stroke.width/2 && localX < stroke.width/2 && localY > -stroke.height/2 && localY < stroke.height/2) {
+                    
+                    const halfW = stroke.width / 2;
+                    const halfH = stroke.height / 2;
+                    
+                    // Resmin sınırları içinde mi?
+                    if (localX > -halfW && localX < halfW && localY > -halfH && localY < halfH) {
                         touched = true;
                     }
                 }
@@ -2255,7 +2099,13 @@ canvas.addEventListener('touchmove', (e) => {
 
             if (touched) {
                 needsRedraw = true;
-                try { if (window.audio_click) { window.audio_click.currentTime = 0; window.audio_click.play(); } } catch(e){}
+                // Silinme sesi (opsiyonel)
+                try { 
+                    if (window.audio_click) { 
+                        window.audio_click.currentTime = 0; 
+                        window.audio_click.play(); 
+                    } 
+                } catch(e){}
             } else {
                 strokesToKeep.push(stroke);
             }
@@ -2267,88 +2117,15 @@ canvas.addEventListener('touchmove', (e) => {
             redrawAllStrokes(); 
         }
     }
+});
 
-}); 
-
-
-// <-- FONKSİYON BURADA SAĞLAM ŞEKİLDE KAPANIYOR
 canvas.addEventListener('touchend', (e) => { 
     if (e && e.cancelable) e.preventDefault();
-
-if (window.currentTool === 'pen' && window.penPath && window.penPath.length > 20) {
-        // Son noktayı güvenli al
-        let lastP = window.penPath[window.penPath.length - 1];
-        let firstP = window.penPath[0];
-        
-        const dist = Math.sqrt(Math.pow(lastP.x - firstP.x, 2) + Math.pow(lastP.y - firstP.y, 2));
-
-        if (dist < 60) {
-            window.convertPenToCircle();
-            // Buffer temizliği vs. yapıp çıkabiliriz
-            window.touchHistoryBuffer = [];
-            return; 
-        }
-    }
-
-// Çizim bitti, çember sayacını ve yolunu sıfırla
-    if (window.shapeTimer) {
-        clearTimeout(window.shapeTimer);
-        window.shapeTimer = null;
-    }
-    window.penPath = [];
-
-    // =========================================================================
-    // 1. ADIM: AKILLI SIÇRAMA ENGELLEYİCİ (KALEM KORUMALI)
-    // =========================================================================
-    
-    let finalSafePos = currentMousePos;
-    const buffer = window.touchHistoryBuffer;
-
-    // KURAL: Eğer araç KALEM (Pen) ise ASLA geriye sarma! Olduğu gibi bırak.
-    // Çünkü kalemle yazı yazarken son milisaniyeler önemlidir.
-    if (currentTool === 'pen') {
-        // Kalemde son konum neyse o kalır, müdahale etme.
-        if (buffer && buffer.length > 0) {
-            finalSafePos = buffer[buffer.length - 1]; // En son nokta
-        }
-    } 
-    // Diğer araçlar (Cetvel, Gönye, Taşıma vb.) için geriye sar (Zıplamayı önle)
-    else {
-        if (buffer && buffer.length >= 6) {
-            // 6 kare geriye git (Tutamaçları sabitler)
-            finalSafePos = buffer[buffer.length - 6]; 
-        } 
-        else if (buffer && buffer.length > 0) {
-            finalSafePos = buffer[0];
-        }
-    }
-
-    // Karar verilen güvenli konumu kullan
-    const endPos = snapTarget || finalSafePos;
-
-    // Buffer'ı temizle
-    window.touchHistoryBuffer = [];
-    
-    // ... (Kodun geri kalanı aynen devam eder: Snapshot, Ruler vb.) ...
 
 
 // --- 3. KOPYALAMA İŞLEMİ (DOKUNMATİK BİTİŞ) ---
     if (currentTool === 'snapshot' && snapshotStart) {
-        // --- ESKİ 'const endPos...' SATIRINI SİL, YERİNE BUNU YAPIŞTIR ---
-
-    let finalPosition = currentMousePos;
-
-    // Eğer çizim yapıldıysa ve elimizde güvenli bir yedek konum varsa onu kullan
-    // (Tabletin uydurduğu son sıçrama noktasını kullanma)
-    if (window.lastValidDrawPos && window.lastValidDrawPos.x !== 0) {
-        finalPosition = window.lastValidDrawPos;
-    }
-
-    // snapTarget (mıknatıs) varsa öncelik onundur, yoksa güvenli konumu al
-    const endPos = snapTarget || finalPosition;
-
-// ---------------------------------------------------------------
-// (Kodun geri kalanı aynen devam eder: if (isDrawingLine && lineStartPoint) ... )
+        const endPos = snapTarget || currentMousePos;
         
         // Seçilen alanı hesapla
         let rawX = Math.min(snapshotStart.x, endPos.x);
@@ -2417,7 +2194,7 @@ if (window.currentTool === 'pen' && window.penPath && window.penPath.length > 20
 
     // 3. AKILLI KIRPMA ve TEMİZLEME (DOKUNMATİK BİTİŞ)
     if (currentTool === 'snapshot' && snapshotStart) {
-        
+        const endPos = snapTarget || currentMousePos;
         
         // 1. Kullanıcının çizdiği kaba kutuyu al
         let rawX = Math.min(snapshotStart.x, endPos.x);
@@ -2522,24 +2299,9 @@ if (isPinching) {
     redrawAllStrokes();
     return;
 }
-if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciolcer' || currentTool === 'pergel') {
-    // 1. Hayalet olayları engelle
-    if (e && e.cancelable) e.preventDefault();
-    
-    // 2. TÜM HAREKET BAYRAKLARINI ZORLA İNDİR
-    isDrawing = false;
-    isMoving = false;      
-    if (typeof isRotating !== 'undefined') isRotating = false;   
-    if (typeof isResizing !== 'undefined') isResizing = false;   
-    
-    // 3. Çizim yolunu kapat (Sıçramayı keser)
-    if (ctx) ctx.beginPath();
-    
-    // 4. Son durumu ekrana çiz
-    redrawAllStrokes(); 
-    
-    return;
-}
+// ... (Mevcut diğer touchend mantığı devam eder)
+    if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciolcer' || currentTool === 'pergel') return;
+
     // 1. Taşıma Durdur
     if (currentTool === 'move' && isMoving) {
         
@@ -2643,7 +2405,7 @@ if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciol
         isDrawing = false; setActiveTool('none'); return; 
     }
 
-   
+    const endPos = snapTarget || currentMousePos;
 
     // --- ÇİZGİLERİ KAYDET ---
     if (isDrawingLine && lineStartPoint) {
@@ -2694,10 +2456,7 @@ if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciol
         }
     }
 
-    isDrawing = false;
-if (ctx) ctx.beginPath(); 
-snapTarget = null; 
-snapIndicator.style.display = 'none';
+    isDrawing = false; snapTarget = null; snapIndicator.style.display = 'none';
 });
 
 // --- TOUCHCANCEL (ARAMA GELİNCE ÇİZİMİ İPTAL ETME) ---
@@ -3009,303 +2768,27 @@ document.addEventListener('click', function(e) {
             }
         } catch(err) {}
     }
-}, true); 
-
-
-// 'true' parametresi olayı en başta yakalamasını sağlar (Capture Phase)
+}, true); // 'true' parametresi olayı en başta yakalamasını sağlar (Capture Phase)
 // --- BAŞLANGIÇ ---
 // --- AKILLI EKRAN BOYUTLANDIRMA (ADRES ÇUBUĞU ZIPLAMASINI ENGELLER) ---
 let lastWindowWidth = window.innerWidth;
 
-// --- EKRAN BOYUTLANDIRMA (KESİN UYUM) ---
 function resizeCanvas() {
-    // Tarayıcının iç genişlik ve yüksekliğini al
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+    const newWidth = window.innerWidth;
+    const newHeight = window.innerHeight;
 
-    // Canvas'ın HTML özelliğini (iç çözünürlüğünü) güncelle
-    if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
-        
-        // Boyut değişince çizimler silinir, onları tekrar çiz
-        redrawAllStrokes();
-    }
-}
-
-// Hem yüklenince, hem ekran dönünce, hem de adres çubuğu oynayınca çalıştır
-window.addEventListener('load', resizeCanvas);
-window.addEventListener('resize', resizeCanvas);
-// DÜZELTME: Fiziksel araçların (Cetvel vb.) butonlarından parmak çekince oluşan zıplamayı engelle
-document.addEventListener('touchend', (e) => {
-    if (e.target.closest('.ruler-container, .gonye-container, .aciolcer-container, #compass-container')) {
-        e.preventDefault();
-    }
-}, { passive: false });
-
-window.addEventListener('orientationchange', () => {
-    setTimeout(resizeCanvas, 200); // Ekran dönmesi bitince çalıştır
-});
-
-// Mobil tarayıcılarda adres çubuğu gizlenince oluşan boşluğu doldurmak için:
-setInterval(() => {
-    if (Math.abs(canvas.height - window.innerHeight) > 10) {
-        resizeCanvas();
-    }
-}, 1000);
-
-// --- AKILLI PWA YÜKLEME PENCERESİ (HAFIZALI VERSİYON) ---
-
-// --- AKILLI PWA YÜKLEME PENCERESİ (DÜZELTİLMİŞ) ---
-(function() {
-    // 1. Değişkenleri Tanımla
-    let deferredPrompt; 
-    const popup = document.getElementById('install-popup');
-
-    // --- GÜVENLİK KONTROLÜ ---
-    // Eğer HTML'de 'install-popup' yoksa, fonksiyonu burada durdur.
-    // Bu 'return' komutu, '(function() { ... })' içinde olduğu için artık HATA VERMEZ.
-    if (!popup) return; 
-
-    const installBtn = document.getElementById('btn-popup-install');
-    const closeBtn = document.getElementById('btn-popup-close');
-    const iosInstructions = document.getElementById('ios-instructions');
-    const pwaText = document.getElementById('pwa-text');
-
-    // 2. Kontroller
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-    const isDismissed = localStorage.getItem('pwa_popup_seen') === 'true';
-    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-    // 3. Zaten yüklüyse veya reddedildiyse çık
-    if (isStandalone || isDismissed) {
+    // Eğer genişlik değişmediyse (Sadece adres çubuğu inip kalktıysa) işlem yapma!
+    // Bu sayede çizim sırasında ekranın titremesini/zıplamasını engelleriz.
+    if (newWidth === lastWindowWidth && Math.abs(newHeight - canvas.height) < 150) {
         return; 
     }
 
-    // 4. Android / Chrome Tetikleyicisi
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault(); 
-        deferredPrompt = e; 
-        popup.style.display = 'flex';
-    });
+    // Gerçekten ekran döndüyse veya boyut değiştiyse güncelle
+    lastWindowWidth = newWidth;
+    canvas.width = newWidth;
+    canvas.height = newHeight;
+    redrawAllStrokes();
+}
 
-    // 5. iOS Tetikleyicisi
-    if (isIos && !isStandalone) {
-        setTimeout(() => {
-            popup.style.display = 'flex';
-        }, 1000);
-    }
-
-    // 6. Buton Olayları
-    if (installBtn) {
-        installBtn.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                // Android Yükleme
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    localStorage.setItem('pwa_popup_seen', 'true'); 
-                    popup.style.display = 'none';
-                }
-                deferredPrompt = null;
-            } else if (isIos) {
-                // iOS Yönergesi
-                if(pwaText) pwaText.style.display = 'none'; 
-                if(iosInstructions) iosInstructions.style.display = 'block'; 
-                installBtn.style.display = 'none'; 
-                closeBtn.innerText = "Tamam, Anladım"; 
-            }
-        });
-    }
-
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            localStorage.setItem('pwa_popup_seen', 'true'); 
-            popup.style.display = 'none';
-        });
-    }
-
-    window.addEventListener('appinstalled', () => {
-        localStorage.setItem('pwa_popup_seen', 'true'); 
-        popup.style.display = 'none';
-        deferredPrompt = null;
-    });
-
-})(); // <--- Fonksiyon burada kapanıyor, bu yüzden içindeki return'ler geçerli.
-
-
-// --- app.js EN ALT KISIM ---
-
-window.convertPenToCircle = function() {
-    // Çizim modunu kapat
-    window.isDrawing = false; 
-    
-    // Yeterli veri yoksa çık
-    if (!window.penPath || window.penPath.length < 10) return;
-
-    // Son eklenen "kalem çizimini" (yamuk olanı) sil
-    if (window.drawnStrokes.length > 0) {
-        window.drawnStrokes.pop(); 
-    }
-
-    // Sınırları hesapla (Bounding Box)
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    window.penPath.forEach(p => {
-        if (p.x < minX) minX = p.x;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.y > maxY) maxY = p.y;
-    });
-
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-    // Yarıçapı ortalama alarak daha düzgün bir daire yapalım
-    const radiusX = (maxX - minX) / 2;
-    const radiusY = (maxY - minY) / 2;
-    const radius = (radiusX + radiusY) / 2;
-
-    // Yeni Çember Ekle (Tipi 'arc' olmalı ki çizim fonksiyonu tanısın)
-    window.drawnStrokes.push({
-        type: 'arc',           // DİKKAT: 'circle' değil 'arc' olmalı
-        cx: centerX,
-        cy: centerY,
-        radius: radius,        // DİKKAT: 'r' değil 'radius'
-        startAngle: 0,
-        endAngle: 360,
-        color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#FFFFFF'),
-        width: 3,
-        fillColor: 'transparent',
-        label: '',
-        showCircleInfo: false
-    });
-
-    // Sahneyi Yenile
-    window.redrawAllStrokes();
-    window.penPath = []; // Yolu temizle
-    console.log("Kusursuz çember oluşturuldu!");
-    
-    // Başarı sesi
-    if (window.audio_click) {
-        window.audio_click.currentTime = 0;
-        window.audio_click.play();
-    }
-};
-
-// --- app.js EN ALT SATIRA EKLE ---
-// --- BUTON TEMİZLİĞİ: Gizli kamera kodlarını söküp atar ---
-
-document.addEventListener('DOMContentLoaded', () => {
-    const eskiButon = document.getElementById('btn-upload');
-    const dosyaInput = document.getElementById('file-input');
-
-    if (eskiButon && dosyaInput) {
-        // 1. Butonun temiz bir kopyasını oluştur (Tüm eski olayları siler)
-        const yeniButon = eskiButon.cloneNode(true);
-        eskiButon.parentNode.replaceChild(yeniButon, eskiButon);
-
-        // 2. Yeni butona SADECE dosya açma görevi ver
-        yeniButon.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            // Dosya seçiciyi aç
-            dosyaInput.click(); 
-        });
-
-        console.log("Upload butonu temizlendi ve sıfırlandı.");
-    }
-});
-
-// --- app.js EN ALT SATIR (EDGE & CHROME UYUMLU ÇÖZÜM) ---
-
-window.addEventListener('load', function() {
-    setTimeout(() => {
-        // 1. Zombi Service Worker'ları Temizle
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for(let registration of registrations) {
-                    registration.unregister();
-                }
-            });
-        }
-
-        const eskiButon = document.getElementById('btn-upload');
-        // HTML'deki eski inputu sil
-        const eskiInput = document.getElementById('file-input');
-        if (eskiInput) eskiInput.remove(); 
-
-        if (eskiButon) {
-            // 2. Tertemiz, Yeni Bir Dosya Seçici Yarat
-            const yeniInput = document.createElement('input');
-            yeniInput.type = 'file';
-            yeniInput.id = 'dynamic-file-input';
-            yeniInput.style.display = 'none';
-            
-            // --- KRİTİK DEĞİŞİKLİK BURADA ---
-            // Edge'in kamera açmasını engellemek için 'image/jpeg' yerine '.jpg' yazıyoruz.
-            // Bu sayede tarayıcı bunu bir "medya isteği" değil, basit bir "dosya isteği" olarak görür.
-            yeniInput.accept = '.pdf, .jpg, .jpeg, .png'; 
-            
-            document.body.appendChild(yeniInput);
-
-            // 3. Butonu Sıfırla (Eski olayları sil)
-            const yeniButon = eskiButon.cloneNode(true);
-            eskiButon.parentNode.replaceChild(yeniButon, eskiButon);
-
-            // 4. Yeni Tıklama Olayı
-            yeniButon.addEventListener('click', (e) => {
-                e.preventDefault();
-                // Edge için ekstra güvenlik: Input değerini sıfırla
-                yeniInput.value = '';
-                yeniInput.click(); 
-            });
-            
-            yeniButon.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                yeniInput.value = '';
-                yeniInput.click();
-            }, { passive: false });
-
-            // 5. Dosya Seçilince Çalışacak Kod
-            yeniInput.addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                if (file.type === 'application/pdf') {
-                    // PDF Yükleme...
-                    const fileReader = new FileReader();
-                    fileReader.onload = async function() {
-                        const typedarray = new Uint8Array(this.result);
-                        if (window.pdfjsLib) {
-                            window.currentPDF = await pdfjsLib.getDocument(typedarray).promise;
-                            window.totalPDFPages = window.currentPDF.numPages;
-                            let startPage = prompt(`Kitap ${window.totalPDFPages} sayfa. Başlangıç sayfası?`, "1");
-                            window.currentPDFPage = parseInt(startPage) || 1;
-                            
-                            const controls = document.getElementById('pdf-controls');
-                            if(controls) {
-                                controls.classList.remove('hidden');
-                                controls.style.display = 'flex';
-                            }
-                            if(typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage);
-                        }
-                    };
-                    fileReader.readAsArrayBuffer(file);
-                } 
-                else {
-                    // Resim Yükleme...
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        const img = new Image();
-                        img.onload = () => {
-                            if(typeof addToCanvasAsObject === 'function') addToCanvasAsObject(img);
-                        };
-                        img.src = event.target.result;
-                    };
-                    reader.readAsDataURL(file);
-                }
-            });
-            
-            console.log("Edge uyumlu dosya yükleyici aktif.");
-        }
-    }, 500);
-});
+window.addEventListener('load', resizeCanvas);
+window.addEventListener('resize', resizeCanvas);
