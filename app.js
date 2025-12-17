@@ -2795,9 +2795,7 @@ function resizeCanvas() {
 window.addEventListener('load', resizeCanvas);
 window.addEventListener('resize', resizeCanvas);
 
-// --- app.js EN ALT KISIM (GÜNCELLENMİŞ) ---
-
-// --- app.js EN ALT SATIR (ANDROID + IPHONE UYUMLU) ---
+// --- app.js EN ALT SATIR (EDGE, CHROME, TABLET UYUMLU FİNAL) ---
 
 {
     let deferredPrompt; 
@@ -2806,46 +2804,62 @@ window.addEventListener('resize', resizeCanvas);
     const btnClose = document.getElementById('btn-popup-close');
     const iosInstructions = document.getElementById('ios-instructions');
 
-    // --- 1. ANDROID MANTIĞI ---
+    // 1. Tarayıcı sinyali (Install Prompt)
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
+        
+        // Popup'ı göster
         if (installPopup) installPopup.style.display = 'flex';
     });
 
-    // --- 2. IPHONE (iOS) MANTIĞI ---
-    // iPhone olduğunu ve uygulamanın henüz yüklenmediğini (tarayıcıda olduğunu) anla
+    // 2. iOS (iPhone/iPad) Kontrolü
     const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
     const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
 
     if (isIos && !isInStandaloneMode) {
-        // Sayfa açıldıktan 2 saniye sonra iPhone kullanıcısına pencereyi göster
         setTimeout(() => {
             if (installPopup) {
                 installPopup.style.display = 'flex';
-                // iPhone'da "Yükle" butonu çalışmaz, onu gizle
-                if (btnInstall) btnInstall.style.display = 'none';
-                // Onun yerine talimatları göster
-                if (iosInstructions) iosInstructions.style.display = 'block';
+                if (btnInstall) btnInstall.style.display = 'none'; // iPhone'da butonu gizle
+                if (iosInstructions) iosInstructions.style.display = 'block'; // Tarifi göster
             }
-        }, 3000); // 3 saniye bekle, kullanıcı sayfayı görsün sonra çıksın
+        }, 3000);
     }
 
-    // --- BUTON İŞLEMLERİ ---
-    if (btnInstall) {
-        btnInstall.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                deferredPrompt = null;
-            }
-            if (installPopup) installPopup.style.display = 'none';
-        });
-    }
+    // --- BUTONLARI ÇALIŞTIRAN FONKSİYON (EDGE DOKUNMATİK HATASI ÇÖZÜMÜ) ---
+    const activateButton = (btn, actionCallback) => {
+        if (!btn) return;
 
-    if (btnClose) {
-        btnClose.addEventListener('click', () => {
-            if (installPopup) installPopup.style.display = 'none';
-        });
-    }
+        const handler = async (e) => {
+            // Edge'in dokunmayı yutmasını engelle
+            e.stopPropagation(); 
+            e.preventDefault(); 
+            
+            // İşlemi gerçekleştir
+            await actionCallback();
+        };
+
+        // Hem tıklama hem parmak dokunuşunu dinle
+        btn.addEventListener('click', handler);
+        btn.addEventListener('touchstart', handler, { passive: false });
+    };
+
+    // --- BUTONLARA GÖREVLERİNİ VER ---
+
+    // A) Yükle Butonu
+    activateButton(btnInstall, async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log("Sonuç:", outcome);
+            deferredPrompt = null;
+        }
+        if (installPopup) installPopup.style.display = 'none';
+    });
+
+    // B) Kapat (Hayır) Butonu
+    activateButton(btnClose, async () => {
+        if (installPopup) installPopup.style.display = 'none';
+    });
 }
