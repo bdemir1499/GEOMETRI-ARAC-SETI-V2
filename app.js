@@ -2797,36 +2797,55 @@ window.addEventListener('resize', resizeCanvas);
 
 // --- app.js EN ALT KISIM (GÜNCELLENMİŞ) ---
 
+// --- app.js EN ALT SATIR (ANDROID + IPHONE UYUMLU) ---
+
 {
     let deferredPrompt; 
     const installPopup = document.getElementById('install-popup');
     const btnInstall = document.getElementById('btn-popup-install');
-    const btnClosePopup = document.getElementById('btn-popup-close');
+    const btnClose = document.getElementById('btn-popup-close');
+    const iosInstructions = document.getElementById('ios-instructions');
 
-    // --- TEST KODU: PENCEREYİ ZORLA AÇ ---
-    // Eğer kodlar sağlamsa, sayfa açıldıktan 2 saniye sonra pencere görünmelidir.
-    setTimeout(() => {
-        if (installPopup) {
-            console.log("Test: Popup zorla açılıyor.");
-            installPopup.style.display = 'flex';
-        } else {
-            console.log("Hata: Popup kutusu (HTML) bulunamadı!");
-        }
-    }, 2000);
-    // -------------------------------------
-
-    // 1. Tarayıcı sinyali (Normal çalışma mantığı)
+    // --- 1. ANDROID MANTIĞI ---
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
         if (installPopup) installPopup.style.display = 'flex';
     });
 
-    // ... (Kalan kodlar aynı şekilde devam etsin) ...
+    // --- 2. IPHONE (iOS) MANTIĞI ---
+    // iPhone olduğunu ve uygulamanın henüz yüklenmediğini (tarayıcıda olduğunu) anla
+    const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
+
+    if (isIos && !isInStandaloneMode) {
+        // Sayfa açıldıktan 2 saniye sonra iPhone kullanıcısına pencereyi göster
+        setTimeout(() => {
+            if (installPopup) {
+                installPopup.style.display = 'flex';
+                // iPhone'da "Yükle" butonu çalışmaz, onu gizle
+                if (btnInstall) btnInstall.style.display = 'none';
+                // Onun yerine talimatları göster
+                if (iosInstructions) iosInstructions.style.display = 'block';
+            }
+        }, 3000); // 3 saniye bekle, kullanıcı sayfayı görsün sonra çıksın
+    }
+
+    // --- BUTON İŞLEMLERİ ---
     if (btnInstall) {
         btnInstall.addEventListener('click', async () => {
-             // ...
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                deferredPrompt = null;
+            }
+            if (installPopup) installPopup.style.display = 'none';
         });
     }
-    // ...
+
+    if (btnClose) {
+        btnClose.addEventListener('click', () => {
+            if (installPopup) installPopup.style.display = 'none';
+        });
+    }
 }
