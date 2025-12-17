@@ -2826,3 +2826,47 @@ if (btnClosePopup) {
         if (installPopup) installPopup.style.display = 'none';
     });
 }
+
+// --- app.js EN ALT SATIR (UYGULAMA YÜKLEME PENCERESİNİ AÇMA) ---
+
+let deferredPrompt; // Yükleme olayını saklar
+const installPopup = document.getElementById('install-popup');
+const btnInstall = document.getElementById('btn-popup-install');
+const btnClosePopup = document.getElementById('btn-popup-close');
+
+// 1. Tarayıcı "Bu site yüklenebilir" dediğinde çalışır
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Çirkin varsayılan barı engelle
+    e.preventDefault();
+    // Olayı sakla, butona basınca kullanacağız
+    deferredPrompt = e;
+    
+    // Sizin hazırladığınız güzel popup'ı göster
+    if (installPopup) {
+        installPopup.style.display = 'flex';
+    }
+    console.log("Yükleme penceresi hazır!");
+});
+
+// 2. "Evet, Yükle" butonuna basınca
+if (btnInstall) {
+    btnInstall.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            // Gerçek yükleme ekranını aç
+            deferredPrompt.prompt();
+            // Kullanıcının cevabını bekle
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`Seçim: ${outcome}`);
+            deferredPrompt = null;
+        }
+        // Popup'ı kapat
+        if (installPopup) installPopup.style.display = 'none';
+    });
+}
+
+// 3. "Hayır" butonuna basınca
+if (btnClosePopup) {
+    btnClosePopup.addEventListener('click', () => {
+        if (installPopup) installPopup.style.display = 'none';
+    });
+}
