@@ -1,5 +1,8 @@
 <!DOCTYPE html>
 <html lang="tr">
+
+
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -13,7 +16,19 @@
     <link rel="stylesheet" href="gonye.css">
     <link rel="stylesheet" href="aciolcer.css">
     <link rel="stylesheet" href="pergel.css">
-    <link rel="stylesheet" href="cokgen.css"> 
+    <link rel="stylesheet" href="cokgen.css">
+    <link rel="manifest" href="manifest.json">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // '?v=final' ekleyerek en temiz sürümü yükletiyoruz
+                navigator.serviceWorker.register('sw.js?v=final')
+                    .then(reg => console.log('Uygulama Hazır'))
+                    .catch(err => console.log('Hata:', err));
+            });
+        }
+    </script> 
     
 </head>
 

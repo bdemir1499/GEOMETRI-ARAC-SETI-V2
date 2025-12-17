@@ -2792,3 +2792,37 @@ function resizeCanvas() {
 
 window.addEventListener('load', resizeCanvas);
 window.addEventListener('resize', resizeCanvas);
+
+// --- app.js EN ALT SATIR (YÜKLEME BUTONUNU AKTİF ET) ---
+
+let deferredPrompt;
+const installPopup = document.getElementById('install-popup');
+const btnInstall = document.getElementById('btn-popup-install');
+const btnClosePopup = document.getElementById('btn-popup-close');
+
+// 1. Tarayıcı "Yüklenebilir" dediğinde çalışır
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault(); 
+    deferredPrompt = e;
+    // Özel popup'ı göster
+    if (installPopup) installPopup.style.display = 'flex';
+});
+
+// 2. "Evet, Yükle" butonuna basınca
+if (btnInstall) {
+    btnInstall.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            deferredPrompt = null;
+        }
+        if (installPopup) installPopup.style.display = 'none';
+    });
+}
+
+// 3. "Hayır" butonuna basınca
+if (btnClosePopup) {
+    btnClosePopup.addEventListener('click', () => {
+        if (installPopup) installPopup.style.display = 'none';
+    });
+}
