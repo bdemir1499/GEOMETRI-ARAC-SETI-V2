@@ -2769,6 +2769,8 @@ document.addEventListener('click', function(e) {
         } catch(err) {}
     }
 }, true); // 'true' parametresi olayı en başta yakalamasını sağlar (Capture Phase)
+
+
 // --- BAŞLANGIÇ ---
 // --- AKILLI EKRAN BOYUTLANDIRMA (ADRES ÇUBUĞU ZIPLAMASINI ENGELLER) ---
 let lastWindowWidth = window.innerWidth;
@@ -2793,50 +2795,16 @@ function resizeCanvas() {
 window.addEventListener('load', resizeCanvas);
 window.addEventListener('resize', resizeCanvas);
 
-// --- app.js EN ALT SATIR (YÜKLEME BUTONUNU AKTİF ET) ---
+// --- app.js EN ALT SATIR (UYGULAMA YÜKLEME - HATASIZ SÜRÜM) ---
 
-let deferredPrompt;
-const installPopup = document.getElementById('install-popup');
-const btnInstall = document.getElementById('btn-popup-install');
-const btnClosePopup = document.getElementById('btn-popup-close');
-
-// 1. Tarayıcı "Yüklenebilir" dediğinde çalışır
-window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault(); 
-    deferredPrompt = e;
-    // Özel popup'ı göster
-    if (installPopup) installPopup.style.display = 'flex';
-});
-
-// 2. "Evet, Yükle" butonuna basınca
-if (btnInstall) {
-    btnInstall.addEventListener('click', async () => {
-        if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            deferredPrompt = null;
-        }
-        if (installPopup) installPopup.style.display = 'none';
-    });
-}
-
-// 3. "Hayır" butonuna basınca
-if (btnClosePopup) {
-    btnClosePopup.addEventListener('click', () => {
-        if (installPopup) installPopup.style.display = 'none';
-    });
-}
-
-
-
-// KODLARI SÜSLÜ PARANTEZ { } İÇİNE ALDIK Kİ HATA VERMESİN
-{ 
+// Kodları { } içine aldık. Bu sayede 'zaten var' hatası vermez.
+{
     let deferredPrompt; 
     const installPopup = document.getElementById('install-popup');
     const btnInstall = document.getElementById('btn-popup-install');
     const btnClosePopup = document.getElementById('btn-popup-close');
 
-    // 1. Tarayıcı "Bu site yüklenebilir" dediğinde çalışır
+    // 1. Tarayıcı "Yüklenebilir" sinyali verdiğinde
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
@@ -2847,13 +2815,12 @@ if (btnClosePopup) {
         }
     });
 
-    // 2. "Evet, Yükle" butonuna basınca
+    // 2. "Evet" butonuna basınca
     if (btnInstall) {
         btnInstall.addEventListener('click', async () => {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
-                console.log(`Seçim: ${outcome}`);
                 deferredPrompt = null;
             }
             if (installPopup) installPopup.style.display = 'none';
