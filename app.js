@@ -270,21 +270,45 @@ function redrawAllStrokes() {
             // Resmi Çiz (Merkezi ortalayarak)
             ctx.drawImage(stroke.img, -stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
             
-            // Eğer "Taşı" aracı seçiliyse etrafına kutu çiz
+            // Eğer "Taşı" aracı seçiliyse etrafına kutu ve kulpları çiz
             if (currentTool === 'move' && selectedItem === stroke) {
-                // Çerçeve
+                // 1. Kesikli Çerçeve
                 ctx.strokeStyle = '#00FFCC';
                 ctx.lineWidth = 2;
                 ctx.setLineDash([5, 5]);
                 ctx.strokeRect(-stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
                 ctx.setLineDash([]);
 
-                // Sağ Alt Köşeye "Boyutlandırma Tutamacı" (Resize Handle)
+                // 2. Sağ Alt Köşe: Boyutlandırma Kulpu (Pembe)
                 ctx.beginPath();
                 ctx.arc(stroke.width / 2, stroke.height / 2, 10, 0, 2 * Math.PI);
                 ctx.fillStyle = '#FF00FF';
                 ctx.fill();
                 ctx.stroke();
+
+                // 3. YENİ: Üst Orta: Döndürme Kulpu (Altın Sarısı)
+                // Çerçevenin 30 piksel üzerine bir çubuk uzatıyoruz
+                const handleDist = stroke.height / 2 + 30; 
+                
+                ctx.beginPath();
+                ctx.moveTo(0, -stroke.height / 2); // Çerçeveden başla
+                ctx.lineTo(0, -handleDist); // Yukarı çık
+                ctx.strokeStyle = '#00FFCC';
+                ctx.stroke();
+
+                // Altın Topuz
+                ctx.beginPath();
+                ctx.arc(0, -handleDist, 12, 0, 2 * Math.PI); 
+                ctx.fillStyle = '#FFD700'; // Altın Rengi
+                ctx.fill();
+                ctx.stroke();
+                
+                // İçine Dönüş Sembolü (↻)
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('↻', 0, -handleDist + 1);
             }
             ctx.restore(); // Ayarları geri yükle
         }        
@@ -473,25 +497,46 @@ function findHit(pos) {
         const stroke = drawnStrokes[i];
 
 if (stroke.type === 'image') {
-            // 1. Önce Boyutlandırma Tutamacı (Sağ Alt Köşe)
-            // Köşenin dünya koordinatlarını hesapla
             const halfW = stroke.width / 2;
             const halfH = stroke.height / 2;
-            const cornerX = stroke.x + halfW; // Basit hesap (Döndürme yoksa)
-            const cornerY = stroke.y + halfH;
+            const angleRad = stroke.rotation * (Math.PI / 180);
+
+            // --- A. DÖNDÜRME KULPU (Rotate Handle) ALGILAMA ---
+            // Kulp, merkezin "yukarısında" (local Y = -handleDist)
+            const handleDist = halfH + 30;
             
-            if (distance(pos, {x: cornerX, y: cornerY}) < 20) {
+            // Kulpun dünya üzerindeki gerçek yerini hesapla (Trigonometri)
+            const rotX = stroke.x + Math.sin(angleRad) * handleDist;
+            const rotY = stroke.y - Math.cos(angleRad) * handleDist;
+
+            // Eğer bu noktaya yakın tıklanırsa:
+            if (distance(pos, {x: rotX, y: rotY}) < 25) {
+                return { item: stroke, pointKey: 'image_rotate' }; // Yeni Anahtar
+            }
+
+            // --- B. BOYUTLANDIRMA KULPU (Resize Handle) ---
+            // Sağ alt köşe (Local: halfW, halfH) döndürülmüş hali
+            const resLocalX = halfW * Math.cos(angleRad) - halfH * Math.sin(angleRad);
+            const resLocalY = halfW * Math.sin(angleRad) + halfH * Math.cos(angleRad);
+            const resX = stroke.x + resLocalX;
+            const resY = stroke.y + resLocalY;
+
+            if (distance(pos, {x: resX, y: resY}) < 25) {
                 return { item: stroke, pointKey: 'image_resize' };
             }
 
-            // 2. Resmin Gövdesi (Taşıma İçin)
-            // Basit bir dikdörtgen çarpışma testi
-            if (pos.x > stroke.x - halfW && pos.x < stroke.x + halfW &&
-                pos.y > stroke.y - halfH && pos.y < stroke.y + halfH) {
+            // --- C. RESİM GÖVDESİ (Taşıma) ---
+            // Tıklanan noktanın, resmin dönüş açısına göre "içerde" olup olmadığına bak
+            const dx = pos.x - stroke.x;
+            const dy = pos.y - stroke.y;
+            // Ters açı ile döndürerek kontrol et
+            const localClickX = dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad);
+            const localClickY = dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad);
+
+            if (localClickX > -halfW && localClickX < halfW && localClickY > -halfH && localClickY < halfH) {
                 return { item: stroke, pointKey: 'self' };
             }
         }
-
         if (currentTool === 'move' && selectedItem === stroke) {
             if (stroke.type === 'polygon') {
                 const rotateHandlePos = 
@@ -1229,6 +1274,23 @@ canvas.addEventListener('mousemove', (e) => {
             selectedItem.width = Math.max(20, distFromCenterX * 2);
             selectedItem.height = Math.max(20, distFromCenterY * 2);
         }
+
+
+        else if (selectedPointKey === 'image_rotate') {
+             // Merkez ile fare arasındaki açıyı bul
+             const r_dx = pos.x - selectedItem.x;
+             const r_dy = pos.y - selectedItem.y;
+             
+             // Açıyı hesapla (Radyan cinsinden)
+             const angleRad = Math.atan2(r_dy, r_dx);
+             
+             // Dereceye çevir ve 90 derece düzeltme yap (Çünkü 0 derece matematikte "Sağ", bizde "Yukarı")
+             let angleDeg = angleRad * (180 / Math.PI) + 90;
+             
+             selectedItem.rotation = angleDeg;
+        }        
+
+
         else if (selectedPointKey === 'rotate') {
             const center = selectedItem.center;
             const r_dx = pos.x - center.x;
@@ -1848,6 +1910,24 @@ canvas.addEventListener('touchmove', (e) => {
             selectedItem.width = Math.max(20, distFromCenterX * 2);
             selectedItem.height = Math.max(20, distFromCenterY * 2);
         }
+
+
+	else if (selectedPointKey === 'image_rotate') {
+             // Merkez ile fare arasındaki açıyı bul
+             const r_dx = pos.x - selectedItem.x;
+             const r_dy = pos.y - selectedItem.y;
+             
+             // Açıyı hesapla (Radyan cinsinden)
+             const angleRad = Math.atan2(r_dy, r_dx);
+             
+             // Dereceye çevir ve 90 derece düzeltme yap (Çünkü 0 derece matematikte "Sağ", bizde "Yukarı")
+             let angleDeg = angleRad * (180 / Math.PI) + 90;
+             
+             selectedItem.rotation = angleDeg;
+        }
+
+
+	
         else if (selectedPointKey === 'rotate') {
             const center = selectedItem.center;
             const r_dx = pos.x - center.x;
@@ -2863,3 +2943,10 @@ window.addEventListener('resize', resizeCanvas);
         if (installPopup) installPopup.style.display = 'none';
     });
 }
+
+// --- app.js EN ALTA EKLE: DÖNDÜRME FONKSİYONU ---
+
+/**
+ * Bir HTML elementine döndürme özelliği ekler.
+ * @param {HTMLElement} element - Döndürülecek olan kopya kutusu (div)
+ */
