@@ -795,6 +795,18 @@ if (uploadButton && fileInput) {
                     // 3. Paneli Göster
                     pdfControls.classList.remove('hidden');
                     pdfControls.style.display = 'flex';
+
+const closePdfBtn = document.getElementById('btn-close-pdf');
+if (closePdfBtn) {
+  closePdfBtn.classList.remove('hidden');
+  closePdfBtn.style.display = 'flex';
+  closePdfBtn.addEventListener('click', () => {
+    pdfControls.classList.add('hidden');
+    closePdfBtn.classList.add('hidden');
+    currentPDF = null; // PDF’i sıfırla
+  });
+}
+
                     
                     // 4. Seçilen Sayfayı Çiz
                     renderPDFPage(currentPDFPage);
