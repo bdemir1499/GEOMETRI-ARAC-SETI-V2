@@ -1,3 +1,33 @@
+// ==========================================
+// --- KISA LİNK (TAHTA) GİRİŞ KONTROLÜ ---
+// ==========================================
+const urlParams = new URLSearchParams(window.location.search);
+const odaPin = urlParams.get('oda');
+
+if (odaPin) {
+    console.log("Tahta Modu Aktif! Oda PIN:", odaPin);
+    
+    // Tahta tarafında arayüzü sadeleştirir (Gerekli CSS sınıfını ekler)
+    document.body.classList.add('tahta-modu');
+    
+    // Sayfa yüklendiğinde Firebase'den kontrol et (İsteğe bağlı güvenlik)
+    window.addEventListener('load', () => {
+        if (typeof database !== 'undefined') {
+            database.ref('odalar/' + odaPin).once('value', (snapshot) => {
+                if (!snapshot.exists()) {
+                    alert("Bu kodun süresi dolmuş veya hatalı! Lütfen yeni kod alın.");
+                    window.location.href = "index.html"; 
+                } else {
+                    // Oda varsa, tahta PDF'i bekliyor demektir.
+                    window.bekleyenSayfa = snapshot.val().sayfaNo || 1;
+                }
+            });
+        }
+    });
+}
+// ==========================================
+
+
 
 // --- KANVAS AYARLARI ---
 const canvas = document.getElementById('drawing-canvas');
