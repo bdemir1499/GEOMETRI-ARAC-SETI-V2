@@ -795,6 +795,9 @@ if (uploadButton && fileInput) {
                     // 3. Paneli Göster
                     pdfControls.classList.remove('hidden');
                     pdfControls.style.display = 'flex';
+
+const pdfKapatBtn = document.querySelector('.pdf-close-btn');
+                    if (pdfKapatBtn) pdfKapatBtn.classList.remove('hidden');
                     
                     // 4. Seçilen Sayfayı Çiz
                     renderPDFPage(currentPDFPage);
@@ -2942,6 +2945,33 @@ window.addEventListener('resize', resizeCanvas);
     activateButton(btnClose, async () => {
         if (installPopup) installPopup.style.display = 'none';
     });
+// ... dosyadaki diğer kodlar ...
+
+    // --- PDF KAPATMA BUTONU BURAYA GELECEK ---
+    const pdfKapatBtn = document.querySelector('.pdf-close-btn');
+    if (pdfKapatBtn) {
+        activateButton(pdfKapatBtn, () => {
+            // PDF panelini ve kontrollerini gizle
+            if (typeof pdfControls !== 'undefined' && pdfControls) {
+                pdfControls.style.display = 'none';
+            }
+            
+            // Değişkenleri sıfırla
+            currentPDF = null;
+            pdfImageStroke = null;
+            
+            // Butonu tekrar gizle
+            pdfKapatBtn.classList.add('hidden');
+            
+            // Ekranı tazele
+            if (typeof redrawAllStrokes === 'function') {
+                redrawAllStrokes();
+            }
+        });
+    }
+
+} // Dosyanın en sonundaki, tüm kodu kapsayan ana parantez (varsa)
+
 }
 
 // --- app.js EN ALTA EKLE: DÖNDÜRME FONKSİYONU ---

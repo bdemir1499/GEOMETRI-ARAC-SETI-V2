@@ -865,3 +865,12 @@ body.cursor-snapshot {
     transform: translateX(-50%);
     pointer-events: none;
 }
+
+@media (max-width: 600px) {
+    .pdf-close-btn {
+        right: 80px !important; /* Mobilde paneli kapatmayacak kadar sağa çek */
+        top: 10px !important;
+        width: 45px !important;
+        height: 45px !important;
+    }
+}
