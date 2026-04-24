@@ -2,10 +2,14 @@
 // --- KANVAS AYARLARI ---
 const canvas = document.getElementById('drawing-canvas');
 const ctx = canvas.getContext('2d');
-// --- RESİM YÜKLEME DEĞİŞKENLERİ ---
-let backgroundImage = null; // Yüklenen resmi tutacak değişken
+
+
+// Elemanları seçerken hata payını sıfırlayalım
 const uploadButton = document.getElementById('btn-upload');
 const fileInput = document.getElementById('file-input');
+const pdfControls = document.getElementById('pdf-controls');
+const pageCountLabel = document.getElementById('page-count');
+
 
 // --- app.js (DÜZELTİLMİŞ BAŞLANGIÇ BÖLÜMÜ) ---
 
@@ -794,70 +798,71 @@ if (uploadButton && fileInput) {
     uploadButton.addEventListener('touchstart', triggerUpload, { passive: false });
 
     fileInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    const file = e.target.files[0];
+    if (!file) return;
 
-        // --- DURUM A: PDF YÜKLEME ---
-        if (file.type === 'application/pdf') {
-            const fileReader = new FileReader();
-            fileReader.onload = async function() {
-                try {
-                    const typedarray = new Uint8Array(this.result);
-                    currentPDF = await pdfjsLib.getDocument(typedarray).promise;
-                    totalPDFPages = currentPDF.numPages;
+    // --- DURUM A: PDF YÜKLEME ---
+    if (file.type === 'application/pdf') {
+        const fileReader = new FileReader();
+        fileReader.onload = async function() {
+            try {
+                const typedarray = new Uint8Array(this.result);
+                currentPDF = await pdfjsLib.getDocument(typedarray).promise;
+                totalPDFPages = currentPDF.numPages;
 
-                    // 1. ÖNCELİK: PIN kodundan gelen sayfa var mı?
-                    if (window.bekleyenSayfa) {
-                        currentPDFPage = parseInt(window.bekleyenSayfa);
-                        window.bekleyenSayfa = null; 
-                    } 
-                    else {
-                        // 2. ÖNCELİK: Kullanıcıya sor (Özellik Korundu)
-                        // Not: Eğer tahtada hala donma yaparsa, burayı '1' olarak güncelleyebilirsin.
-                        let startPage = prompt(`Bu kitap ${totalPDFPages} sayfa. Hangi sayfadan başlamak istersiniz?`, "1");
+                // --- AKILLI SAYFA BELİRLEME (KİLİTLENMEYİ ÖNLER) ---
+                if (window.bekleyenSayfa) {
+                    currentPDFPage = parseInt(window.bekleyenSayfa);
+                    window.bekleyenSayfa = null; 
+                } 
+                else {
+                    // Tahtalarda prompt'un kilitlenmesini engellemek için try-catch kullanıyoruz
+                    try {
+                        let startPage = prompt(`Kitap ${totalPDFPages} sayfa. Kaçıncı sayfadan başlayalım?`, "1");
                         currentPDFPage = parseInt(startPage) || 1;
-                        
-                        if (currentPDFPage < 1 || currentPDFPage > totalPDFPages) {
-                            currentPDFPage = 1;
-                        }
+                    } catch (promptError) {
+                        // Eğer tarayıcı prompt'u engellerse direkt 1'den başla, özelliği bozma
+                        currentPDFPage = 1;
                     }
-
-                    // Paneli ve kontrolleri göster
-                    if (pdfControls) {
-                        pdfControls.classList.remove('hidden');
-                        pdfControls.style.display = 'flex';
-                    }
-                    
-                    if (pageCountLabel) {
-                        pageCountLabel.textContent = `${currentPDFPage} / ${totalPDFPages}`;
-                    }
-
-                    await renderPDFPage(currentPDFPage);
-
-                } catch (error) {
-                    console.error("PDF Hatası:", error);
-                    alert("PDF dosyası açılırken bir hata oluştu.");
                 }
+
+                // Sınır kontrolü
+                if (currentPDFPage < 1 || currentPDFPage > totalPDFPages) currentPDFPage = 1;
+
+                // Arayüzü aç
+                if (pdfControls) {
+                    pdfControls.classList.remove('hidden');
+                    pdfControls.style.display = 'flex';
+                }
+                
+                if (pageCountLabel) {
+                    pageCountLabel.textContent = `${currentPDFPage} / ${totalPDFPages}`;
+                }
+
+                await renderPDFPage(currentPDFPage);
+
+            } catch (error) {
+                console.error("PDF Hatası:", error);
+                alert("PDF dosyası açılırken bir hata oluştu.");
+            }
+        };
+        fileReader.readAsArrayBuffer(file);
+    } 
+    // --- DURUM B: RESİM YÜKLEME ---
+    else if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                addToCanvasAsObject(img); 
             };
-            fileReader.readAsArrayBuffer(file);
-        } 
-        // --- DURUM B: RESİM YÜKLEME ---
-        else if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    // Senin mevcut fonksiyonun: Özelliği koruyoruz.
-                    addToCanvasAsObject(img); 
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-        
-        // Aynı dosyayı tekrar seçebilmek için input'u sıfırla
-        e.target.value = ''; 
-    });
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    e.target.value = ''; 
+});
 }
 // Resmi veya PDF Sayfasını Hafızaya Ekleyen Ortak Fonksiyon
 function addToCanvasAsObject(img) {
