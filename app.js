@@ -73,21 +73,19 @@ let pdfImageStroke = null;   // Ekrana çizilen PDF sayfası
 const urlParams = new URLSearchParams(window.location.search);
 const odaPin = urlParams.get('oda');
 
+// Tahta tarafındaki giriş kontrolü
 if (odaPin) {
-    database.ref('odalar/' + odaPin).on('value', (snapshot) => {
+    database.ref('odalar/' + odaPin).once('value', (snapshot) => {
         const veri = snapshot.val();
-        if (veri && veri.sayfaNo) {
-            // PDF zaten yüklüyse anlık sayfayı değiştir
-            if (currentPDF && currentPDFPage !== parseInt(veri.sayfaNo)) {
-                currentPDFPage = parseInt(veri.sayfaNo);
-                renderPDFPage(currentPDFPage);
-            } else {
-                // PDF henüz yüklenmediyse, yüklendiğinde açılması için hafızaya al
-                window.bekleyenSayfa = veri.sayfaNo;
-            }
+        if (veri) {
+            console.log("Odaya giriş başarılı, artık bağımsızsın!");
+            // Burada artık renderPDFPage(veri.sayfaNo) gibi komutlar OLMAYACAK.
+        } else {
+            alert("Kod geçersiz!");
         }
     });
 }
+
 
 // --- HTML ELEMENTLERİ ---
 const body = document.body;
