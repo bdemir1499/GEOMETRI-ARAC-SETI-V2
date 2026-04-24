@@ -3035,3 +3035,21 @@ window.addEventListener('resize', resizeCanvas);
  * Bir HTML elementine döndürme özelliği ekler.
  * @param {HTMLElement} element - Döndürülecek olan kopya kutusu (div)
  */
+
+// ==========================================
+// --- TARAYICI DOKUNMATİK ÇAKIŞMA ÇÖZÜMÜ ---
+// ==========================================
+// Tarayıcının adres çubuğu veya "sayfayı yenile" hareketinin
+// döndürme (rotate) ve taşıma işlemlerini bozmasını engeller.
+window.addEventListener('touchmove', function(e) {
+    // Eğer dokunulan şey döndürme kulpuysa veya kopyalanan resimse:
+    if (e.target.closest('.rotate-handle') || 
+        e.target.classList.contains('rotate-handle') ||
+        e.target.closest('.resize-handle') ||
+        e.target.tagName.toLowerCase() === 'img') {
+        
+        // Tarayıcıya "Karışma, kaydırma yapma!" diyoruz.
+        e.preventDefault(); 
+    }
+}, { passive: false }); // passive: false çok önemlidir, tarayıcıyı durdurmaya izin verir.
+// ==========================================

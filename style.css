@@ -846,6 +846,9 @@ body.cursor-snapshot {
     font-size: 20px;
     font-weight: bold;
     box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    /* YENİ EKLENEN KISIM: Tarayıcının kaydırmasını engeller */
+    touch-action: none !important; 
+    -webkit-touch-callout: none !important;
 }
 
 .rotate-handle:active {
