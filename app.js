@@ -782,10 +782,16 @@ if (prevPageBtn && nextPageBtn) {
     });
 }
 
+// --- TÜM ÖZELLİKLERİ KORUYAN DOSYA YÜKLEME SİSTEMİ ---
+
 if (uploadButton && fileInput) {
-    uploadButton.addEventListener('click', () => {
+    // Hem tıklama hem dokunmatik desteği (Özellik Kaybı Yok)
+    const triggerUpload = (e) => {
+        e.preventDefault();
         fileInput.click();
-    });
+    };
+    uploadButton.addEventListener('click', triggerUpload);
+    uploadButton.addEventListener('touchstart', triggerUpload, { passive: false });
 
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
@@ -795,56 +801,64 @@ if (uploadButton && fileInput) {
         if (file.type === 'application/pdf') {
             const fileReader = new FileReader();
             fileReader.onload = async function() {
-                const typedarray = new Uint8Array(this.result);
                 try {
-                    // 1. PDF'i Yükle
+                    const typedarray = new Uint8Array(this.result);
                     currentPDF = await pdfjsLib.getDocument(typedarray).promise;
                     totalPDFPages = currentPDF.numPages;
-                    
-                   // 2. BAŞLANGIÇ SAYFASINI BELİRLE (PIN VARSA ONUNLA, YOKSA SORARAK)
+
+                    // 1. ÖNCELİK: PIN kodundan gelen sayfa var mı?
                     if (window.bekleyenSayfa) {
                         currentPDFPage = parseInt(window.bekleyenSayfa);
-                        window.bekleyenSayfa = null; // Sayfayı açtık, hafızayı temizleyelim
-                    } else {
-                        // Eğer PIN yoksa veya beklemede sayfa yoksa eskisi gibi kullanıcıya sor
+                        window.bekleyenSayfa = null; 
+                    } 
+                    else {
+                        // 2. ÖNCELİK: Kullanıcıya sor (Özellik Korundu)
+                        // Not: Eğer tahtada hala donma yaparsa, burayı '1' olarak güncelleyebilirsin.
                         let startPage = prompt(`Bu kitap ${totalPDFPages} sayfa. Hangi sayfadan başlamak istersiniz?`, "1");
-                        currentPDFPage = parseInt(startPage);
-                        if (!currentPDFPage || currentPDFPage < 1 || currentPDFPage > totalPDFPages) {
+                        currentPDFPage = parseInt(startPage) || 1;
+                        
+                        if (currentPDFPage < 1 || currentPDFPage > totalPDFPages) {
                             currentPDFPage = 1;
                         }
                     }
 
-                    // 3. Paneli Göster
-                    pdfControls.classList.remove('hidden');
-                    pdfControls.style.display = 'flex';
+                    // Paneli ve kontrolleri göster
+                    if (pdfControls) {
+                        pdfControls.classList.remove('hidden');
+                        pdfControls.style.display = 'flex';
+                    }
                     
-                    // 4. Seçilen Sayfayı Çiz
-                    renderPDFPage(currentPDFPage);
+                    if (pageCountLabel) {
+                        pageCountLabel.textContent = `${currentPDFPage} / ${totalPDFPages}`;
+                    }
+
+                    await renderPDFPage(currentPDFPage);
 
                 } catch (error) {
-                    console.error("PDF hatası:", error);
-                    alert("PDF okunurken bir hata oluştu.");
+                    console.error("PDF Hatası:", error);
+                    alert("PDF dosyası açılırken bir hata oluştu.");
                 }
             };
             fileReader.readAsArrayBuffer(file);
         } 
-        // --- DURUM B: EĞER DOSYA RESİM İSE (JPG, PNG) ---
-        else {
+        // --- DURUM B: RESİM YÜKLEME ---
+        else if (file.type.startsWith('image/')) {
             const reader = new FileReader();
             reader.onload = (event) => {
                 const img = new Image();
                 img.onload = () => {
-                    addToCanvasAsObject(img); // Ortak fonksiyonu çağır
+                    // Senin mevcut fonksiyonun: Özelliği koruyoruz.
+                    addToCanvasAsObject(img); 
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         }
         
+        // Aynı dosyayı tekrar seçebilmek için input'u sıfırla
         e.target.value = ''; 
     });
 }
-
 // Resmi veya PDF Sayfasını Hafızaya Ekleyen Ortak Fonksiyon
 function addToCanvasAsObject(img) {
     let startWidth = 400;
