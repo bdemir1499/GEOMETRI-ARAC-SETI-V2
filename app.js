@@ -795,14 +795,7 @@ if (uploadButton && fileInput) {
                     // 3. Paneli Göster
                     pdfControls.classList.remove('hidden');
                     pdfControls.style.display = 'flex';
-
-// --- BU KISIM YETERLİDİR ---
-const pdfKapatBtn = document.getElementById('btn-close-pdf');
-if (pdfKapatBtn) {
-    pdfKapatBtn.classList.remove('hidden');
-    pdfKapatBtn.style.setProperty('display', 'flex', 'important'); // Mobilde görünmeyi zorlar
-    pdfKapatBtn.style.zIndex = "9999999"; // Panellerin üstüne çıkarır
-}                    
+                    
                     // 4. Seçilen Sayfayı Çiz
                     renderPDFPage(currentPDFPage);
 
@@ -2949,32 +2942,7 @@ window.addEventListener('resize', resizeCanvas);
     activateButton(btnClose, async () => {
         if (installPopup) installPopup.style.display = 'none';
     });
-// ... dosyadaki diğer kodlar ...
-
-    // --- PDF KAPATMA BUTONU GÖREVİ ---
-    const pdfKapatBtn = document.getElementById('btn-close-pdf');
-    if (pdfKapatBtn) {
-        activateButton(pdfKapatBtn, () => {
-            // 1. PDF kontrollerini gizle
-            if (typeof pdfControls !== 'undefined' && pdfControls) {
-                pdfControls.style.display = 'none';
-            }
-            // 2. Butonu gizle (Hem class hem stil ile)
-            pdfKapatBtn.classList.add('hidden');
-            pdfKapatBtn.style.setProperty('display', 'none', 'important');
-            
-            // 3. PDF verilerini temizle
-            currentPDF = null;
-            pdfImageStroke = null;
-            
-            // 4. Kanvası tazele
-            if (typeof redrawAllStrokes === 'function') {
-                redrawAllStrokes();
-            }
-        });
-    }
-
-} // <--- BU PARANTEZ TÜM DOSYAYI KAPATAN ANA PARANTEZDİR, BURADA DURSUN.
+}
 
 // --- app.js EN ALTA EKLE: DÖNDÜRME FONKSİYONU ---
 
