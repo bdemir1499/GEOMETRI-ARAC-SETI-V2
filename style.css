@@ -791,37 +791,34 @@ body.cursor-snapshot {
     box-shadow: 0 0 5px rgba(0,0,0,0.5);
 }
 
-/* --- PDF KAPAT BUTONU (SAĞ PANELİN SOLUNDA - GÜNCELLENMİŞ) --- */
 .pdf-close-btn {
-    position: fixed !important; 
-    top: 15px !important;        /* Sayfanın tepesinden boşluk */
-    right: 70px !important;     /* Sağdan 120px içeride (Panelden iyice uzaklaşır) */
+    position: fixed !important;
+    top: 20px !important;
+    /* 150px yerine 20px yapıyoruz ki ekranın en sağ üst köşesine yakın olsun, panelin altında kalmasın */
+    right: 20px !important; 
     
-    width: 50px;
-    height: 50px;
-    background-color: #ff0000;
-    color: white;
-    border: 2px solid white;
-    border-radius: 50%;
+    width: 60px !important;  /* Tablette parmakla basmak için biraz büyüttük */
+    height: 60px !important;
+    background-color: #ff0000 !important;
+    color: white !important;
+    border: 3px solid white !important;
+    border-radius: 50% !important;
     
-    display: flex;
-    flex-direction: column;
+    display: none; /* Varsayılan kapalı, JS ile açacağız */
     align-items: center;
     justify-content: center;
     
-    font-size: 10px;
-    font-weight: bold;
+    font-size: 12px !important;
+    font-weight: bold !important;
+    z-index: 9999999 !important; /* Panelden daha yüksek olduğundan emin oluyoruz */
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5) !important;
     cursor: pointer;
-    
-    z-index: 9999 !important; 
-    box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
-    transition: transform 0.1s;
 }
 
-.pdf-close-btn:active {
-    transform: scale(0.95);
+/* Mobilde ve tablette hidden sınıfı varsa kesin gizle */
+.pdf-close-btn.hidden {
+    display: none !important;
 }
-
 .pdf-close-btn.hidden {
     display: none !important;
 }
@@ -873,4 +870,20 @@ body.cursor-snapshot {
         width: 45px !important;
         height: 45px !important;
     }
+}
+
+.pdf-close-btn {
+    position: fixed !important; 
+    top: 20px !important;        
+    right: 20px !important;      /* 150px yerine 20px yaparak sağ köşeye aldık */
+    width: 55px !important;
+    height: 55px !important;
+    z-index: 999999 !important;  /* En üstte olduğundan emin oluyoruz */
+    background-color: #ff0000 !important;
+    display: none;               /* JS ile açacağız */
+}
+
+/* Hidden sınıfı varken kesin gizle */
+.pdf-close-btn.hidden {
+    display: none !important;
 }
