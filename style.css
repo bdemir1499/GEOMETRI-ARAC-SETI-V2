@@ -865,3 +865,14 @@ body.cursor-snapshot {
     transform: translateX(-50%);
     pointer-events: none;
 }
+
+
+@media (max-width: 768px) {
+  .pdf-close-btn {
+    right: 20px !important; /* Mobilde sağ kenara sabitle */
+    top: 20px !important;   /* Üstten biraz boşluk bırak */
+    width: 40px;
+    height: 40px;
+    font-size: 9px;
+  }
+}
