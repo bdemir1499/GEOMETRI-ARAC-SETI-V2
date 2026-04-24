@@ -795,7 +795,7 @@ body.cursor-snapshot {
 .pdf-close-btn {
     position: fixed !important; 
     top: 15px !important;        /* Sayfanın tepesinden boşluk */
-    right: 150px !important;     /* Sağdan 120px içeride (Panelden iyice uzaklaşır) */
+    right: 70px !important;     /* Sağdan 120px içeride (Panelden iyice uzaklaşır) */
     
     width: 50px;
     height: 50px;
