@@ -69,6 +69,26 @@ let currentPDFPage = 1;      // Şu anki sayfa
 let totalPDFPages = 0;       // Toplam sayfa
 let pdfImageStroke = null;   // Ekrana çizilen PDF sayfası
 
+// --- PIN İLE CANLI SAYFA TAKİBİ (DOSYANIN EN BAŞINA EKLE) ---
+const urlParams = new URLSearchParams(window.location.search);
+const odaPin = urlParams.get('oda');
+
+if (odaPin) {
+    database.ref('odalar/' + odaPin).on('value', (snapshot) => {
+        const veri = snapshot.val();
+        if (veri && veri.sayfaNo) {
+            // PDF zaten yüklüyse anlık sayfayı değiştir
+            if (currentPDF && currentPDFPage !== parseInt(veri.sayfaNo)) {
+                currentPDFPage = parseInt(veri.sayfaNo);
+                renderPDFPage(currentPDFPage);
+            } else {
+                // PDF henüz yüklenmediyse, yüklendiğinde açılması için hafızaya al
+                window.bekleyenSayfa = veri.sayfaNo;
+            }
+        }
+    });
+}
+
 // --- HTML ELEMENTLERİ ---
 const body = document.body;
 
@@ -783,13 +803,17 @@ if (uploadButton && fileInput) {
                     currentPDF = await pdfjsLib.getDocument(typedarray).promise;
                     totalPDFPages = currentPDF.numPages;
                     
-                    // 2. KULLANICIYA BAŞLANGIÇ SAYFASINI SOR
-                    let startPage = prompt(`Bu kitap ${totalPDFPages} sayfa. Hangi sayfadan başlamak istersiniz?`, "1");
-                    
-                    // Girdi kontrolü (Geçersizse veya İptal ise 1'den başla)
-                    currentPDFPage = parseInt(startPage);
-                    if (!currentPDFPage || currentPDFPage < 1 || currentPDFPage > totalPDFPages) {
-                        currentPDFPage = 1;
+                   // 2. BAŞLANGIÇ SAYFASINI BELİRLE (PIN VARSA ONUNLA, YOKSA SORARAK)
+                    if (window.bekleyenSayfa) {
+                        currentPDFPage = parseInt(window.bekleyenSayfa);
+                        window.bekleyenSayfa = null; // Sayfayı açtık, hafızayı temizleyelim
+                    } else {
+                        // Eğer PIN yoksa veya beklemede sayfa yoksa eskisi gibi kullanıcıya sor
+                        let startPage = prompt(`Bu kitap ${totalPDFPages} sayfa. Hangi sayfadan başlamak istersiniz?`, "1");
+                        currentPDFPage = parseInt(startPage);
+                        if (!currentPDFPage || currentPDFPage < 1 || currentPDFPage > totalPDFPages) {
+                            currentPDFPage = 1;
+                        }
                     }
 
                     // 3. Paneli Göster
