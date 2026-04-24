@@ -861,6 +861,40 @@ function addToCanvasAsObject(img) {
     });
     
     redrawAllStrokes();
+// PDF/Resim için ortak "PDF kapat" butonunu göster ve handler ekle
+const closePdfBtn = document.getElementById('btn-close-pdf');
+if (closePdfBtn) {
+  // Önce gizli sınıfı kaldır ve mobilde görünür yap
+  closePdfBtn.classList.remove('hidden');
+  closePdfBtn.style.display = 'flex';
+
+  // Önceki handler varsa kaldır (çift eklenmeyi önlemek için)
+  closePdfBtn.onclick = null;
+  closePdfBtn.removeEventListener && closePdfBtn.removeEventListener('click', () => {});
+
+  // Yeni kapatma işlevi
+  closePdfBtn.onclick = () => {
+    // Paneli gizle
+    if (pdfControls) pdfControls.classList.add('hidden');
+    // Butonu gizle
+    closePdfBtn.classList.add('hidden');
+    closePdfBtn.style.display = '';
+
+    // Eğer resmi arka plan olarak tutuyorsan onu kaldır veya sıfırla
+    // Burada isBackground true olanları tutuyoruz; ihtiyacına göre değiştir
+    drawnStrokes = drawnStrokes.filter(s => s.isBackground === true);
+    window.drawnStrokes = drawnStrokes;
+
+    // PDF/Resim değişkenlerini sıfırla
+    currentPDF = null;
+    pdfImageStroke = null;
+
+    // Kanvası temizle ve yeniden çiz
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    redrawAllStrokes();
+  };
+}
+
 }
 
 if(fillButton) fillButton.addEventListener('click', () => setActiveTool(currentTool === 'fill' ? 'none' : 'fill'));
