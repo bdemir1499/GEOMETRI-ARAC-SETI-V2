@@ -827,6 +827,9 @@ if (closePdfBtn) {
 
     // Tablet/telefon için
     closePdfBtn.addEventListener('touchstart', closeHandler);
+
+    // Modern tarayıcılar için (hem mouse hem dokunma)
+    closePdfBtn.addEventListener('pointerdown', closeHandler);
 }
 
 
