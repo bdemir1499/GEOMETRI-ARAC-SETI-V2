@@ -3068,6 +3068,33 @@ window.addEventListener('resize', resizeCanvas);
         }, 3000);
     }
 
+// 3. Kullanıcı "Yükle" butonuna bastığında
+if (btnInstall) {
+    btnInstall.addEventListener('click', () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt(); // Asıl yükleme penceresini açar
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('Kullanıcı yüklemeyi kabul etti');
+                } else {
+                    console.log('Kullanıcı yüklemeyi reddetti');
+                }
+                deferredPrompt = null; // Tekrar kullanılmasın
+            });
+        }
+        // Popup’ı kapat
+        if (installPopup) installPopup.style.display = 'none';
+    });
+}
+
+// 4. Popup kapatma butonu
+if (btnClose) {
+    btnClose.addEventListener('click', () => {
+        if (installPopup) installPopup.style.display = 'none';
+    });
+}
+
+
     // --- BUTONLARI ÇALIŞTIRAN FONKSİYON (EDGE DOKUNMATİK HATASI ÇÖZÜMÜ) ---
     const activateButton = (btn, actionCallback) => {
         if (!btn) return;
