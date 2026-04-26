@@ -3008,74 +3008,86 @@ function resizeCanvas() {
 window.addEventListener('load', resizeCanvas);
 window.addEventListener('resize', resizeCanvas);
 
-// --- app.js EN ALT SATIR (EDGE, CHROME, TABLET UYUMLU FİNAL) ---
-
-{
-    let deferredPrompt; 
+// --- app.js EN ALT (TABLET, PC VE GİZLİ SEKME UYUMLU KESİN ÇÖZÜM) ---
+window.addEventListener('DOMContentLoaded', () => {
+    let deferredPrompt;
     const installPopup = document.getElementById('install-popup');
     const btnInstall = document.getElementById('btn-popup-install');
     const btnClose = document.getElementById('btn-popup-close');
     const iosInstructions = document.getElementById('ios-instructions');
 
-    // 1. Tarayıcı sinyali (Install Prompt)
+    if (!installPopup) return; // Güvenlik: Popup yoksa çalışma
+
+    // 1. ZATEN YÜKLÜYSE VEYA KAPATILDIYSA HİÇ AÇMA
+    const isInstalled = localStorage.getItem('pwa_durum') === 'yuklendi';
+    const isDismissed = localStorage.getItem('pwa_durum') === 'kapali';
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+    if (isInstalled || isStandalone || isDismissed) {
+        installPopup.style.display = 'none';
+        return; 
+    }
+
+    // 2. CHROME / ANDROID / EDGE İÇİN SİNYALİ YAKALA
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
-        
-        // Popup'ı göster
-        if (installPopup) installPopup.style.display = 'flex';
+        // Sinyal gelirse (Yüklü değilse) göster
+        installPopup.style.display = 'flex';
     });
 
-    // 2. iOS (iPhone/iPad) Kontrolü
+    // 3. iOS (IPAD/IPHONE) İÇİN ÖZEL KONTROL (Sinyal göndermezler)
     const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
-    const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
-
-    if (isIos && !isInStandaloneMode) {
+    if (isIos && !isStandalone) {
         setTimeout(() => {
-            if (installPopup) {
+            if (localStorage.getItem('pwa_durum') !== 'kapali') {
                 installPopup.style.display = 'flex';
-                if (btnInstall) btnInstall.style.display = 'none'; // iPhone'da butonu gizle
-                if (iosInstructions) iosInstructions.style.display = 'block'; // Tarifi göster
+                if (btnInstall) btnInstall.style.display = 'none'; // iOS'ta otomatik yükle butonu çalışmaz
+                if (iosInstructions) iosInstructions.style.display = 'block'; // Rehberi göster
             }
         }, 3000);
     }
 
-    // --- BUTONLARI ÇALIŞTIRAN FONKSİYON (EDGE DOKUNMATİK HATASI ÇÖZÜMÜ) ---
-    const activateButton = (btn, actionCallback) => {
+    // --- BUTON AKTİFLEŞTİRİCİ (HATA VERMEZ VERSİYON) ---
+    const setupButton = (btn, action) => {
         if (!btn) return;
-
-        const handler = async (e) => {
-            // Edge'in dokunmayı yutmasını engelle
-            e.stopPropagation(); 
-            e.preventDefault(); 
-            
-            // İşlemi gerçekleştir
-            await actionCallback();
+        
+        // Hem dokunma hem tıklama için tek fonksiyon
+        const runAction = (e) => {
+            e.stopPropagation();
+            // e.preventDefault(); // Tablette bazı butonların çalışmasını bozabilir, dikkatli kullanın
+            action();
         };
 
-        // Hem tıklama hem parmak dokunuşunu dinle
-        btn.addEventListener('click', handler);
-        btn.addEventListener('touchstart', handler, { passive: false });
+        btn.addEventListener('click', runAction);
+        btn.addEventListener('touchstart', runAction, { passive: true });
     };
 
-    // --- BUTONLARA GÖREVLERİNİ VER ---
-
-    // A) Yükle Butonu
-    activateButton(btnInstall, async () => {
+    // A) YÜKLE BUTONU GÖREVİ
+    setupButton(btnInstall, async () => {
         if (deferredPrompt) {
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
-            console.log("Sonuç:", outcome);
+            if (outcome === 'accepted') {
+                localStorage.setItem('pwa_durum', 'yuklendi');
+            }
             deferredPrompt = null;
+        } else {
+            // Eğer sinyal yoksa (Tabletler gibi)
+            alert("Lütfen tarayıcı ayarlarından 'Uygulamayı Yükle' veya 'Ana Ekrana Ekle'yi seçiniz.");
         }
-        if (installPopup) installPopup.style.display = 'none';
+        installPopup.style.display = 'none';
     });
 
-    // B) Kapat (Hayır) Butonu
-    activateButton(btnClose, async () => {
-        if (installPopup) installPopup.style.display = 'none';
+    // B) KAPAT BUTONU GÖREVİ
+    setupButton(btnClose, () => {
+        installPopup.style.display = 'none';
+        // Bu oturumda bir daha rahatsız etmemesi için (KVKK'ya uygundur)
+        localStorage.setItem('pwa_durum', 'kapali');
     });
-}
+});
+
+
 
 // --- app.js EN ALTA EKLE: DÖNDÜRME FONKSİYONU ---
 
