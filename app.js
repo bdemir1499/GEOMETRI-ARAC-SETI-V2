@@ -589,11 +589,24 @@ function findHit(pos) {
             // ÖNCELİK 1: Çokgen Seçiliyse Döndürme ve Boyutlandırma Butonlarını Yakala
             if (currentTool === 'move' && selectedItem === stroke) {
                 const rotateHandlePos = window.PolygonTool.getRotateHandlePosition(stroke);
-                if (distance(pos, rotateHandlePos) < HIT_RADIUS) return { item: stroke, pointKey: 'rotate' }; 
+                const distRotate = distance(pos, rotateHandlePos);
                 
+                let distResize = Infinity;
                 if (stroke.vertices && stroke.vertices.length > 0) {
-                    if (distance(pos, stroke.vertices[0]) < HIT_RADIUS) return { item: stroke, pointKey: 'resize' }; 
+                    distResize = distance(pos, stroke.vertices[0]);
                 }
+
+                // AKILLI ÇAKIŞMA ÖNLEYİCİ: Eğer parmak iki butona birden değiyorsa, parmağa EN YAKIN olanı seç!
+                if (distRotate < HIT_RADIUS && distResize < HIT_RADIUS) {
+                    if (distRotate < distResize) {
+                        return { item: stroke, pointKey: 'rotate' };
+                    } else {
+                        return { item: stroke, pointKey: 'resize' };
+                    }
+                } 
+                // Çakışma yoksa normal çalış:
+                else if (distRotate < HIT_RADIUS) return { item: stroke, pointKey: 'rotate' };
+                else if (distResize < HIT_RADIUS) return { item: stroke, pointKey: 'resize' };
             }
 
             // ÖNCELİK 2: MERKEZ (Taşıma İşlemi) - Kenarlardan önceye alındı ki ezilmesin!
