@@ -552,9 +552,10 @@ function clearAllStrokes() {
     redrawAllStrokes();
 }
 
-// --- KUSURSUZ HEDEF YAKALAYICI (findHit) ---
+// --- KUSURSUZ HEDEF YAKALAYICI (findHit) - TAM SÜRÜM ---
 function findHit(pos) {
-    const HIT_RADIUS = 30; // Mobilde parmakla rahat tutmak için genişletilmiş hedef
+    const HIT_RADIUS = 30; // Genel hedef (merkez, köşeler, kenarlar)
+    const BTN_RADIUS = 30; // Buton hedefi
 
     for (let i = drawnStrokes.length - 1; i >= 0; i--) {
         const stroke = drawnStrokes[i];
@@ -568,11 +569,11 @@ function findHit(pos) {
             const handleDist = halfH + 30;
             const rotX = stroke.x + Math.sin(angleRad) * handleDist;
             const rotY = stroke.y - Math.cos(angleRad) * handleDist;
-            if (distance(pos, {x: rotX, y: rotY}) < HIT_RADIUS) return { item: stroke, pointKey: 'image_rotate' };
+            if (distance(pos, {x: rotX, y: rotY}) < BTN_RADIUS) return { item: stroke, pointKey: 'image_rotate' };
 
             const resLocalX = halfW * Math.cos(angleRad) - halfH * Math.sin(angleRad);
             const resLocalY = halfW * Math.sin(angleRad) + halfH * Math.cos(angleRad);
-            if (distance(pos, {x: stroke.x + resLocalX, y: stroke.y + resLocalY}) < HIT_RADIUS) return { item: stroke, pointKey: 'image_resize' };
+            if (distance(pos, {x: stroke.x + resLocalX, y: stroke.y + resLocalY}) < BTN_RADIUS) return { item: stroke, pointKey: 'image_resize' };
 
             const dx = pos.x - stroke.x;
             const dy = pos.y - stroke.y;
@@ -582,34 +583,30 @@ function findHit(pos) {
         }
         
         // ==========================================
-        // ÇOKGENLER (POLYGON) - YENİ ÖNCELİK SIRALAMASI
+        // ÇOKGENLER (POLYGON) 
         // ==========================================
         if (stroke.type === 'polygon') {
             
-            // ÖNCELİK 1: Çokgen Seçiliyse Döndürme ve Boyutlandırma Butonlarını Yakala
+            // ÖNCELİK 1: Döndürme ve Boyutlandırma Butonları
             if (currentTool === 'move' && selectedItem === stroke) {
                 const rotateHandlePos = window.PolygonTool.getRotateHandlePosition(stroke);
-                const distRotate = distance(pos, rotateHandlePos);
-                
-                let distResize = Infinity;
-                if (stroke.vertices && stroke.vertices.length > 0) {
-                    distResize = distance(pos, stroke.vertices[0]);
-                }
+                const resizeHandlePos = stroke.vertices && stroke.vertices.length > 0 ? stroke.vertices[0] : null;
 
-                // AKILLI ÇAKIŞMA ÖNLEYİCİ: Eğer parmak iki butona birden değiyorsa, parmağa EN YAKIN olanı seç!
-                if (distRotate < HIT_RADIUS && distResize < HIT_RADIUS) {
-                    if (distRotate < distResize) {
-                        return { item: stroke, pointKey: 'rotate' };
-                    } else {
-                        return { item: stroke, pointKey: 'resize' };
-                    }
-                } 
-                // Çakışma yoksa normal çalış:
-                else if (distRotate < HIT_RADIUS) return { item: stroke, pointKey: 'rotate' };
-                else if (distResize < HIT_RADIUS) return { item: stroke, pointKey: 'resize' };
+                const dRot = distance(pos, rotateHandlePos);
+                const dRes = resizeHandlePos ? distance(pos, resizeHandlePos) : Infinity;
+
+                // --- KRİTİK ÇÖZÜM: BOYUTLANDIRMAYA (RESIZE) KESİN TORPİL ---
+                // Eğer parmak 30 piksellik alanda İKİSİNE BİRDEN dokunuyorsa, KESİNLİKLE resize çalışacak!
+                if (dRes < BTN_RADIUS && dRot < BTN_RADIUS) {
+                    return { item: stroke, pointKey: 'resize' }; 
+                }
+                
+                // Çarpışma yoksa normal çalış:
+                if (dRes < BTN_RADIUS) return { item: stroke, pointKey: 'resize' };
+                if (dRot < BTN_RADIUS) return { item: stroke, pointKey: 'rotate' };
             }
 
-            // ÖNCELİK 2: MERKEZ (Taşıma İşlemi) - Kenarlardan önceye alındı ki ezilmesin!
+            // ÖNCELİK 2: MERKEZ (Taşıma İşlemi)
             const merkezX = stroke.cx !== undefined ? stroke.cx : (stroke.center ? stroke.center.x : null);
             const merkezY = stroke.cy !== undefined ? stroke.cy : (stroke.center ? stroke.center.y : null);
             if (merkezX !== null && merkezY !== null && distance(pos, {x: merkezX, y: merkezY}) < HIT_RADIUS) {
@@ -643,9 +640,7 @@ function findHit(pos) {
 
         // ÇEMBERLER İÇİN MANTIK
         if (stroke.type === 'arc' && stroke.cx) {
-            // Önce Merkezi kontrol et
             if (distance(pos, {x: stroke.cx, y: stroke.cy}) < HIT_RADIUS) return { item: stroke, pointKey: 'center' };
-            // Sonra Çevreyi kontrol et
             if (Math.abs(distance(pos, {x: stroke.cx, y: stroke.cy}) - stroke.radius) < HIT_RADIUS) return { item: stroke, pointKey: 'toggle_circle_info' };
         }
 
@@ -659,6 +654,7 @@ function findHit(pos) {
     
     return null; 
 }
+
 
 // Global atamalar
 window.redrawAllStrokes = redrawAllStrokes;
