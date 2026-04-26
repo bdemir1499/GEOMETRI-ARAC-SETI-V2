@@ -3103,4 +3103,64 @@ window.addEventListener('touchmove', function(e) {
 // ==========================================
 
 
+// =================================================================
+// TÜM ARAÇLAR İÇİN KÜRESEL ZIPLAMA VE KAYMA ÇÖZÜCÜ (MASTER FİX)
+// Cetvel, Pergel, Gönye ve Açıölçer'in tarayıcıdaki sorunlarını kökten çözer.
+// =================================================================
 
+// 1. DÜNYALARI EŞİTLEYİCİ (Canvas Çözünürlüğünü Ekranla Birebir Eşitler)
+function syncCanvasWorlds() {
+    const canvas = document.getElementById('drawing-canvas') || document.querySelector('canvas');
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const realWidth = Math.round(rect.width);
+    const realHeight = Math.round(rect.height);
+
+    // Eğer tarayıcı adres çubuğu yüzünden kanvasın iç çözünürlüğü bozulmuşsa:
+    if (canvas.width !== realWidth || canvas.height !== realHeight) {
+        // Kanvası fiziksel ekranla milimetrik olarak aynı boyuta kilitle
+        canvas.width = realWidth;
+        canvas.height = realHeight;
+        
+        // Çözünürlük düzeltildiği an tüm çizimleri (zıplamadan) yerine oturt
+        if (typeof window.redrawAllStrokes === 'function') {
+            window.redrawAllStrokes();
+        }
+    }
+}
+
+// Ekran boyutu her değiştiğinde veya sayfa yüklendiğinde eşitlemeyi zorla
+window.addEventListener('resize', syncCanvasWorlds);
+window.addEventListener('orientationchange', syncCanvasWorlds);
+document.addEventListener('DOMContentLoaded', syncCanvasWorlds);
+// Mobil tarayıcılarda parmak kaydırma adres çubuğunu tetikleyebilir, her ihtimale karşı:
+window.addEventListener('touchend', () => setTimeout(syncCanvasWorlds, 50));
+
+// -----------------------------------------------------------------
+
+// 2. SAHTE FARE (GHOST CLICK) ENGELLEYİCİ
+// Parmağı çektikten sonra tarayıcının gizlice gönderdiği sahte tıklamaları yok eder.
+let dokunmaAktif = false;
+
+window.addEventListener('touchstart', () => { 
+    dokunmaAktif = true; 
+}, { capture: true, passive: true });
+
+window.addEventListener('touchend', () => { 
+    // Parmağı çektikten sonra 600 milisaniye boyunca gelecek tüm fare sinyallerini yasakla
+    setTimeout(() => { dokunmaAktif = false; }, 600); 
+}, { capture: true, passive: true });
+
+const sahteFareyiDurdur = (e) => {
+    // Sadece çizim alanında ve araçlar üzerinde sahte tıklamaları öldür. 
+    // (Sol ve sağ paneldeki butonların tıklanmasını engellememek için koruma)
+    if (dokunmaAktif && !e.target.closest('.panel')) {
+        e.stopPropagation();
+    }
+};
+
+// Tarayıcının ürettiği sahte sinyalleri yakala ve araçlara ulaşmadan öldür
+window.addEventListener('mousedown', sahteFareyiDurdur, { capture: true });
+window.addEventListener('mouseup', sahteFareyiDurdur, { capture: true });
+// =================================================================
