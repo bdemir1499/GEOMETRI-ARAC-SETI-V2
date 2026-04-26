@@ -196,11 +196,32 @@ function resizeCanvas() {
 }
 
 function getEventPosition(e) {
+    let clientX = 0;
+    let clientY = 0;
+
+    // Önce dokunmatik ekranı (parmağı) kontrol et
     if (e.touches && e.touches.length > 0) {
-        return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+    } else {
+        // Dokunmatik değilse farenin koordinatlarını al
+        clientX = e.clientX;
+        clientY = e.clientY;
     }
-    return { x: e.clientX, y: e.clientY };
+
+    const canvas = document.getElementById('drawing-canvas') || document.querySelector('canvas');
+    const rect = canvas.getBoundingClientRect(); // Kanvasın ekrandaki GERÇEK ve anlık konumunu hesapla
+    
+    // Adres çubuğu kaymasını ve ekran esnemesini sıfırlayan ana matematik:
+    return {
+        x: (clientX - rect.left) * (canvas.width / rect.width),
+        y: (clientY - rect.top) * (canvas.height / rect.height)
+    };
 }
+
 
 function drawDot(pos, color = '#00FFCC') {
     ctx.beginPath();
