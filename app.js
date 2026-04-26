@@ -3182,4 +3182,4 @@ window.addEventListener('mousedown', sahteFareKatili, { capture: true });
 window.addEventListener('mousemove', sahteFareKatili, { capture: true });
 window.addEventListener('mouseup', sahteFareKatili, { capture: true });
 window.addEventListener('click', sahteFareKatili, { capture: true });
-// =====================================================================================
+
