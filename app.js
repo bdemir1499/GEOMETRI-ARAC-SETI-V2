@@ -651,7 +651,14 @@ function findHit(pos) {
         if (stroke.type === 'arc' && stroke.cx && distance(pos, {x: stroke.cx, y: stroke.cy}) < HIT_RADIUS) return { item: stroke, pointKey: 'center' };
         
         // Çokgen Merkezi (Taşıma Kilidi Burada Kırılıyor)
-        if (stroke.type === 'polygon' && stroke.center && distance(pos, stroke.center) < HIT_RADIUS) return { item: stroke, pointKey: 'center' };
+        // Çokgen Merkezi (cx, cy veya center uyumlu Garantili Yakalama)
+        if (stroke.type === 'polygon') {
+            const merkezX = stroke.cx !== undefined ? stroke.cx : (stroke.center ? stroke.center.x : null);
+            const merkezY = stroke.cy !== undefined ? stroke.cy : (stroke.center ? stroke.center.y : null);
+            if (merkezX !== null && merkezY !== null && distance(pos, {x: merkezX, y: merkezY}) < HIT_RADIUS) {
+                return { item: stroke, pointKey: 'center' };
+            }
+        }
     }
     
     return null; 
