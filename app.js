@@ -541,7 +541,8 @@ function clearAllStrokes() {
     }
     // --- DEĞİŞİKLİK BURADA: Sadece arka plan OLMAYANLARI temizle ---
     // Eğer stroke.isBackground true ise (PDF veya Resim), onu tut.
-    drawnStrokes = drawnStrokes.filter(stroke => stroke.isBackground === true);
+    drawnStrokes = drawnStrokes.filter(stroke => stroke.isBackground !== true);
+
     
     window.drawnStrokes = drawnStrokes; 
     
@@ -552,16 +553,6 @@ function clearAllStrokes() {
     redrawAllStrokes();
 }
 
-document.getElementById('btn-close-pdf').addEventListener('click', () => {
-    // PDF veya resim arka planını da kaldır
-    drawnStrokes = drawnStrokes.filter(stroke => stroke.isBackground !== true);
-    window.drawnStrokes = drawnStrokes;
-
-    currentPDF = null;
-    backgroundImage = null;
-
-    redrawAllStrokes();
-});
 
 
 
