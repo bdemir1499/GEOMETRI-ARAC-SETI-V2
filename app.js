@@ -552,71 +552,66 @@ function clearAllStrokes() {
     redrawAllStrokes();
 }
 
+// --- KUSURSUZ HEDEF YAKALAYICI (findHit) ---
 function findHit(pos) {
-    // MOBİL İÇİN HASSASİYET AYARLARI (Hedef tahtalarını büyüttük)
-    const HIT_RADIUS = 35; // Genel köşeler, merkezler ve noktalar için
-    const BTN_RADIUS = 40; // Döndürme ve boyutlandırma kulpları için
+    const HIT_RADIUS = 30; // Mobilde parmakla rahat tutmak için genişletilmiş hedef
 
     for (let i = drawnStrokes.length - 1; i >= 0; i--) {
         const stroke = drawnStrokes[i];
 
+        // 1. RESİMLER İÇİN MANTIK
         if (stroke.type === 'image') {
             const halfW = stroke.width / 2;
             const halfH = stroke.height / 2;
             const angleRad = stroke.rotation * (Math.PI / 180);
 
-            // --- A. DÖNDÜRME KULPU ---
             const handleDist = halfH + 30;
             const rotX = stroke.x + Math.sin(angleRad) * handleDist;
             const rotY = stroke.y - Math.cos(angleRad) * handleDist;
+            if (distance(pos, {x: rotX, y: rotY}) < HIT_RADIUS) return { item: stroke, pointKey: 'image_rotate' };
 
-            if (distance(pos, {x: rotX, y: rotY}) < BTN_RADIUS) {
-                return { item: stroke, pointKey: 'image_rotate' };
-            }
-
-            // --- B. BOYUTLANDIRMA KULPU ---
             const resLocalX = halfW * Math.cos(angleRad) - halfH * Math.sin(angleRad);
             const resLocalY = halfW * Math.sin(angleRad) + halfH * Math.cos(angleRad);
-            const resX = stroke.x + resLocalX;
-            const resY = stroke.y + resLocalY;
+            if (distance(pos, {x: stroke.x + resLocalX, y: stroke.y + resLocalY}) < HIT_RADIUS) return { item: stroke, pointKey: 'image_resize' };
 
-            if (distance(pos, {x: resX, y: resY}) < BTN_RADIUS) {
-                return { item: stroke, pointKey: 'image_resize' };
-            }
-
-            // --- C. RESİM GÖVDESİ (Taşıma) ---
             const dx = pos.x - stroke.x;
             const dy = pos.y - stroke.y;
             const localClickX = dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad);
             const localClickY = dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad);
-
-            if (localClickX > -halfW && localClickX < halfW && localClickY > -halfH && localClickY < halfH) {
-                return { item: stroke, pointKey: 'self' };
-            }
+            if (localClickX > -halfW && localClickX < halfW && localClickY > -halfH && localClickY < halfH) return { item: stroke, pointKey: 'self' };
         }
         
-        // DÖNDÜRME VE BOYUTLANDIRMA BUTONLARI (ÇOKGENLER İÇİN)
-        if (currentTool === 'move' && selectedItem === stroke) {
-            if (stroke.type === 'polygon') {
+        // ==========================================
+        // ÇOKGENLER (POLYGON) - YENİ ÖNCELİK SIRALAMASI
+        // ==========================================
+        if (stroke.type === 'polygon') {
+            
+            // ÖNCELİK 1: Çokgen Seçiliyse Döndürme ve Boyutlandırma Butonlarını Yakala
+            if (currentTool === 'move' && selectedItem === stroke) {
                 const rotateHandlePos = window.PolygonTool.getRotateHandlePosition(stroke);
-                if (distance(pos, rotateHandlePos) < BTN_RADIUS) return { item: stroke, pointKey: 'rotate' }; 
+                if (distance(pos, rotateHandlePos) < HIT_RADIUS) return { item: stroke, pointKey: 'rotate' }; 
                 
                 if (stroke.vertices && stroke.vertices.length > 0) {
-                    const resizeHandlePos = stroke.vertices[0];
-                    if (distance(pos, resizeHandlePos) < BTN_RADIUS) return { item: stroke, pointKey: 'resize' }; 
+                    if (distance(pos, stroke.vertices[0]) < HIT_RADIUS) return { item: stroke, pointKey: 'resize' }; 
                 }
             }
-        }
-        
-        // ETİKET AÇIP KAPATMA MANTIĞI (Açılar ve Kenarlar)
-        if (currentTool === 'move' || currentTool === 'fill') {
-            if (stroke.type === 'polygon' && stroke.vertices) {
-                // 1. Köşeleri Kontrol Et (İç Açılar İçin)
+
+            // ÖNCELİK 2: MERKEZ (Taşıma İşlemi) - Kenarlardan önceye alındı ki ezilmesin!
+            const merkezX = stroke.cx !== undefined ? stroke.cx : (stroke.center ? stroke.center.x : null);
+            const merkezY = stroke.cy !== undefined ? stroke.cy : (stroke.center ? stroke.center.y : null);
+            if (merkezX !== null && merkezY !== null && distance(pos, {x: merkezX, y: merkezY}) < HIT_RADIUS) {
+                return { item: stroke, pointKey: 'center' };
+            }
+
+            // ÖNCELİK 3: Köşeler (İç Açılar)
+            if (stroke.vertices) {
                 for (let j = 0; j < stroke.vertices.length; j++) {
                     if (distance(pos, stroke.vertices[j]) < HIT_RADIUS) return { item: stroke, pointKey: 'toggle_angles' };
                 }
-                
-                // 2. Kenarları Kontrol Et (Kenar Uzunlukları İçin)
+            }
+
+            // ÖNCELİK 4: Kenarlar (Uzunluklar)
+            if (stroke.vertices) {
                 for (let j = 0; j < stroke.vertices.length; j++) {
                     const v1 = stroke.vertices[j];
                     const v2 = stroke.vertices[(j + 1) % stroke.vertices.length];
@@ -625,45 +620,32 @@ function findHit(pos) {
                     let hitEdge = false;
                     for (let step = 1; step < steps; step++) { 
                         const t = step / steps;
-                        const sampleX = v1.x + (v2.x - v1.x) * t;
-                        const sampleY = v1.y + (v2.y - v1.y) * t;
-                        if (distance({x: sampleX, y: sampleY}, pos) < HIT_RADIUS) { hitEdge = true; break; }
+                        if (distance({x: v1.x + (v2.x - v1.x) * t, y: v1.y + (v2.y - v1.y) * t}, pos) < HIT_RADIUS) { hitEdge = true; break; }
                     }
                     if (hitEdge) return { item: stroke, pointKey: 'toggle_edges' };
                 }
             }
-            
-            // Çember Çevresi Kontrolü
-            if (stroke.type === 'arc' && stroke.cx) {
-                const distToCenter = distance(pos, {x: stroke.cx, y: stroke.cy});
-                if (Math.abs(distToCenter - stroke.radius) < HIT_RADIUS) return { item: stroke, pointKey: 'toggle_circle_info' };
-            }
+        }
+        // ==========================================
+
+        // ÇEMBERLER İÇİN MANTIK
+        if (stroke.type === 'arc' && stroke.cx) {
+            // Önce Merkezi kontrol et
+            if (distance(pos, {x: stroke.cx, y: stroke.cy}) < HIT_RADIUS) return { item: stroke, pointKey: 'center' };
+            // Sonra Çevreyi kontrol et
+            if (Math.abs(distance(pos, {x: stroke.cx, y: stroke.cy}) - stroke.radius) < HIT_RADIUS) return { item: stroke, pointKey: 'toggle_circle_info' };
         }
 
-        // --- MERKEZ VE UÇ NOKTALARI (Taşıma İçin) ---
+        // DİĞER ÇİZGİLER VE NOKTALAR İÇİN MANTIK
         if (stroke.type === 'point') {
             if (distance(pos, stroke) < HIT_RADIUS) return { item: stroke, pointKey: 'self' };
         }
         if (stroke.p1 && distance(pos, stroke.p1) < HIT_RADIUS) return { item: stroke, pointKey: 'p1' };
         if (stroke.p2 && distance(pos, stroke.p2) < HIT_RADIUS) return { item: stroke, pointKey: 'p2' };
-        
-        // Çember Merkezi
-        if (stroke.type === 'arc' && stroke.cx && distance(pos, {x: stroke.cx, y: stroke.cy}) < HIT_RADIUS) return { item: stroke, pointKey: 'center' };
-        
-        // Çokgen Merkezi (Taşıma Kilidi Burada Kırılıyor)
-        // Çokgen Merkezi (cx, cy veya center uyumlu Garantili Yakalama)
-        if (stroke.type === 'polygon') {
-            const merkezX = stroke.cx !== undefined ? stroke.cx : (stroke.center ? stroke.center.x : null);
-            const merkezY = stroke.cy !== undefined ? stroke.cy : (stroke.center ? stroke.center.y : null);
-            if (merkezX !== null && merkezY !== null && distance(pos, {x: merkezX, y: merkezY}) < HIT_RADIUS) {
-                return { item: stroke, pointKey: 'center' };
-            }
-        }
     }
     
     return null; 
 }
-
 
 // Global atamalar
 window.redrawAllStrokes = redrawAllStrokes;
