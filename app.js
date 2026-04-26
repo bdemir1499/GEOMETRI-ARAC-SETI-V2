@@ -1148,7 +1148,17 @@ canvas.addEventListener('mousedown', (e) => {
 
    if (currentTool === 'move') { // Taşıma Mantığı
         const pos = getEventPosition(e);
-        const hit = findHit(pos);
+    // MOBİL İÇİN HEDEF BÜYÜTME HİLESİ:
+    // Eğer dokunmatikse, findHit'in ıskalama payını düşürmek için 
+    // pos koordinatlarına ek olarak hafif çevresini de tarat.
+    let hit = findHit(pos);
+    if (!hit && (e.touches || e.changedTouches)) {
+         // Eğer tam merkez vurulamadıysa etrafını yokla
+         hit = findHit({x: pos.x + 10, y: pos.y}) || 
+               findHit({x: pos.x - 10, y: pos.y}) || 
+               findHit({x: pos.x, y: pos.y + 10}) || 
+               findHit({x: pos.x, y: pos.y - 10});
+    }
         
         if (hit) { // Bir şey yakalandı
             
