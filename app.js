@@ -3164,7 +3164,7 @@ window.addEventListener('touchstart', function() {
 }, { capture: true, passive: true });
 
 window.addEventListener('touchend', function() { 
-    // Parmak kalktıktan sonra 800 milisaniye boyunca fareyi tamamen felç et
+    // Parmağı kalktıktan sonra 800 milisaniye boyunca fareyi tamamen felç et
     setTimeout(() => { dokunmaKorumasi = false; }, 800); 
 }, { capture: true, passive: true });
 
@@ -3173,15 +3173,16 @@ const sahteFareKatili = function(e) {
     if (dokunmaKorumasi && !e.target.closest('.panel')) {
         e.preventDefault();
         e.stopPropagation();
-        e.stopImmediatePropagation(); // KİLİT NOKTA: Window üzerindeki diğer tüm araçların (pergel, gönye vb.) bunu duymasını KESİN OLARAK engeller!
+        e.stopImmediatePropagation(); 
     }
 };
 
-// Tarayıcının ürettiği tüm fare sinyallerine suikast düzenle (KESİN ÇÖZÜM)
+// Tarayıcının ürettiği tüm fare sinyallerine suikast düzenle (Eksik kalan kısım burasıydı)
 window.addEventListener('mousedown', sahteFareKatili, { capture: true });
 window.addEventListener('mousemove', sahteFareKatili, { capture: true });
 window.addEventListener('mouseup', sahteFareKatili, { capture: true });
 window.addEventListener('click', sahteFareKatili, { capture: true });
+
 
 // =================================================================
 // 🚀 V4 - KESİN PDF KAPATICI VE TABLET UYUMLU YÜKLEME SİSTEMİ
@@ -3228,7 +3229,7 @@ window.addEventListener('click', sahteFareKatili, { capture: true });
         }
     };
 
-    // Dokunmatik ve Mouse sinyallerini 'capture' (iniş) fazında dinle
+    // Dokunmatik ve Mouse sinyallerini en yüksek öncelikle 'capture' (iniş) fazında dinle
     window.addEventListener('pointerdown', kapatmaGorevi, { capture: true, passive: false });
     window.addEventListener('mousedown', kapatmaGorevi, { capture: true, passive: false });
 })();
@@ -3283,7 +3284,7 @@ window.addEventListener('load', () => {
             if (outcome === 'accepted') localStorage.setItem('pwa_durum', 'yuklendi');
             deferredPrompt = null;
         } else {
-            alert("Uygulamayı yüklemek için tarayıcı ayarlarından 'Yükle' veya 'Ana Ekrana Ekle' seçeneğini kullanınız.");
+            alert("Uygulamayı yüklemek için tarayıcı ayarlarından 'Ana Ekrana Ekle'yi seçiniz.");
         }
         installPopup.style.display = 'none';
     });
