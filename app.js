@@ -3101,3 +3101,52 @@ window.addEventListener('touchmove', function(e) {
     }
 }, { passive: false }); // passive: false çok önemlidir, tarayıcıyı durdurmaya izin verir.
 // ==========================================
+
+
+// =================================================================
+// YÜKLE (INSTALL) PENCERESİNİ AKILLICA GİZLEME SİSTEMİ
+// =================================================================
+window.addEventListener('DOMContentLoaded', () => {
+    const installPopup = document.getElementById('install-popup');
+    if (!installPopup) return;
+
+    // 1. KONTROL: Şu an PWA (Yüklü Uygulama) içinden mi açılmış?
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone || document.referrer.includes('android-app://');
+    
+    // 2. KONTROL: Tarayıcı hafızasında "Zaten Yüklendi" kaydı var mı?
+    const isInstalledBefore = localStorage.getItem('pwa_zaten_yuklu') === 'evet';
+
+    // Eğer uygulama yüklüyse veya şu an uygulama modundaysa:
+    if (isStandalone || isInstalledBefore) {
+        // Pencereyi kesin olarak yok et ve kilitle
+        installPopup.style.setProperty('display', 'none', 'important');
+        
+        // Sizin yazdığınız başka bir kod (setTimeout vb.) sonradan açmaya çalışırsa diye 
+        // 5 saniyelik bir nöbetçi koruma kalkanı ekliyoruz:
+        const nobetci = setInterval(() => {
+            if (installPopup.style.display !== 'none') {
+                installPopup.style.setProperty('display', 'none', 'important');
+            }
+        }, 500);
+        setTimeout(() => clearInterval(nobetci), 5000); 
+    }
+
+    // 3. KONTROL: Kullanıcı "Yükle" işlemini başarıyla tamamlarsa hafızaya kazı
+    window.addEventListener('appinstalled', (evt) => {
+        console.log('Sistem: Uygulama cihaza başarıyla kuruldu.');
+        localStorage.setItem('pwa_zaten_yuklu', 'evet'); // Gizli damgayı vur
+        installPopup.style.setProperty('display', 'none', 'important');
+    });
+
+    // 4. KONTROL: (Opsiyonel) Kullanıcı "Kapat" butonuna basarsa o oturumluk bir daha darlamasın
+    const btnClose = document.getElementById('btn-popup-close');
+    if (btnClose) {
+        btnClose.addEventListener('click', () => {
+            sessionStorage.setItem('bu_oturumda_kapatti', 'evet');
+        });
+    }
+    if (sessionStorage.getItem('bu_oturumda_kapatti') === 'evet') {
+        installPopup.style.setProperty('display', 'none', 'important');
+    }
+});
+// =================================================================
