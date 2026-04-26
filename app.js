@@ -528,43 +528,40 @@ function clearAllStrokes() {
 }
 
 function findHit(pos) {
+    // MOBİL İÇİN HASSASİYET AYARLARI (Hedef tahtalarını büyüttük)
+    const HIT_RADIUS = 35; // Genel köşeler, merkezler ve noktalar için
+    const BTN_RADIUS = 40; // Döndürme ve boyutlandırma kulpları için
+
     for (let i = drawnStrokes.length - 1; i >= 0; i--) {
         const stroke = drawnStrokes[i];
 
-if (stroke.type === 'image') {
+        if (stroke.type === 'image') {
             const halfW = stroke.width / 2;
             const halfH = stroke.height / 2;
             const angleRad = stroke.rotation * (Math.PI / 180);
 
-            // --- A. DÖNDÜRME KULPU (Rotate Handle) ALGILAMA ---
-            // Kulp, merkezin "yukarısında" (local Y = -handleDist)
+            // --- A. DÖNDÜRME KULPU ---
             const handleDist = halfH + 30;
-            
-            // Kulpun dünya üzerindeki gerçek yerini hesapla (Trigonometri)
             const rotX = stroke.x + Math.sin(angleRad) * handleDist;
             const rotY = stroke.y - Math.cos(angleRad) * handleDist;
 
-            // Eğer bu noktaya yakın tıklanırsa:
-            if (distance(pos, {x: rotX, y: rotY}) < 25) {
-                return { item: stroke, pointKey: 'image_rotate' }; // Yeni Anahtar
+            if (distance(pos, {x: rotX, y: rotY}) < BTN_RADIUS) {
+                return { item: stroke, pointKey: 'image_rotate' };
             }
 
-            // --- B. BOYUTLANDIRMA KULPU (Resize Handle) ---
-            // Sağ alt köşe (Local: halfW, halfH) döndürülmüş hali
+            // --- B. BOYUTLANDIRMA KULPU ---
             const resLocalX = halfW * Math.cos(angleRad) - halfH * Math.sin(angleRad);
             const resLocalY = halfW * Math.sin(angleRad) + halfH * Math.cos(angleRad);
             const resX = stroke.x + resLocalX;
             const resY = stroke.y + resLocalY;
 
-            if (distance(pos, {x: resX, y: resY}) < 25) {
+            if (distance(pos, {x: resX, y: resY}) < BTN_RADIUS) {
                 return { item: stroke, pointKey: 'image_resize' };
             }
 
             // --- C. RESİM GÖVDESİ (Taşıma) ---
-            // Tıklanan noktanın, resmin dönüş açısına göre "içerde" olup olmadığına bak
             const dx = pos.x - stroke.x;
             const dy = pos.y - stroke.y;
-            // Ters açı ile döndürerek kontrol et
             const localClickX = dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad);
             const localClickY = dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad);
 
@@ -572,23 +569,29 @@ if (stroke.type === 'image') {
                 return { item: stroke, pointKey: 'self' };
             }
         }
+        
+        // DÖNDÜRME VE BOYUTLANDIRMA BUTONLARI (ÇOKGENLER İÇİN)
         if (currentTool === 'move' && selectedItem === stroke) {
             if (stroke.type === 'polygon') {
-                const rotateHandlePos = 
-window.PolygonTool.getRotateHandlePosition(stroke);
-                if (distance(pos, rotateHandlePos) < 12) return { item: stroke, pointKey: 'rotate' }; 
+                const rotateHandlePos = window.PolygonTool.getRotateHandlePosition(stroke);
+                if (distance(pos, rotateHandlePos) < BTN_RADIUS) return { item: stroke, pointKey: 'rotate' }; 
+                
                 if (stroke.vertices && stroke.vertices.length > 0) {
                     const resizeHandlePos = stroke.vertices[0];
-                    if (distance(pos, resizeHandlePos) < 10) return { item: stroke, pointKey: 'resize' }; 
+                    if (distance(pos, resizeHandlePos) < BTN_RADIUS) return { item: stroke, pointKey: 'resize' }; 
                 }
             }
         }
         
-        if (currentTool === 'move' || currentTool === 'fill') { // Fill için de hit gerekli
+        // ETİKET AÇIP KAPATMA MANTIĞI (Açılar ve Kenarlar)
+        if (currentTool === 'move' || currentTool === 'fill') {
             if (stroke.type === 'polygon' && stroke.vertices) {
+                // 1. Köşeleri Kontrol Et (İç Açılar İçin)
                 for (let j = 0; j < stroke.vertices.length; j++) {
-                    if (distance(pos, stroke.vertices[j]) < SNAP_THRESHOLD) return { item: stroke, pointKey: 'toggle_angles' };
+                    if (distance(pos, stroke.vertices[j]) < HIT_RADIUS) return { item: stroke, pointKey: 'toggle_angles' };
                 }
+                
+                // 2. Kenarları Kontrol Et (Kenar Uzunlukları İçin)
                 for (let j = 0; j < stroke.vertices.length; j++) {
                     const v1 = stroke.vertices[j];
                     const v2 = stroke.vertices[(j + 1) % stroke.vertices.length];
@@ -599,27 +602,36 @@ window.PolygonTool.getRotateHandlePosition(stroke);
                         const t = step / steps;
                         const sampleX = v1.x + (v2.x - v1.x) * t;
                         const sampleY = v1.y + (v2.y - v1.y) * t;
-                        if (distance({x: sampleX, y: sampleY}, pos) < SNAP_THRESHOLD) { hitEdge = true; break; }
+                        if (distance({x: sampleX, y: sampleY}, pos) < HIT_RADIUS) { hitEdge = true; break; }
                     }
                     if (hitEdge) return { item: stroke, pointKey: 'toggle_edges' };
                 }
             }
+            
+            // Çember Çevresi Kontrolü
             if (stroke.type === 'arc' && stroke.cx) {
                 const distToCenter = distance(pos, {x: stroke.cx, y: stroke.cy});
-                if (Math.abs(distToCenter - stroke.radius) < SNAP_THRESHOLD) return { item: stroke, pointKey: 'toggle_circle_info' };
+                if (Math.abs(distToCenter - stroke.radius) < HIT_RADIUS) return { item: stroke, pointKey: 'toggle_circle_info' };
             }
         }
 
+        // --- MERKEZ VE UÇ NOKTALARI (Taşıma İçin) ---
         if (stroke.type === 'point') {
-            if (distance(pos, stroke) < SNAP_THRESHOLD) return { item: stroke, pointKey: 'self' };
+            if (distance(pos, stroke) < HIT_RADIUS) return { item: stroke, pointKey: 'self' };
         }
-        if (stroke.p1 && distance(pos, stroke.p1) < SNAP_THRESHOLD) return { item: stroke, pointKey: 'p1' };
-        if (stroke.p2 && distance(pos, stroke.p2) < SNAP_THRESHOLD) return { item: stroke, pointKey: 'p2' };
-        if (stroke.type === 'arc' && stroke.cx && distance(pos, {x: stroke.cx, y: stroke.cy}) < SNAP_THRESHOLD) return { item: stroke, pointKey: 'center' };
-        if (stroke.type === 'polygon' && stroke.center && distance(pos, stroke.center) < SNAP_THRESHOLD) return { item: stroke, pointKey: 'center' };
+        if (stroke.p1 && distance(pos, stroke.p1) < HIT_RADIUS) return { item: stroke, pointKey: 'p1' };
+        if (stroke.p2 && distance(pos, stroke.p2) < HIT_RADIUS) return { item: stroke, pointKey: 'p2' };
+        
+        // Çember Merkezi
+        if (stroke.type === 'arc' && stroke.cx && distance(pos, {x: stroke.cx, y: stroke.cy}) < HIT_RADIUS) return { item: stroke, pointKey: 'center' };
+        
+        // Çokgen Merkezi (Taşıma Kilidi Burada Kırılıyor)
+        if (stroke.type === 'polygon' && stroke.center && distance(pos, stroke.center) < HIT_RADIUS) return { item: stroke, pointKey: 'center' };
     }
+    
     return null; 
 }
+
 
 // Global atamalar
 window.redrawAllStrokes = redrawAllStrokes;
