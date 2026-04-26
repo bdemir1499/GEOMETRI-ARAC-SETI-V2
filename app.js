@@ -1,3 +1,36 @@
+// --- 3. ADIM: TAHTA (KISA LİNK) GİRİŞ KONTROLÜ ---
+const urlParams = new URLSearchParams(window.location.search);
+const odaPin = urlParams.get('oda');
+
+if (odaPin) {
+    console.log("Tahta Modu Aktif! Oda PIN:", odaPin);
+    
+    // Tahta tarafında arayüzü sadeleştir (İsteğe bağlı CSS için)
+    document.body.classList.add('tahta-modu');
+    
+    // Sayfa yüklendiğinde Firebase'den kontrol et
+    window.addEventListener('load', () => {
+        // Firebase kütüphanesinin yüklenmesini bekle
+        const checkFirebase = setInterval(() => {
+            if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+                clearInterval(checkFirebase);
+                const database = firebase.database();
+                
+                database.ref('odalar/' + odaPin).once('value', (snapshot) => {
+                    if (!snapshot.exists()) {
+                        alert("Bu kodun süresi dolmuş veya hatalı! Lütfen tekrar kod alın.");
+                        window.location.href = "index.html"; 
+                    } else {
+                        // Oda varsa, başlangıç sayfasını hafızaya al
+                        window.bekleyenSayfa = snapshot.val().sayfaNo || 1;
+                    }
+                });
+            }
+        }, 500);
+    });
+}
+// ----------------------------------------------
+
 
 // --- KANVAS AYARLARI ---
 const canvas = document.getElementById('drawing-canvas');
@@ -794,7 +827,25 @@ if (uploadButton && fileInput) {
 
                     // 3. Paneli Göster
                     pdfControls.classList.remove('hidden');
+                    // PDF kapatma butonunu da göster
+const closePdfBtn = document.getElementById('btn-close-pdf');
+if (closePdfBtn) {
+  closePdfBtn.classList.remove('hidden');
+  closePdfBtn.style.display = 'flex';
+
+  // Kapatma işlevi
+  closePdfBtn.onclick = () => {
+    pdfControls.classList.add('hidden');
+    closePdfBtn.classList.add('hidden');
+    currentPDF = null; // PDF’i sıfırla
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // PDF görüntüsünü temizle
+    redrawAllStrokes(); // Çizimleri yeniden çiz
+  };
+}
+
                     pdfControls.style.display = 'flex';
+
+
                     
                     // 4. Seçilen Sayfayı Çiz
                     renderPDFPage(currentPDFPage);
@@ -843,6 +894,40 @@ function addToCanvasAsObject(img) {
     });
     
     redrawAllStrokes();
+// PDF/Resim için ortak "PDF kapat" butonunu göster ve handler ekle
+const closePdfBtn = document.getElementById('btn-close-pdf');
+if (closePdfBtn) {
+  // Önce gizli sınıfı kaldır ve mobilde görünür yap
+  closePdfBtn.classList.remove('hidden');
+  closePdfBtn.style.display = 'flex';
+
+  // Önceki handler varsa kaldır (çift eklenmeyi önlemek için)
+  closePdfBtn.onclick = null;
+  closePdfBtn.removeEventListener && closePdfBtn.removeEventListener('click', () => {});
+
+  // Yeni kapatma işlevi
+  closePdfBtn.onclick = () => {
+    // Paneli gizle
+    if (pdfControls) pdfControls.classList.add('hidden');
+    // Butonu gizle
+    closePdfBtn.classList.add('hidden');
+    closePdfBtn.style.display = '';
+
+    // Eğer resmi arka plan olarak tutuyorsan onu kaldır veya sıfırla
+    // Burada isBackground true olanları tutuyoruz; ihtiyacına göre değiştir
+    drawnStrokes = drawnStrokes.filter(s => s.isBackground === true);
+    window.drawnStrokes = drawnStrokes;
+
+    // PDF/Resim değişkenlerini sıfırla
+    currentPDF = null;
+    pdfImageStroke = null;
+
+    // Kanvası temizle ve yeniden çiz
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    redrawAllStrokes();
+  };
+}
+
 }
 
 if(fillButton) fillButton.addEventListener('click', () => setActiveTool(currentTool === 'fill' ? 'none' : 'fill'));
@@ -2950,3 +3035,21 @@ window.addEventListener('resize', resizeCanvas);
  * Bir HTML elementine döndürme özelliği ekler.
  * @param {HTMLElement} element - Döndürülecek olan kopya kutusu (div)
  */
+
+// ==========================================
+// --- TARAYICI DOKUNMATİK ÇAKIŞMA ÇÖZÜMÜ ---
+// ==========================================
+// Tarayıcının adres çubuğu veya "sayfayı yenile" hareketinin
+// döndürme (rotate) ve taşıma işlemlerini bozmasını engeller.
+window.addEventListener('touchmove', function(e) {
+    // Eğer dokunulan şey döndürme kulpuysa veya kopyalanan resimse:
+    if (e.target.closest('.rotate-handle') || 
+        e.target.classList.contains('rotate-handle') ||
+        e.target.closest('.resize-handle') ||
+        e.target.tagName.toLowerCase() === 'img') {
+        
+        // Tarayıcıya "Karışma, kaydırma yapma!" diyoruz.
+        e.preventDefault(); 
+    }
+}, { passive: false }); // passive: false çok önemlidir, tarayıcıyı durdurmaya izin verir.
+// ==========================================
