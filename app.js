@@ -3060,6 +3060,7 @@ window.addEventListener('resize', resizeCanvas);
 
     // --- BUTONLARA GÖREVLERİNİ VER ---
 
+
     // A) Yükle Butonu
     activateButton(btnInstall, async () => {
         if (deferredPrompt) {
