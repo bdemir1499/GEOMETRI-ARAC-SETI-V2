@@ -932,61 +932,42 @@ function addToCanvasAsObject(img) {
     });
     
     redrawAllStrokes();
-
-
-// --- PDF/RESİM KAPATMA BUTONU (V3 - HİBRİT POINTER SÜRÜMÜ) ---
+// PDF/Resim için ortak "PDF kapat" butonunu göster ve handler ekle
 const closePdfBtn = document.getElementById('btn-close-pdf');
-
 if (closePdfBtn) {
-    // 1. Görünürlüğü ve dokunma alanını zorla
-    closePdfBtn.classList.remove('hidden');
-    closePdfBtn.style.setProperty('display', 'flex', 'important');
+  // Önce gizli sınıfı kaldır ve mobilde görünür yap
+  closePdfBtn.classList.remove('hidden');
+  closePdfBtn.style.display = 'flex';
 
-    // 2. Klonlama ile tüm eski dinleyicileri temizle (En temiz başlangıç)
-    const newBtn = closePdfBtn.cloneNode(true);
-    closePdfBtn.parentNode.replaceChild(newBtn, closePdfBtn);
+  // Önceki handler varsa kaldır (çift eklenmeyi önlemek için)
+  closePdfBtn.onclick = null;
+  closePdfBtn.removeEventListener && closePdfBtn.removeEventListener('click', () => {});
 
-    // 3. Kapatma işlemini gerçekleştiren ana fonksiyon
-    const kapatmaIslemi = (e) => {
-        if (e) {
-            e.preventDefault();
-            e.stopPropagation();           // Sinyalin arkadaki kanvasa gitmesini keser
-            e.stopImmediatePropagation();  // Window üzerindeki diğer tüm kodları o an susturur
-        }
+  // Yeni kapatma işlevi
+  closePdfBtn.onclick = () => {
+    // Paneli gizle
+    if (pdfControls) pdfControls.classList.add('hidden');
+    // Butonu gizle
+    closePdfBtn.classList.add('hidden');
+    closePdfBtn.style.display = '';
 
-        console.log("Kapatma işlemi başarıyla tetiklendi.");
+    // Eğer resmi arka plan olarak tutuyorsan onu kaldır veya sıfırla
+    // Burada isBackground true olanları tutuyoruz; ihtiyacına göre değiştir
+    drawnStrokes = drawnStrokes.filter(s => s.isBackground === true);
+    window.drawnStrokes = drawnStrokes;
 
-        // Paneli ve butonu gizle
-        if (typeof pdfControls !== 'undefined' && pdfControls) {
-            pdfControls.classList.add('hidden');
-            pdfControls.style.display = 'none';
-        }
-        newBtn.classList.add('hidden');
-        newBtn.style.setProperty('display', 'none', 'important');
+    // PDF/Resim değişkenlerini sıfırla
+    currentPDF = null;
+    pdfImageStroke = null;
 
-        // Verileri temizle (isBackground olanları yani arka plan resmini koru)
-        if (window.drawnStrokes) {
-            window.drawnStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
-            if (typeof drawnStrokes !== 'undefined') drawnStrokes = window.drawnStrokes;
-        }
-
-        window.currentPDF = null;
-        window.pdfImageStroke = null;
-
-        // Kanvası temizle ve her şeyi yeniden çiz
-        if (typeof ctx !== 'undefined' && typeof canvas !== 'undefined') {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
-        }
-    };
-
-    // 4. KRİTİK: 'pointerdown' parmağın değdiği an çalışır, çekilmesini beklemez.
-    // 'capture: true' ise sinyali diğer her şeyden önce yakalamasını sağlar.
-    newBtn.addEventListener('pointerdown', kapatmaIslemi, { capture: true, passive: false });
-    
-    // Eski tarayıcılar için garanti yedek
-    newBtn.addEventListener('click', kapatmaIslemi, { capture: true });
+    // Kanvası temizle ve yeniden çiz
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    redrawAllStrokes();
+  };
 }
+
+}
+
 if(fillButton) fillButton.addEventListener('click', () => setActiveTool(currentTool === 'fill' ? 'none' : 'fill'));
 if(fillColorBoxes) {
     fillColorBoxes.forEach(box => {
