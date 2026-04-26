@@ -896,15 +896,12 @@ body.cursor-snapshot {
     opacity: 0.6;
 }
 
-/* PDF KAPATMA BUTONU - ÜSTÜN ÖNCELİK AYARI */
+/* PDF KAPAT BUTONU İÇİN ÖNCELİKLİ KATMAN */
 #btn-close-pdf, .pdf-close-btn {
-    position: fixed !important;
-    z-index: 9999999 !important; /* Maksimum katman */
+    z-index: 2147483647 !important; /* Tarayıcının izin verdiği en yüksek katman */
     pointer-events: auto !important; 
-    touch-action: none !important; /* Tarayıcının 'bekleme' yapmasını %100 kapatır */
+    touch-action: none !important; /* Tarayıcının 'bekleme' yapmasını tamamen kapatır */
     -webkit-user-select: none;
     user-select: none;
     cursor: pointer !important;
-    /* Mobilde dokunma alanını genişletmek için (görünmez padding) */
-    padding: 10px !important; 
 }
