@@ -896,21 +896,3 @@ body.cursor-snapshot {
     opacity: 0.6;
 }
 
-/* --- PDF/RESİM KAPATMA BUTONU KESİN ÇÖZÜM --- */
-#btn-close-pdf, .pdf-close-btn {
-    /* En üst katmana (diğer her şeyin, pencerelerin bile üstüne) çıkarır */
-    z-index: 1000000 !important; 
-    
-    /* Tıklanabilirliği engelleyen görünmez katmanları delip geçer */
-    pointer-events: auto !important; 
-    
-    /* Tıklama imlecini gösterir */
-    cursor: pointer !important;
-    
-    /* Tarayıcının 'çift tıkla yakınlaştır' beklemesini iptal eder, 
-       böylece ilk dokunuşta butona basıldığını anlar */
-    touch-action: manipulation !important; 
-    
-    /* Mobilde dokunma alanını netleştirir */
-    -webkit-tap-highlight-color: rgba(0,0,0,0);
-}

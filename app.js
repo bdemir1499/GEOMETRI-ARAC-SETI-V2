@@ -865,7 +865,24 @@ if (uploadButton && fileInput) {
 
                     // 3. Paneli Göster
                     pdfControls.classList.remove('hidden');
-                    
+                    // PDF kapatma butonunu da göster
+const closePdfBtn = document.getElementById('btn-close-pdf');
+if (closePdfBtn) {
+  closePdfBtn.classList.remove('hidden');
+  closePdfBtn.style.display = 'flex';
+
+  // Kapatma işlevi
+  closePdfBtn.onclick = () => {
+    pdfControls.classList.add('hidden');
+    closePdfBtn.classList.add('hidden');
+    currentPDF = null; // PDF’i sıfırla
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // PDF görüntüsünü temizle
+    redrawAllStrokes(); // Çizimleri yeniden çiz
+  };
+}
+
+                    pdfControls.style.display = 'flex';
+
 
                     
                     // 4. Seçilen Sayfayı Çiz
@@ -915,52 +932,40 @@ function addToCanvasAsObject(img) {
     });
     
     redrawAllStrokes();
-
+// PDF/Resim için ortak "PDF kapat" butonunu göster ve handler ekle
 const closePdfBtn = document.getElementById('btn-close-pdf');
-
 if (closePdfBtn) {
-    // Görünür yap
-    closePdfBtn.classList.remove('hidden');
-    closePdfBtn.style.setProperty('display', 'flex', 'important');
+  // Önce gizli sınıfı kaldır ve mobilde görünür yap
+  closePdfBtn.classList.remove('hidden');
+  closePdfBtn.style.display = 'flex';
 
-    // ESKİDEN KALAN TÜM OLAYLARI TEMİZLE (Çakışma önleyici)
-    const newCloseBtn = closePdfBtn.cloneNode(true);
-    closePdfBtn.parentNode.replaceChild(newCloseBtn, closePdfBtn);
+  // Önceki handler varsa kaldır (çift eklenmeyi önlemek için)
+  closePdfBtn.onclick = null;
+  closePdfBtn.removeEventListener && closePdfBtn.removeEventListener('click', () => {});
 
-    // Kapatma Fonksiyonu
-    const finalizeClose = (e) => {
-        if (e) {
-            e.preventDefault();
-            e.stopPropagation(); // Tıklamanın arkadaki kanvasa/şekillere geçmesini engeller
-        }
+  // Yeni kapatma işlevi
+  closePdfBtn.onclick = () => {
+    // Paneli gizle
+    if (pdfControls) pdfControls.classList.add('hidden');
+    // Butonu gizle
+    closePdfBtn.classList.add('hidden');
+    closePdfBtn.style.display = '';
 
-        console.log("PDF/Resim Kapatıldı");
+    // Eğer resmi arka plan olarak tutuyorsan onu kaldır veya sıfırla
+    // Burada isBackground true olanları tutuyoruz; ihtiyacına göre değiştir
+    drawnStrokes = drawnStrokes.filter(s => s.isBackground === true);
+    window.drawnStrokes = drawnStrokes;
 
-        // Paneli ve Butonu Gizle
-        if (typeof pdfControls !== 'undefined' && pdfControls) pdfControls.classList.add('hidden');
-        newCloseBtn.classList.add('hidden');
-        newCloseBtn.style.display = 'none';
+    // PDF/Resim değişkenlerini sıfırla
+    currentPDF = null;
+    pdfImageStroke = null;
 
-        // Verileri Sıfırla (Arka planları koru, diğerlerini sil)
-        if (window.drawnStrokes) {
-            window.drawnStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
-            // Global değişkeni de güncelle
-            if (typeof drawnStrokes !== 'undefined') drawnStrokes = window.drawnStrokes;
-        }
+    // Kanvası temizle ve yeniden çiz
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    redrawAllStrokes();
+  };
+}
 
-        currentPDF = null;
-        if (typeof pdfImageStroke !== 'undefined') pdfImageStroke = null;
-
-        // Kanvası temizle ve her şeyi yeniden çiz
-        if (typeof ctx !== 'undefined' && typeof canvas !== 'undefined') {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
-        }
-    };
-
-    // HEM DOKUNMA HEM TIKLAMA (Hangisi önce gelirse)
-    newCloseBtn.addEventListener('touchend', finalizeClose, { passive: false });
-    newCloseBtn.addEventListener('click', finalizeClose);
 }
 
 if(fillButton) fillButton.addEventListener('click', () => setActiveTool(currentTool === 'fill' ? 'none' : 'fill'));
