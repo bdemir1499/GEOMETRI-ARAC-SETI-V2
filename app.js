@@ -3177,9 +3177,119 @@ const sahteFareKatili = function(e) {
     }
 };
 
-// Tarayıcının ürettiği tüm fare sinyallerine suikast düzenle
+// Tarayıcının ürettiği tüm fare sinyallerine suikast düzenle (KESİN ÇÖZÜM)
 window.addEventListener('mousedown', sahteFareKatili, { capture: true });
 window.addEventListener('mousemove', sahteFareKatili, { capture: true });
 window.addEventListener('mouseup', sahteFareKatili, { capture: true });
 window.addEventListener('click', sahteFareKatili, { capture: true });
 
+// =================================================================
+// 🚀 V4 - KESİN PDF KAPATICI VE TABLET UYUMLU YÜKLEME SİSTEMİ
+// =================================================================
+
+// 1. PDF/RESİM KAPATMA (SİNYAL SUİKASTÇISI - CAPTURE SÜRÜMÜ)
+(function() {
+    const kapatmaGorevi = (e) => {
+        const btn = document.getElementById('btn-close-pdf');
+        // Eğer dokunulan yer kapatma butonu veya butonun içindeki bir şeyse:
+        if (btn && (e.target === btn || btn.contains(e.target))) {
+            
+            // Sinyali havada yakala ve kanvasın/çizimin duymasını engelle
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+
+            console.log("PDF/Resim Kapatıldı (Sinyal havada yakalandı)");
+
+            // Paneli ve Butonu Gizle
+            const pnl = document.getElementById('pdf-controls');
+            if (pnl) {
+                pnl.classList.add('hidden');
+                pnl.style.display = 'none';
+            }
+            btn.classList.add('hidden');
+            btn.style.setProperty('display', 'none', 'important');
+
+            // Verileri Sıfırla (Arka plan resimlerini koru)
+            window.currentPDF = null;
+            window.pdfImageStroke = null;
+            if (window.drawnStrokes) {
+                window.drawnStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
+            }
+
+            // Kanvası Temizle ve Çizimleri Tazele
+            const c = document.getElementById('drawing-canvas');
+            if (c) {
+                const cx = c.getContext('2d');
+                cx.clearRect(0, 0, c.width, c.height);
+                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
+            }
+            return false;
+        }
+    };
+
+    // Dokunmatik ve Mouse sinyallerini 'capture' (iniş) fazında dinle
+    window.addEventListener('pointerdown', kapatmaGorevi, { capture: true, passive: false });
+    window.addEventListener('mousedown', kapatmaGorevi, { capture: true, passive: false });
+})();
+
+// 2. AKILLI YÜKLE PENCERESİ (TABLET VE PC UYUMLU)
+window.addEventListener('load', () => {
+    let deferredPrompt;
+    const installPopup = document.getElementById('install-popup');
+    const btnInstall = document.getElementById('btn-popup-install');
+    const btnClose = document.getElementById('btn-popup-close');
+    const iosInstructions = document.getElementById('ios-instructions');
+
+    if (!installPopup) return;
+
+    // Durum kontrolü
+    const status = localStorage.getItem('pwa_durum');
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+    if (status === 'yuklendi' || status === 'kapali' || isStandalone) {
+        installPopup.style.display = 'none';
+        return;
+    }
+
+    // Chrome/Android/Edge sinyali yakalama
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installPopup.style.display = 'flex';
+    });
+
+    // iOS (iPad/iPhone) kontrolü
+    const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIos && !isStandalone && status !== 'kapali') {
+        setTimeout(() => {
+            installPopup.style.display = 'flex';
+            if (btnInstall) btnInstall.style.display = 'none'; 
+            if (iosInstructions) iosInstructions.style.display = 'block'; 
+        }, 3000);
+    }
+
+    // Buton Görevleri
+    const setupBtn = (btn, action) => {
+        if (!btn) return;
+        btn.addEventListener('click', (e) => { e.stopPropagation(); action(); });
+        btn.addEventListener('touchstart', (e) => { e.stopPropagation(); action(); }, { passive: true });
+    };
+
+    setupBtn(btnInstall, async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') localStorage.setItem('pwa_durum', 'yuklendi');
+            deferredPrompt = null;
+        } else {
+            alert("Uygulamayı yüklemek için tarayıcı ayarlarından 'Yükle' veya 'Ana Ekrana Ekle' seçeneğini kullanınız.");
+        }
+        installPopup.style.display = 'none';
+    });
+
+    setupBtn(btnClose, () => {
+        installPopup.style.display = 'none';
+        localStorage.setItem('pwa_durum', 'kapali');
+    });
+});
