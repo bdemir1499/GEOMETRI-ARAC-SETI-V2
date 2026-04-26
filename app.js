@@ -552,7 +552,7 @@ function clearAllStrokes() {
     redrawAllStrokes();
 }
 
-// --- KUSURSUZ HEDEF YAKALAYICI (findHit) - TAM SÜRÜM ---
+// --- KUSURSUZ HEDEF YAKALAYICI (findHit) - AKILLI HAKEM SÜRÜMÜ ---
 function findHit(pos) {
     const HIT_RADIUS = 30; // Genel hedef (merkez, köşeler, kenarlar)
     const BTN_RADIUS = 30; // Buton hedefi
@@ -583,11 +583,11 @@ function findHit(pos) {
         }
         
         // ==========================================
-        // ÇOKGENLER (POLYGON) 
+        // ÇOKGENLER (POLYGON) - HAKEMLİ ÇÖZÜM
         // ==========================================
         if (stroke.type === 'polygon') {
             
-            // ÖNCELİK 1: Döndürme ve Boyutlandırma Butonları
+            // ÖNCELİK 1: Döndürme ve Boyutlandırma Butonları Kavgası
             if (currentTool === 'move' && selectedItem === stroke) {
                 const rotateHandlePos = window.PolygonTool.getRotateHandlePosition(stroke);
                 const resizeHandlePos = stroke.vertices && stroke.vertices.length > 0 ? stroke.vertices[0] : null;
@@ -595,15 +595,16 @@ function findHit(pos) {
                 const dRot = distance(pos, rotateHandlePos);
                 const dRes = resizeHandlePos ? distance(pos, resizeHandlePos) : Infinity;
 
-                // --- KRİTİK ÇÖZÜM: BOYUTLANDIRMAYA (RESIZE) KESİN TORPİL ---
-                // Eğer parmak 30 piksellik alanda İKİSİNE BİRDEN dokunuyorsa, KESİNLİKLE resize çalışacak!
-                if (dRes < BTN_RADIUS && dRot < BTN_RADIUS) {
-                    return { item: stroke, pointKey: 'resize' }; 
+                // --- KRİTİK ÇÖZÜM: EN YAKIN OLAN KAZANIR ---
+                // Eğer parmak butonlardan herhangi birinin menziline girmişse:
+                if (dRot < BTN_RADIUS || dRes < BTN_RADIUS) {
+                    // Hangisine DAHA YAKINSA (mesafe daha küçükse) onu seç
+                    if (dRes <= dRot) {
+                        return { item: stroke, pointKey: 'resize' }; // Pembeye daha yakın
+                    } else {
+                        return { item: stroke, pointKey: 'rotate' }; // Yeşile daha yakın
+                    }
                 }
-                
-                // Çarpışma yoksa normal çalış:
-                if (dRes < BTN_RADIUS) return { item: stroke, pointKey: 'resize' };
-                if (dRot < BTN_RADIUS) return { item: stroke, pointKey: 'rotate' };
             }
 
             // ÖNCELİK 2: MERKEZ (Taşıma İşlemi)
