@@ -527,6 +527,14 @@ function redrawAllStrokes() {
     } 
 }
 
+function attachDragEvents(item) {
+    item.addEventListener('mousedown', startDrag);
+    item.addEventListener('touchstart', startDrag, { passive: false });
+    item.addEventListener('pointerdown', startDrag);
+}
+
+
+
 function undoLastStroke() {
     if (drawnStrokes.length > 0) {
         if (window.audio_undo) { window.audio_undo.currentTime = 0; window.audio_undo.play(); }
@@ -1153,6 +1161,8 @@ if (animateButton) {
 
         // Modu Değiştir
         setActiveTool(currentTool === 'snapshot' ? 'none' : 'snapshot');
+attachDragEvents(newCopy);
+
         
         // Görsel Ayarlar (Aktiflik Rengi ve İmleç)
         if (currentTool === 'snapshot') {
@@ -3068,12 +3078,25 @@ window.addEventListener('resize', resizeCanvas);
         }, 3000);
     }
 
+if (btnInstall) {
+    btnInstall.addEventListener('click', () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt(); // yükleme penceresini açar
+            deferredPrompt.userChoice.then((choiceResult) => {
+                console.log('Sonuç:', choiceResult.outcome);
+                deferredPrompt = null;
+            });
+        }
+        if (installPopup) installPopup.style.display = 'none';
+    });
+}
+
+
 // 3. Kullanıcı "Yükle" butonuna bastığında
 if (btnInstall) {
     btnInstall.addEventListener('click', () => {
         if (deferredPrompt) {
-            // Asıl yükleme penceresini aç
-            deferredPrompt.prompt();
+            deferredPrompt.prompt(); // Asıl yükleme penceresini açar
             deferredPrompt.userChoice.then((choiceResult) => {
                 if (choiceResult.outcome === 'accepted') {
                     console.log('Uygulama yükleme kabul edildi');
