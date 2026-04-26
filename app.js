@@ -809,7 +809,10 @@ eraserButton.addEventListener('click', () => setActiveTool(currentTool === 'eras
 rulerButton.addEventListener('click', () => { if (window.RulerTool) { window.RulerTool.toggle(); rulerButton.classList.toggle('active', !window.RulerTool.rulerElement.style.display); } });
 gonyeButton.addEventListener('click', () => { if (window.GonyeTool) { window.GonyeTool.toggle(); gonyeButton.classList.toggle('active', !window.GonyeTool.gonyeElement.style.display); } });
 aciolcerButton.addEventListener('click', () => { if (window.AciolcerTool) { window.AciolcerTool.toggle(); aciolcerButton.classList.toggle('active', !window.AciolcerTool.aciolcerElement.style.display); } });
+
 pergelButton.addEventListener('click', () => { if (window.PergelTool) { window.PergelTool.toggle(); pergelButton.classList.toggle('active', !window.PergelTool.pergelElement.classList.contains('hidden')); } });
+
+
 undoButton.addEventListener('click', undoLastStroke);
 clearAllButton.addEventListener('click', clearAllStrokes);
 moveButton.addEventListener('click', () => setActiveTool(currentTool === 'move' ? 'none' : 'move'));
@@ -3274,3 +3277,5 @@ window.addEventListener('load', () => {
         localStorage.setItem('pwa_durum', 'kapali');
     });
 });
+
+}
