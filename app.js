@@ -552,6 +552,19 @@ function clearAllStrokes() {
     redrawAllStrokes();
 }
 
+document.getElementById('btn-close-pdf').addEventListener('click', () => {
+    // PDF veya resim arka planını da kaldır
+    drawnStrokes = drawnStrokes.filter(stroke => stroke.isBackground !== true);
+    window.drawnStrokes = drawnStrokes;
+
+    currentPDF = null;
+    backgroundImage = null;
+
+    redrawAllStrokes();
+});
+
+
+
 // --- KUSURSUZ HEDEF YAKALAYICI (findHit) - AKILLI HAKEM SÜRÜMÜ ---
 function findHit(pos) {
     const HIT_RADIUS = 30; // Genel hedef (merkez, köşeler, kenarlar)
