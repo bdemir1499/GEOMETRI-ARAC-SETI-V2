@@ -196,13 +196,38 @@ function resizeCanvas() {
     redrawAllStrokes();
 }
 
+// --- KUSURSUZ KOORDİNAT OKUYUCU (ADRES ÇUBUĞU KAYMASINI ÖNLER) ---
 function getEventPosition(e) {
-    if (e.touches && e.touches.length > 0) {
-        return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    }
-    return { x: e.clientX, y: e.clientY };
-}
+    // Çökme Önleyici Kilit
+    if (!e) return { x: 0, y: 0 };
 
+    let clientX = 0;
+    let clientY = 0;
+
+    // Parmak veya Fare algılayıcı
+    if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+    } else {
+        clientX = e.clientX || 0;
+        clientY = e.clientY || 0;
+    }
+
+    // Kanvası bul ve ekrandaki gerçek (adres çubuğu dâhil) konumunu hesapla
+    const c = document.getElementById('drawing-canvas') || document.querySelector('canvas');
+    if (!c) return { x: 0, y: 0 };
+
+    const rect = c.getBoundingClientRect(); 
+    
+    // Adres Çubuğu Kaymasını Sıfırlayan Matematik:
+    return {
+        x: (clientX - rect.left) * (c.width / rect.width),
+        y: (clientY - rect.top) * (c.height / rect.height)
+    };
+}
 function drawDot(pos, color = '#00FFCC') {
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, 5, 0, 2 * Math.PI); 
