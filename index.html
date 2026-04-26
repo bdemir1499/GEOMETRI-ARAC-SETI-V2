@@ -3,8 +3,8 @@
 <head>
 
 <style>
-    /* TARAYICININ DOKUNMATİK HAREKETLERİ ÇALMASINI KESİN OLARAK ENGELLER */
-    html, body, canvas {
+    /* TARAYICININ DOKUNMATİK HAREKETLERİNİ VE KOORDİNAT KAYMASINI KESİN OLARAK ENGELLER */
+    html, body {
         touch-action: none !important;
         overscroll-behavior: none !important;
         -webkit-user-select: none !important;
@@ -12,9 +12,19 @@
         margin: 0;
         padding: 0;
         overflow: hidden !important;
+        
+        /* İŞTE KOORDİNAT SAPMASINI ÇÖZEN KİLİT */
+        position: fixed !important;
+        width: 100% !important;
+        height: 100% !important;
     }
-</style>
-    <meta charset="UTF-8">
+    canvas {
+        touch-action: none !important;
+        display: block;
+    }
+</style>   
+
+ <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <title>GEOMETRI ARAC SETI-V2</title>
