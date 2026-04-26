@@ -34,6 +34,7 @@ if (odaPin) {
 
 // --- KANVAS AYARLARI ---
 const canvas = document.getElementById('drawing-canvas');
+canvas.style.touchAction = 'none';
 const ctx = canvas.getContext('2d');
 // --- RESİM YÜKLEME DEĞİŞKENLERİ ---
 let backgroundImage = null; // Yüklenen resmi tutacak değişken
