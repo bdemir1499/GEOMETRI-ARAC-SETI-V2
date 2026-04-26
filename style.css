@@ -22,6 +22,8 @@ body, html {
     position: fixed; /* iOS'ta sayfanın oynamasını engeller */
 }
 
+
+
 /* Input alanlarına (Metin kutusu vs.) tekrar seçim izni ver */
 input, textarea {
     -webkit-user-select: text;

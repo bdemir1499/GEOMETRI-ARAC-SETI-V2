@@ -17,6 +17,7 @@ window.RulerTool = {
         currentHandleX: 0, // Çizim tutamacının mevcut pozisyonu
     },
     
+
     // Etkileşim durumu
     interactionMode: 'none', // 'dragging', 'resizing-left', 'resizing-right', 'rotating', 'drawing'
     startPos: { x: 0, y: 0 },
