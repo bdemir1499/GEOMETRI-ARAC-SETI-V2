@@ -541,8 +541,7 @@ function clearAllStrokes() {
     }
     // --- DEĞİŞİKLİK BURADA: Sadece arka plan OLMAYANLARI temizle ---
     // Eğer stroke.isBackground true ise (PDF veya Resim), onu tut.
-    drawnStrokes = drawnStrokes.filter(stroke => stroke.isBackground !== true);
-
+    drawnStrokes = drawnStrokes.filter(stroke => stroke.isBackground === true);
     
     window.drawnStrokes = drawnStrokes; 
     
@@ -554,6 +553,21 @@ function clearAllStrokes() {
 }
 
 
+// PDF/Resim için tek tıklama kapatma
+const closePdfBtn = document.getElementById('btn-close-pdf');
+if (closePdfBtn) {
+    closePdfBtn.addEventListener('click', () => {
+        // PDF/Resim arka planını da kaldır
+        drawnStrokes = drawnStrokes.filter(stroke => !stroke.isBackground);
+        window.drawnStrokes = drawnStrokes;
+
+        currentPDF = null;
+        backgroundImage = null;
+        pdfImageStroke = null;
+
+        redrawAllStrokes();
+    });
+}
 
 
 // --- KUSURSUZ HEDEF YAKALAYICI (findHit) - AKILLI HAKEM SÜRÜMÜ ---
