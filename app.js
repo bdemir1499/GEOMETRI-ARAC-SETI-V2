@@ -32,6 +32,8 @@ if (odaPin) {
 // ----------------------------------------------
 
 
+
+
 // --- KANVAS AYARLARI ---
 const canvas = document.getElementById('drawing-canvas');
 const ctx = canvas.getContext('2d');
@@ -1110,6 +1112,10 @@ if (animateButton) {
 
 canvas.addEventListener('mousedown', (e) => {
 
+canvas.addEventListener('touchstart', (e) => { e.preventDefault(); /* Sizin mousedown fonksiyonunuzun adı (örneğin handleMouseDown(e)) */ }, { passive: false });
+canvas.addEventListener('touchmove', (e) => { e.preventDefault(); /* Sizin mousemove fonksiyonunuzun adı */ }, { passive: false });
+canvas.addEventListener('touchend', (e) => { /* Sizin mouseup fonksiyonunuzun adı */ }, { passive: false });
+
     // --- 1. FİZİKSEL ARAÇ KONTROLÜ ---
     const isToolElementClicked = e.target.closest('.ruler-container, .gonye-container, .aciolcer-container, #compass-container');
     if (isToolElementClicked) { 
@@ -1346,6 +1352,10 @@ canvas.addEventListener('mousedown', (e) => {
 });
 
 canvas.addEventListener('mousemove', (e) => {
+
+canvas.addEventListener('touchstart', (e) => { e.preventDefault(); /* Sizin mousedown fonksiyonunuzun adı (örneğin handleMouseDown(e)) */ }, { passive: false });
+canvas.addEventListener('touchmove', (e) => { e.preventDefault(); /* Sizin mousemove fonksiyonunuzun adı */ }, { passive: false });
+canvas.addEventListener('touchend', (e) => { /* Sizin mouseup fonksiyonunuzun adı */ }, { passive: false });
 
     // 1. TAŞIMA (MOVE) MANTIĞI
     if (currentTool === 'move' && isMoving) {
@@ -1655,6 +1665,10 @@ canvas.addEventListener('mousemove', (e) => {
 }); // <--- 4. BURASI DOĞRU (Mousemove olayını kapatır)
 
 canvas.addEventListener('mouseup', () => {
+
+canvas.addEventListener('touchstart', (e) => { e.preventDefault(); /* Sizin mousedown fonksiyonunuzun adı (örneğin handleMouseDown(e)) */ }, { passive: false });
+canvas.addEventListener('touchmove', (e) => { e.preventDefault(); /* Sizin mousemove fonksiyonunuzun adı */ }, { passive: false });
+canvas.addEventListener('touchend', (e) => { /* Sizin mouseup fonksiyonunuzun adı */ }, { passive: false });
 
     if (currentTool === 'move' && isMoving) {
         // Taşıma sesini durdur
@@ -3053,3 +3067,49 @@ window.addEventListener('touchmove', function(e) {
     }
 }, { passive: false }); // passive: false çok önemlidir, tarayıcıyı durdurmaya izin verir.
 // ==========================================
+
+
+// =================================================================
+// DOKUNMATİK EKRAN DESTEĞİ (TABLET/TELEFON İÇİN)
+// =================================================================
+const cizimKanvasi = document.querySelector('canvas'); // Eğer canvas id'niz farklıysa burayı güncelleyin, örn: document.getElementById('myCanvas')
+
+if (cizimKanvasi) {
+    function parmagiFareyeCevir(e) {
+        // Sadece tek parmakla yapılan işlemleri al (zoom vs ile karışmasın)
+        if (e.touches.length > 1) return; 
+
+        var parmak = e.changedTouches[0];
+        var fareOlayiTipi = "";
+
+        switch(e.type) {
+            case "touchstart": fareOlayiTipi = "mousedown"; break;
+            case "touchmove":  fareOlayiTipi = "mousemove"; break;
+            case "touchend":   fareOlayiTipi = "mouseup"; break;
+            default: return;
+        }
+
+        var sahteFareOlayi = new MouseEvent(fareOlayiTipi, {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: parmak.clientX,
+            clientY: parmak.clientY,
+            screenX: parmak.screenX,
+            screenY: parmak.screenY,
+            button: 0 // Sol tık olarak algılat
+        });
+
+        parmak.target.dispatchEvent(sahteFareOlayi);
+        
+        // Ekranın aşağı yukarı kaymasını engelle ki şekil rahat taşınsın
+        if(e.cancelable) {
+            e.preventDefault();
+        }
+    }
+
+    cizimKanvasi.addEventListener("touchstart", parmagiFareyeCevir, {passive: false});
+    cizimKanvasi.addEventListener("touchmove", parmagiFareyeCevir, {passive: false});
+    cizimKanvasi.addEventListener("touchend", parmagiFareyeCevir, {passive: false});
+}
+// =================================================================
