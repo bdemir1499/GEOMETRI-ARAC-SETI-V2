@@ -553,18 +553,20 @@ function clearAllStrokes() {
 }
 
 
-// PDF/Resim için tek tıklama kapatma
+// PDF/Resim kapatma butonu için tek tıklama çözümü
 const closePdfBtn = document.getElementById('btn-close-pdf');
 if (closePdfBtn) {
     closePdfBtn.addEventListener('click', () => {
-        // PDF/Resim arka planını da kaldır
+        // Arka plan PDF/Resim stroke’unu da kaldır
         drawnStrokes = drawnStrokes.filter(stroke => !stroke.isBackground);
         window.drawnStrokes = drawnStrokes;
 
+        // PDF/Resim değişkenlerini sıfırla
         currentPDF = null;
         backgroundImage = null;
         pdfImageStroke = null;
 
+        // Yeniden çiz
         redrawAllStrokes();
     });
 }
