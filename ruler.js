@@ -284,40 +284,49 @@ window.audio_draw.play();
 // LÜTFEN MEVCUT onMouseUp FONKSİYONUNUZU BU BLOK İLE DEĞİŞTİRİN:
 
     onMouseUp: function(e) {
-    if (this.interactionMode === 'none') return; 
+        if (this.interactionMode === 'none') return; 
 
-    if (this.interactionMode === 'dragging') {
-        this.bodyElement.style.cursor = 'grab'; 
-    }
-    
-    if (this.isDrawingLine) { 
-        // 1. Sesi durdur
-        window.audio_draw.pause(); 
-        window.audio_draw.currentTime = 0; 
-        
-        // --- KRİTİK FİNALİZE KONTROLÜ ---
-        // Çizimi kalıcı olarak kaydetmeye zorla (Silgi aktif olsa bile)
-        this.finalizeDraw(); 
-        // --- KONTROL SONU ---
-        
-        // 2. Çizimi kaydet (Hata düzeltildi: finalizeDraw ÖNCE çağrılır)
-        this.drawHandleLabel.style.display = 'none';
-        
-        // 3. Handle'ı sıfırla (Görsel ve State)
-        if(this.drawHandleElement) { 
-            this.drawHandleElement.style.transition = 'left 0.05s ease-out';
-            this.drawHandleElement.style.left = '0px'; 
-            
-            this.isDrawingLine = false; 
-            this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
-            
-            // KRİTİK: Bir sonraki çizim için state'i sıfırla
-            this.state.currentHandleX = 0; 
+        // === ZIPLAMA ÖNLEYİCİ KRİTİK EKLENTİ ===
+        // Dokunmatik olaylardan sonra gelen "sahte farenin" zıplatmasını engelle
+        if (e && e.type === 'touchend') {
+            e.preventDefault(); 
         }
-    }
-    
-    this.interactionMode = 'none'; 
-},
+        // =====================================
+
+        if (this.interactionMode === 'dragging') {
+            this.bodyElement.style.cursor = 'grab'; 
+        }
+        
+        if (this.isDrawingLine) { 
+            // 1. Sesi durdur
+            window.audio_draw.pause(); 
+            window.audio_draw.currentTime = 0; 
+            
+            // --- KRİTİK FİNALİZE KONTROLÜ ---
+            // Çizimi kalıcı olarak kaydetmeye zorla
+            this.finalizeDraw(); 
+            // --- KONTROL SONU ---
+            
+            // 2. Etiketi gizle
+            this.drawHandleLabel.style.display = 'none';
+            
+            // 3. Handle'ı sıfırla (Görsel ve State)
+            if(this.drawHandleElement) { 
+                this.drawHandleElement.style.transition = 'left 0.05s ease-out';
+                this.drawHandleElement.style.left = '0px'; 
+                
+                this.isDrawingLine = false; 
+                this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
+                
+                // KRİTİK: Bir sonraki çizim için state'i sıfırla
+                this.state.currentHandleX = 0; 
+            }
+        }
+        
+        this.interactionMode = 'none'; 
+    },
+
+
 
     // --- MANTIK FONKSİYONLARI (TÜMÜ EKLENDİ) ---
 
