@@ -195,11 +195,15 @@ function resizeCanvas() {
     redrawAllStrokes();
 }
 
+// --- KUSURSUZ KOORDİNAT OKUYUCU (DÜZELTİLMİŞ VE GÜVENLİ) ---
 function getEventPosition(e) {
+    // 1. ÇÖKME ÖNLEYİCİ KİLİT (Sistemin kilitlenmesini engeller)
+    if (!e) return { x: 0, y: 0 };
+
     let clientX = 0;
     let clientY = 0;
 
-    // Önce dokunmatik ekranı (parmağı) kontrol et
+    // 2. Parmak veya Fare algılayıcı
     if (e.touches && e.touches.length > 0) {
         clientX = e.touches[0].clientX;
         clientY = e.touches[0].clientY;
@@ -207,21 +211,22 @@ function getEventPosition(e) {
         clientX = e.changedTouches[0].clientX;
         clientY = e.changedTouches[0].clientY;
     } else {
-        // Dokunmatik değilse farenin koordinatlarını al
-        clientX = e.clientX;
-        clientY = e.clientY;
+        clientX = e.clientX || 0;
+        clientY = e.clientY || 0;
     }
 
-    const canvas = document.getElementById('drawing-canvas') || document.querySelector('canvas');
-    const rect = canvas.getBoundingClientRect(); // Kanvasın ekrandaki GERÇEK ve anlık konumunu hesapla
+    // "canvas" kelimesi global değişkenle çakışmasın diye "c" kullandık
+    const c = document.getElementById('drawing-canvas') || document.querySelector('canvas');
+    if (!c) return { x: 0, y: 0 };
+
+    const rect = c.getBoundingClientRect(); 
     
-    // Adres çubuğu kaymasını ve ekran esnemesini sıfırlayan ana matematik:
+    // 3. Adres Çubuğu Kaymasını (Y-Ekseni Sapmasını) Sıfırlayan Matematik
     return {
-        x: (clientX - rect.left) * (canvas.width / rect.width),
-        y: (clientY - rect.top) * (canvas.height / rect.height)
+        x: (clientX - rect.left) * (c.width / rect.width),
+        y: (clientY - rect.top) * (c.height / rect.height)
     };
 }
-
 
 function drawDot(pos, color = '#00FFCC') {
     ctx.beginPath();
