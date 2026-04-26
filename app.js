@@ -553,23 +553,6 @@ function clearAllStrokes() {
 }
 
 
-// PDF/Resim kapatma butonu için tek tıklama çözümü
-const closePdfBtn = document.getElementById('btn-close-pdf');
-if (closePdfBtn) {
-    closePdfBtn.addEventListener('click', () => {
-        // Arka plan PDF/Resim stroke’unu da kaldır
-        drawnStrokes = drawnStrokes.filter(stroke => !stroke.isBackground);
-        window.drawnStrokes = drawnStrokes;
-
-        // PDF/Resim değişkenlerini sıfırla
-        currentPDF = null;
-        backgroundImage = null;
-        pdfImageStroke = null;
-
-        // Yeniden çiz
-        redrawAllStrokes();
-    });
-}
 
 
 // --- KUSURSUZ HEDEF YAKALAYICI (findHit) - AKILLI HAKEM SÜRÜMÜ ---
@@ -825,6 +808,26 @@ function setActiveTool(tool) {
 // --- BUTON OLAYLARI ---
 
 penButton.addEventListener('click', () => setActiveTool(currentTool === 'pen' ? 'none' : 'pen'));
+
+// PDF/Resim kapatma butonu
+const closePdfBtn = document.getElementById('btn-close-pdf');
+if (closePdfBtn) {
+    closePdfBtn.addEventListener('click', () => {
+        // Arka plan PDF/Resim stroke’unu da kaldır
+        drawnStrokes = drawnStrokes.filter(stroke => !stroke.isBackground);
+        window.drawnStrokes = drawnStrokes;
+
+        // PDF/Resim değişkenlerini sıfırla
+        currentPDF = null;
+        backgroundImage = null;
+        pdfImageStroke = null;
+
+        // Yeniden çiz
+        redrawAllStrokes();
+    });
+}
+
+
 eraserButton.addEventListener('click', () => setActiveTool(currentTool === 'eraser' ? 'none' : 'eraser'));
 rulerButton.addEventListener('click', () => { if (window.RulerTool) { window.RulerTool.toggle(); rulerButton.classList.toggle('active', !window.RulerTool.rulerElement.style.display); } });
 gonyeButton.addEventListener('click', () => { if (window.GonyeTool) { window.GonyeTool.toggle(); gonyeButton.classList.toggle('active', !window.GonyeTool.gonyeElement.style.display); } });
