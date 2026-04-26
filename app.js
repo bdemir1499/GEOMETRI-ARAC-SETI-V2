@@ -3068,25 +3068,12 @@ window.addEventListener('resize', resizeCanvas);
         }, 3000);
     }
 
-if (btnInstall) {
-    btnInstall.addEventListener('click', () => {
-        if (deferredPrompt) {
-            deferredPrompt.prompt(); // yükleme penceresini açar
-            deferredPrompt.userChoice.then((choiceResult) => {
-                console.log('Sonuç:', choiceResult.outcome);
-                deferredPrompt = null;
-            });
-        }
-        if (installPopup) installPopup.style.display = 'none';
-    });
-}
-
-
 // 3. Kullanıcı "Yükle" butonuna bastığında
 if (btnInstall) {
     btnInstall.addEventListener('click', () => {
         if (deferredPrompt) {
-            deferredPrompt.prompt(); // Asıl yükleme penceresini açar
+            // Asıl yükleme penceresini aç
+            deferredPrompt.prompt();
             deferredPrompt.userChoice.then((choiceResult) => {
                 if (choiceResult.outcome === 'accepted') {
                     console.log('Uygulama yükleme kabul edildi');
