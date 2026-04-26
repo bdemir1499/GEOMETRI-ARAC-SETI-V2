@@ -809,22 +809,24 @@ function setActiveTool(tool) {
 
 penButton.addEventListener('click', () => setActiveTool(currentTool === 'pen' ? 'none' : 'pen'));
 
-// PDF/Resim kapatma butonu
 const closePdfBtn = document.getElementById('btn-close-pdf');
 if (closePdfBtn) {
-    closePdfBtn.addEventListener('click', () => {
-        // Arka plan PDF/Resim stroke’unu da kaldır
+    const closeHandler = () => {
         drawnStrokes = drawnStrokes.filter(stroke => !stroke.isBackground);
         window.drawnStrokes = drawnStrokes;
 
-        // PDF/Resim değişkenlerini sıfırla
         currentPDF = null;
         backgroundImage = null;
         pdfImageStroke = null;
 
-        // Yeniden çiz
         redrawAllStrokes();
-    });
+    };
+
+    // PC için
+    closePdfBtn.addEventListener('click', closeHandler);
+
+    // Tablet/telefon için
+    closePdfBtn.addEventListener('touchstart', closeHandler);
 }
 
 
