@@ -1772,7 +1772,7 @@ canvas.addEventListener('mouseup', () => {
         lineStartPoint = null; 
         redrawAllStrokes(); 
         isDrawing = false;
-        setActiveTool('none'); 
+        
         
         return; 
     }
@@ -2567,7 +2567,7 @@ if (isPinching) {
     // 2. Silgi Temizle
     if (currentTool === 'eraser') {
         
-        isDrawing = false; setActiveTool('none'); return; 
+        isDrawing = false;  return; 
     }
 
     const endPos = snapTarget || currentMousePos;
