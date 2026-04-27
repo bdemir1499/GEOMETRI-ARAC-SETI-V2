@@ -1247,8 +1247,6 @@ attachDragEvents(newCopy);
 }
 
 
-// --- MOUSE OLAYLARI ---
-
 canvas.addEventListener('mousedown', (e) => {
     // --- 1. FİZİKSEL ARAÇ KONTROLÜ ---
     const isToolElementClicked = e.target.closest('.ruler-container, .gonye-container, .aciolcer-container, #compass-container');
@@ -1259,111 +1257,84 @@ canvas.addEventListener('mousedown', (e) => {
         isDrawingRay = false;
         lineStartPoint = null;
         window.tempPolygonData = null; 
-        polygonPreviewLabel.classList.add('hidden');
+        if (typeof polygonPreviewLabel !== 'undefined') polygonPreviewLabel.classList.add('hidden');
         return; 
     }
-    // --- FİZİKSEL ARAÇ KONTROLÜ SONU ---
 
-    // Önceki taşıma durumunu sıfırla
+    // Önceki durumları sıfırla
     isMoving = false;
-    if (selectedItem) {
-        selectedItem.isDragging = false;
-    }
-
-
+    if (selectedItem) selectedItem.isDragging = false;
 
     const pos = getEventPosition(e);
 
-    // --- 2. "TAŞI" MODU KONTROLÜ ---
-    if (currentTool === 'move') {
-        // Mobil için hedef büyütme hilesi
-        let hit = findHit(pos);
-        if (!hit && (e.touches || e.changedTouches)) {
-            hit = findHit({x: pos.x + 10, y: pos.y}) || 
-                  findHit({x: pos.x - 10, y: pos.y}) || 
-                  findHit({x: pos.x, y: pos.y + 10}) || 
-                  findHit({x: pos.x, y: pos.y - 10});
-        }
+    // ==========================================================
+    // 🚀 GÜNCELLENMİŞ ÖNCELİKLİ HEDEF YAKALAMA (TAMİR EDİLDİ)
+    // ==========================================================
+    let hit = findHit(pos);
+    
+    // Mobil/Tablet için hedef büyütme hilesi
+    if (!hit && (e.touches || e.changedTouches)) {
+        hit = findHit({x: pos.x + 10, y: pos.y}) || 
+              findHit({x: pos.x - 10, y: pos.y}) || 
+              findHit({x: pos.x, y: pos.y + 10}) || 
+              findHit({x: pos.x, y: pos.y - 10});
+    }
 
-        if (hit) {
-            // Etiketleme düzeltmeleri
-            if (hit.pointKey === 'toggle_edges') {
-                hit.item.showEdgeLabels = !hit.item.showEdgeLabels;
-                redrawAllStrokes();
-                return; // Taşıma işlemini başlatma
-            }
-            if (hit.pointKey === 'toggle_angles') {
-                hit.item.showAngleLabels = !hit.item.showAngleLabels;
-                redrawAllStrokes();
-                return; // Taşıma işlemini başlatma
-            }
-            if (hit.pointKey === 'toggle_circle_info') {
-                hit.item.showCircleInfo = !hit.item.showCircleInfo;
-                redrawAllStrokes();
-                return; // Taşıma işlemini başlatma
+    if (hit) {
+        // PDF mi yoksa Kopya mı ayrımı
+        const isUserCopy = hit.item.type === 'image' && !hit.item.isBackground;
+
+        // EĞER dokunulan şey bir KOPYA ise VEYA zaten TAŞIMA modu açıksa
+        if (isUserCopy || currentTool === 'move') {
+            
+            // Kopyaya dokunulmuşsa otomatik taşıma moduna geç
+            if (isUserCopy && currentTool !== 'move') {
+                setActiveTool('move'); 
             }
 
+            // Taşıma verilerini hazırla
             isMoving = true;
             selectedItem = hit.item;
             selectedPointKey = hit.pointKey; 
             dragStartPos = pos; 
 
+            // Başlangıç koordinatlarını kaydet
             originalStartPos = {}; 
-            if (hit.pointKey === 'self') {
-                originalStartPos = { x: hit.item.x, y: hit.item.y };
+            if (hit.pointKey === 'self' || hit.pointKey === 'image_resize' || hit.pointKey === 'image_rotate') {
+                originalStartPos = { x: hit.item.x, y: hit.item.y, rotation: hit.item.rotation, width: hit.item.width, height: hit.item.height };
             } else if (hit.pointKey === 'p1') {
                 originalStartPos = { x: hit.item.p1.x, y: hit.item.p1.y };
             } else if (hit.pointKey === 'p2') {
                 originalStartPos = { x: hit.item.p2.x, y: hit.item.p2.y };
             } else if (hit.pointKey === 'center') {
                 originalStartPos = { x: (hit.item.cx || hit.item.center.x), y: (hit.item.cy || hit.item.center.y) };
-            } else if (hit.pointKey === 'rotate' || hit.pointKey === 'resize') {
-                originalStartPos = { radius: hit.item.radius, rotation: hit.item.rotation };
-            }
-
-            const itemType = hit.item.type;
-            if ((itemType === 'line' || itemType === 'segment' || itemType === 'ray' || itemType === 'straightLine') && (hit.pointKey === 'p1' || hit.pointKey === 'p2')) {
-                rotationPivot = (hit.pointKey === 'p1') ? hit.item.p2 : hit.item.p1;
-                const movingPoint = (hit.pointKey === 'p1') ? hit.item.p1 : hit.item.p2;
-                selectedItem.startRadius = distance(movingPoint, rotationPivot);
-            } else {
-                rotationPivot = null; 
             }
 
             redrawAllStrokes(); 
-            return; 
-        } else {
-            // Hiçbir şeye tıklanmadıysa etiketleri kapat
-            if (selectedItem) {
-                selectedItem.showEdgeLabels = false;
-                selectedItem.showAngleLabels = false;
-                selectedItem.showCircleInfo = false;
-            }
-            selectedItem = null;
-            redrawAllStrokes();
+            return; // ⭐️ İşlem bitti, aşağıya geçme
         }
+    } else {
+        // Boşluğa tıklandıysa seçimi ve etiketleri sıfırla
+        if (selectedItem) {
+            selectedItem.showEdgeLabels = false;
+            selectedItem.showAngleLabels = false;
+            selectedItem.showCircleInfo = false;
+        }
+        selectedItem = null;
+        redrawAllStrokes();
     }
-
-
-    // --- "TAŞI" MODU SONU ---
 
     // --- 3. DİĞER ÇİZİM ARAÇLARI KONTROLÜ ---
-    if (currentTool === 'none') return;
+    if (currentTool === 'none' || currentTool === 'move') return;
 
-    if (['point', 'straightLine', 'line', 'segment', 'ray'].includes(currentTool)) {
-        if (lineOptions) {
-            lineOptions.classList.add('hidden');
-            lineOptions.style.display = 'none';
-        }
-    }
-
-    const snapPos = snapTarget || pos;
+    const snapPos = (typeof snapTarget !== 'undefined' && snapTarget) ? snapTarget : pos;
 
     if (currentTool === 'snapshot') {
         snapshotStart = snapPos;
         return;
     }
 
+    // --- ARAÇ MANTIĞI (SWITCH) ---
     switch (currentTool) {
         case 'pen':
             isDrawing = true; 
@@ -1438,7 +1409,6 @@ canvas.addEventListener('mousedown', (e) => {
             }
             break;
 
-        // --- ÇOKGEN BLOĞU ---
         case 'draw_polygon_circle':
         case 'draw_polygon_3_sides':
         case 'draw_polygon_4_sides':
@@ -1448,27 +1418,25 @@ canvas.addEventListener('mousedown', (e) => {
         case 'draw_polygon_8_sides':
             if (window.tempPolygonData && window.tempPolygonData.center === null) {
                 window.tempPolygonData.center = snapPos;
-                window.PolygonTool.state.isDrawing = true; 
-                polygonPreviewLabel.classList.remove('hidden');
+                if (window.PolygonTool) window.PolygonTool.state.isDrawing = true; 
+                if (typeof polygonPreviewLabel !== 'undefined') polygonPreviewLabel.classList.remove('hidden');
             } else if (window.tempPolygonData && window.tempPolygonData.center) {
                 const finalRadius = window.tempPolygonData.radius || 0;
                 const finalRotation = window.tempPolygonData.rotation || 0;
                 const currentType = window.tempPolygonData.type;
 
                 if (currentType === 0) { 
-                    window.PolygonTool.finalizeCircle(finalRadius);
+                    if (window.PolygonTool) window.PolygonTool.finalizeCircle(finalRadius);
                 } else {
-                    window.PolygonTool.finalizeDraw(finalRadius, finalRotation);
+                    if (window.PolygonTool) window.PolygonTool.finalizeDraw(finalRadius, finalRotation);
                 }
 
-                polygonPreviewLabel.classList.add('hidden');
-                window.PolygonTool.handleDrawClick(null, currentType);
+                if (typeof polygonPreviewLabel !== 'undefined') polygonPreviewLabel.classList.add('hidden');
+                if (window.PolygonTool) window.PolygonTool.handleDrawClick(null, currentType);
             }
             break;
-        // --- ÇOKGEN BLOĞU SONU ---
     }
 });
-
 canvas.addEventListener('mousemove', (e) => {
 
     // 1. TAŞIMA (MOVE) MANTIĞI
@@ -1921,6 +1889,30 @@ canvas.addEventListener('touchstart', (e) => {
     const isToolElementClicked = e.target.closest('.ruler-container, .gonye-container, .aciolcer-container, #compass-container');
     if (isToolElementClicked) return; 
 
+// 🔥 MOBİL ÖNCELİK: EĞER BİR RESMİN ÜZERİNE DOKUNULDUYSA TAŞIMAYA GEÇ
+    // Bu blok, araç 'snapshot' bile olsa resmin tutulmasını sağlar.
+    const hit = findHit(pos);
+    if (hit && hit.item.type === 'image') {
+        isMoving = true; 
+        selectedItem = hit.item; 
+        selectedPointKey = hit.pointKey; 
+        dragStartPos = pos; 
+        
+        // Koordinatları hazırla (Zıplama yapmaması için)
+        originalStartPos = { 
+            x: hit.item.x, 
+            y: hit.item.y, 
+            rotation: hit.item.rotation, 
+            width: hit.item.width, 
+            height: hit.item.height 
+        };
+
+        setActiveTool('move'); // Aracı otomatik 'Taşı' yap
+        redrawAllStrokes();
+        return; // ⭐️ ÖNEMLİ: Resim tutulduğu için alttaki snapshot kutu çizimine GEÇME!
+    }
+
+
     // 2. YÜKSEK ÖNCELİK: CANLANDIRMA BAŞLANGICI
     if (currentTool === 'snapshot') {
         isDrawing = false;
@@ -1946,37 +1938,64 @@ canvas.addEventListener('touchstart', (e) => {
             return; 
         }
         
-        // B. Tek Parmakla Seçim ve Taşıma
+        // B. Tek Parmakla Seçim ve Taşıma (GÜNCELLENMİŞ - PDF KORUMALI)
         const hit = findHit(pos);
         if (hit) {
-            if (hit.pointKey === 'toggle_edges') { hit.item.showEdgeLabels = !hit.item.showEdgeLabels; redrawAllStrokes(); return; }
-            if (hit.pointKey === 'toggle_angles') { hit.item.showAngleLabels = !hit.item.showAngleLabels; redrawAllStrokes(); return; }
-            if (hit.pointKey === 'toggle_circle_info') { hit.item.showCircleInfo = !hit.item.showCircleInfo; redrawAllStrokes(); return; }
-                    
-            isMoving = true; 
-            selectedItem = hit.item; 
-            selectedPointKey = hit.pointKey; 
-            dragStartPos = pos; 
-            rotationPivot = null; 
+            // 🚀 1. ÖNCELİKLİ AYRIM: Bu bir "Kullanıcı Kopyası" mı yoksa "Arka Plan PDF" mi?
+            const isUserCopy = hit.item.type === 'image' && !hit.item.isBackground;
 
-            originalStartPos = {}; 
-            if (hit.pointKey === 'self') originalStartPos = { x: hit.item.x, y: hit.item.y };
-            else if (hit.pointKey === 'p1') originalStartPos = { x: hit.item.p1.x, y: hit.item.p1.y };
-            else if (hit.pointKey === 'p2') originalStartPos = { x: hit.item.p2.x, y: hit.item.p2.y };
-            else if (hit.pointKey === 'center') { originalStartPos = { x: (hit.item.cx !== undefined ? hit.item.cx : hit.item.center.x), y: (hit.item.cy !== undefined ? hit.item.cy : hit.item.center.y) }; }
-            else if (hit.pointKey === 'rotate' || hit.pointKey === 'resize' || hit.pointKey === 'image_resize') { 
-                originalStartPos = { radius: hit.item.radius, rotation: hit.item.rotation, width: hit.item.width, height: hit.item.height }; 
+            // EĞER dokunulan şey bir KOPYA ise VEYA zaten TAŞIMA modu seçiliyse (PDF'i taşımak için)
+            if (isUserCopy || currentTool === 'move') {
+                
+                // Etiketleme kontrolleri (Mevcut özellikleriniz korunuyor)
+                if (hit.pointKey === 'toggle_edges') { hit.item.showEdgeLabels = !hit.item.showEdgeLabels; redrawAllStrokes(); return; }
+                if (hit.pointKey === 'toggle_angles') { hit.item.showAngleLabels = !hit.item.showAngleLabels; redrawAllStrokes(); return; }
+                if (hit.pointKey === 'toggle_circle_info') { hit.item.showCircleInfo = !hit.item.showCircleInfo; redrawAllStrokes(); return; }
+
+                // Kopyaya dokunulmuşsa aracı otomatik 'Taşı' yap (Snapshot'ı kesmek için)
+                if (isUserCopy && currentTool !== 'move') {
+                    setActiveTool('move'); 
+                }
+                        
+                isMoving = true; 
+                selectedItem = hit.item; 
+                selectedPointKey = hit.pointKey; 
+                dragStartPos = pos; 
+                rotationPivot = null; 
+
+                // Koordinatları hazırla (Mevcut mantığınızın geliştirilmiş hali)
+                originalStartPos = {}; 
+                if (hit.pointKey === 'self' || hit.pointKey === 'image_resize' || hit.pointKey === 'image_rotate') {
+                    originalStartPos = { 
+                        x: hit.item.x, 
+                        y: hit.item.y, 
+                        rotation: hit.item.rotation, 
+                        width: hit.item.width, 
+                        height: hit.item.height 
+                    };
+                }
+                else if (hit.pointKey === 'p1') originalStartPos = { x: hit.item.p1.x, y: hit.item.p1.y };
+                else if (hit.pointKey === 'p2') originalStartPos = { x: hit.item.p2.x, y: hit.item.p2.y };
+                else if (hit.pointKey === 'center') { 
+                    originalStartPos = { 
+                        x: (hit.item.cx !== undefined ? hit.item.cx : hit.item.center.x), 
+                        y: (hit.item.cy !== undefined ? hit.item.cy : hit.item.center.y) 
+                    }; 
+                }
+
+                // Doğru/Işın döndürme mantığınız (Aynen korundu)
+                const itemType = hit.item.type;
+                if ((itemType === 'line' || itemType === 'segment' || itemType === 'ray' || itemType === 'straightLine') && (hit.pointKey === 'p1' || hit.pointKey === 'p2')) {
+                    rotationPivot = (hit.pointKey === 'p1') ? hit.item.p2 : hit.item.p1;
+                    const movingPoint = (hit.pointKey === 'p1') ? hit.item.p1 : hit.item.p2;
+                    selectedItem.startRadius = distance(movingPoint, rotationPivot);
+                }
+                
+                redrawAllStrokes();
+                return; // ⭐️ BURASI KİLİT: Buradan çıkınca alttaki kopyalama (snapshot) başlama koduna GİRMEZ.
             }
-            
-            const itemType = hit.item.type;
-            if ((itemType === 'line' || itemType === 'segment' || itemType === 'ray' || itemType === 'straightLine') && (hit.pointKey === 'p1' || hit.pointKey === 'p2')) {
-                rotationPivot = (hit.pointKey === 'p1') ? hit.item.p2 : hit.item.p1;
-                const movingPoint = (hit.pointKey === 'p1') ? hit.item.p1 : hit.item.p2;
-                selectedItem.startRadius = distance(movingPoint, rotationPivot);
-            }
-            return; 
         }
-    }
+}
     
     // 4. DOLDURMA (FILL)
     if (currentTool === 'fill') {
@@ -2410,110 +2429,62 @@ canvas.addEventListener('touchmove', (e) => {
 canvas.addEventListener('touchend', (e) => { 
     if (e && e.cancelable) e.preventDefault();
 
-
-// --- 3. KOPYALAMA İŞLEMİ (DOKUNMATİK BİTİŞ) ---
-    if (currentTool === 'snapshot' && snapshotStart) {
-        const endPos = snapTarget || currentMousePos;
-        
-        // Seçilen alanı hesapla
-        let rawX = Math.min(snapshotStart.x, endPos.x);
-        let rawY = Math.min(snapshotStart.y, endPos.y);
-        let rawW = Math.abs(endPos.x - snapshotStart.x);
-        let rawH = Math.abs(endPos.y - snapshotStart.y);
-
-        // Çok küçük dokunuşları yoksay
-        if (rawW > 10 && rawH > 10) {
-            redrawAllStrokes(); // Kutuyu sil
-
-            // O bölgenin görüntüsünü al
-            const imageData = ctx.getImageData(rawX, rawY, rawW, rawH);
-            const data = imageData.data;
-
-            // --- SİHİRLİ DÖNGÜ: BEYAZLARI TEMİZLE ---
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i], g = data[i + 1], b = data[i + 2];
-                if (r > 230 && g > 230 && b > 230) { // Beyaza yakınsa
-                    data[i + 3] = 0; // Görünmez yap
-                }
-            }
-
-            // Yeni resim oluştur
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = rawW;
-            tempCanvas.height = rawH;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.putImageData(imageData, 0, 0);
-            
-            const newImg = new Image();
-            newImg.src = tempCanvas.toDataURL();
-            
-            newImg.onload = () => {
-                const newObj = {
-                    type: 'image',
-                    img: newImg,
-                    x: rawX + rawW / 2, 
-                    y: rawY + rawH / 2,
-                    width: rawW,
-                    height: rawH,
-                    rotation: 0
-                };
-                
-                drawnStrokes.push(newObj);
-attachDragEvents(newObj);
-
-attachDragEvents(newObj);   // PC’de sürükleme için gerekli
-selectedItem = newObj;      // Yeni parçayı seçili yap
-
-
-                // OTOMATİK TAŞIMA MODUNA GEÇ
-                snapshotStart = null;
-                setActiveTool('move'); 
-                selectedItem = newObj;
-                isMoving = false; 
-                
-                // Sürükleme bitince geri dönmesi için işaret koy
-                returnToSnapshot = true; 
-                
-                redrawAllStrokes();
-                if (window.audio_click) window.audio_click.play();
-            };
+    // 1. PINCH ZOOM (İki parmakla büyütme) BİTİŞİ
+    if (typeof isPinching !== 'undefined' && isPinching) {
+        isPinching = false;
+        isMoving = false; 
+        if (selectedItem) {
+            selectedItem.originalWidth = selectedItem.width;
+            selectedItem.originalHeight = selectedItem.height;
         }
-        
-        snapshotStart = null;
+        redrawAllStrokes();
         return;
     }
 
-// --- app.js: touchend içine (En başa) ekleyin ---
+    // 2. FİZİKSEL ARAÇLAR (Hemen çıkış yap)
+    if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciolcer' || currentTool === 'pergel') return;
 
-    // 3. AKILLI KIRPMA ve TEMİZLEME (DOKUNMATİK BİTİŞ)
-    if (currentTool === 'snapshot' && snapshotStart) {
-        const endPos = snapTarget || currentMousePos;
+    // 3. TAŞIMA DURDURMA (Sürükleme bittiğinde)
+    if (currentTool === 'move' && isMoving) {
+        isMoving = false;
+        selectedPointKey = null;
+        rotationPivot = null;
+        originalStartPos = {};
         
-        // 1. Kullanıcının çizdiği kaba kutuyu al
+        // Eğer kopyalamadan sonra geçici taşıma yapıyorsak geri dön
+        if (typeof returnToSnapshot !== 'undefined' && returnToSnapshot) {
+            returnToSnapshot = false; 
+            setActiveTool('snapshot'); 
+        }
+        return;
+    }
+
+    // 🚀 4. AKILLI KIRPMA, ŞEFFAFLIK VE KOPYALAMA (TEK VE ANA BLOĞUNUZ)
+    if (currentTool === 'snapshot' && snapshotStart) {
+        const endPos = snapTarget || (typeof currentMousePos !== 'undefined' ? currentMousePos : pos);
+        
         let rawX = Math.min(snapshotStart.x, endPos.x);
         let rawY = Math.min(snapshotStart.y, endPos.y);
         let rawW = Math.abs(endPos.x - snapshotStart.x);
         let rawH = Math.abs(endPos.y - snapshotStart.y);
 
-        // Çok küçük dokunuşları yoksay
+        // Çok küçük dokunuşları (hata payı) engelle
         if (rawW > 10 && rawH > 10) {
-            redrawAllStrokes(); // Kutuyu ekrandan sil
+            redrawAllStrokes(); // Seçim kutusunu ekrandan temizle
 
-            // 2. O bölgenin ham verisini al
             const imageData = ctx.getImageData(rawX, rawY, rawW, rawH);
             const data = imageData.data;
 
-            // --- AKILLI ALGORİTMA: Şeklin Gerçek Sınırlarını Bul ---
+            // --- AKILLI ALGORİTMA: Şeklin Gerçek Sınırlarını Bul ve Beyazları Sil ---
             let minX = rawW, minY = rawH, maxX = 0, maxY = 0;
             let found = false;
 
-            // Tüm pikselleri tara ve dolu (beyaz olmayan) yerleri bul
             for (let y = 0; y < rawH; y++) {
                 for (let x = 0; x < rawW; x++) {
                     const i = (y * rawW + x) * 4;
                     const r = data[i], g = data[i+1], b = data[i+2];
 
-                    // Beyaz değilse (yani bir şekil/yazı ise)
+                    // Beyaz değilse (Yani orada bir çizim/resim varsa)
                     if (r < 240 || g < 240 || b < 240) { 
                         if (x < minX) minX = x;
                         if (x > maxX) maxX = x;
@@ -2521,29 +2492,26 @@ selectedItem = newObj;      // Yeni parçayı seçili yap
                         if (y > maxY) maxY = y;
                         found = true;
                     } else {
-                        // Beyazsa şeffaf yap (Temizleme işlemi)
-                        data[i + 3] = 0; 
+                        data[i + 3] = 0; // Beyaz bölgeleri %100 şeffaf yap
                     }
                 }
             }
 
-            // Eğer boş bir yer seçildiyse işlem yapma
+            // Eğer seçilen alan bomboşsa iptal et
             if (!found) { snapshotStart = null; return; }
 
-            // 3. Sadece dolu kısmı kesip al (Trim)
+            // Sadece dolu olan kısmı kes (Trim işlemi)
             const realW = maxX - minX + 1;
             const realH = maxY - minY + 1;
             
-            // Boşlukları atılmış yeni bir tuval oluştur
             const cutCanvas = document.createElement('canvas');
             cutCanvas.width = realW;
             cutCanvas.height = realH;
             const cutCtx = cutCanvas.getContext('2d');
-
-            // Oraya temizlenmiş veriyi yapıştır
+            
+            // Veriyi kaydırarak sadece dolu alanı tuvale yerleştir
             cutCtx.putImageData(imageData, -minX, -minY); 
 
-            // 4. Resme çevir ve sahneye ekle
             const newImg = new Image();
             newImg.src = cutCanvas.toDataURL();
             
@@ -2559,198 +2527,39 @@ selectedItem = newObj;      // Yeni parçayı seçili yap
                 };
                 
                 drawnStrokes.push(newObj);
-
-                // Otomatik Taşıma Moduna Geç
-                snapshotStart = null;
-                setActiveTool('move'); 
-                selectedItem = newObj;
-                isMoving = false; // Kendimiz tutacağız
                 
-                // Geri dönüş biletini hazırla
-                if (typeof returnToSnapshot !== 'undefined') {
-                    returnToSnapshot = true; 
-                }
+                // Kopya oluştuktan sonraki ayarlar
+                if (typeof attachDragEvents === 'function') attachDragEvents(newObj);
+                
+                selectedItem = newObj;
+                snapshotStart = null;
+                setActiveTool('move'); // Anında taşıma moduna geç
+                isMoving = false;      // Ama hemen sürüklemeye başlama (Hoca dokunsun)
+                
+                if (typeof returnToSnapshot !== 'undefined') returnToSnapshot = true; 
                 
                 redrawAllStrokes();
-                
                 if (window.audio_click) window.audio_click.play();
             };
         }
-        
         snapshotStart = null;
         return;
     }
 
-if (isPinching) {
-    isPinching = false;
-    isMoving = false; // Zoom bitince taşıma da bitsin
-
-    // Güncel boyutları kaydet (Aksi halde bir sonraki taşıma bozulur)
-    selectedItem.originalWidth = selectedItem.width;
-    selectedItem.originalHeight = selectedItem.height;
-
-    redrawAllStrokes();
-    return;
-}
-// ... (Mevcut diğer touchend mantığı devam eder)
-    if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciolcer' || currentTool === 'pergel') return;
-
-    // 1. Taşıma Durdur
-    if (currentTool === 'move' && isMoving) {
-        
-        isMoving = false;
-        selectedPointKey = null;
-        rotationPivot = null;
-        originalStartPos = {};
-
-        // --- YENİ EKLENEN: OTOMATİK GERİ DÖNÜŞ ---
-        
-        
-        // ----------------------------------------
-        
-        return;
-    }
-
-// --- SİHİRLİ KOPYALAMA (BİTİŞ) ---
-    if (currentTool === 'snapshot' && snapshotStart) {
-        const endPos = snapTarget || currentMousePos;
-        
-        let x = Math.min(snapshotStart.x, endPos.x);
-        let y = Math.min(snapshotStart.y, endPos.y);
-        let w = Math.abs(endPos.x - snapshotStart.x);
-        let h = Math.abs(endPos.y - snapshotStart.y);
-
-        // Yanlışlıkla tıklamaları engelle (Min 10px)
-        if (w > 10 && h > 10) {
-            redrawAllStrokes(); // Kutuyu sil, temiz görüntüyü al
-
-            // 1. Bölgenin piksellerini al
-            const imageData = ctx.getImageData(x, y, w, h);
-            const data = imageData.data;
-
-            // --- SİHİRLİ DÖNGÜ: Beyazları Şeffaf Yap ---
-            // Her pikseli kontrol et (R, G, B, Alpha)
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-
-                // Eğer renk beyaza çok yakınsa (Kağıt rengi)
-                if (r > 230 && g > 230 && b > 230) {
-                    data[i + 3] = 0; // Görünmez yap (Alpha = 0)
-                }
-            }
-
-            // 2. Temizlenmiş veriyi geçici tuvale koy
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = w;
-            tempCanvas.height = h;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.putImageData(imageData, 0, 0);
-            
-            // 3. Resme çevir ve sahneye ekle
-            const newImg = new Image();
-            newImg.src = tempCanvas.toDataURL();
-            
-            newImg.onload = () => {
-                const newObj = {
-                    type: 'image',
-                    img: newImg,
-                    x: x + w / 2, 
-                    y: y + h / 2,
-                    width: w,
-                    height: h,
-                    rotation: 0
-                };
-                
-                drawnStrokes.push(newObj);
-// --- GÜNCELLENEN KISIM BAŞLANGIÇ ---
-                
-                snapshotStart = null;
-                
-                // 1. Taşıma moduna geç (Parçayı tutabilmek için)
-                setActiveTool('move'); 
-                
-                // 2. Yeni parçayı seçili yap ama sürüklemeyi başlatma (Siz tutacaksınız)
-                selectedItem = newObj;
-                isMoving = false; // <-- Otomatik yapışmasın, siz tutun
-                
-                // 3. "İş bitince beni geri döndür" notunu bırak
-                returnToSnapshot = true; 
-                
-                // --- GÜNCELLENEN KISIM BİTİŞ ---                                
-                redrawAllStrokes();
-                
-                if (window.audio_click) {
-                    window.audio_click.currentTime = 0;
-                    window.audio_click.play();
-                }
-            };
-        }
-        
-        snapshotStart = null;
-        return;
-    }
-
-    // 2. Silgi Temizle
+    // 5. DİĞER ARAÇLARIN TEMİZLİĞİ
     if (currentTool === 'eraser') {
-        
-        isDrawing = false; setActiveTool('none'); return; 
+        isDrawing = false; 
+        setActiveTool('none'); 
+        redrawAllStrokes();
+        return; 
     }
 
-    const endPos = snapTarget || currentMousePos;
-
-    // --- ÇİZGİLERİ KAYDET ---
-    if (isDrawingLine && lineStartPoint) {
-        try { if (window.audio_draw) { window.audio_draw.pause(); window.audio_draw.currentTime = 0; } } catch(e){}
-        drawnStrokes.push({ type: 'straightLine', p1: lineStartPoint, p2: endPos, color: currentLineColor, width: 3 });
-        isDrawingLine = false; lineStartPoint = null; redrawAllStrokes();
-    }
-    else if (isDrawingInfinityLine && lineStartPoint) {
-        try { if (window.audio_draw) { window.audio_draw.pause(); window.audio_draw.currentTime = 0; } } catch(e){}
-        const label1 = nextPointChar; const label2 = advanceChar(label1); nextPointChar = advanceChar(label2);
-        drawnStrokes.push({ type: 'line', p1: lineStartPoint, p2: endPos, color: currentLineColor, width: 3, label1: label1, label2: label2 });
-        isDrawingInfinityLine = false; lineStartPoint = null; redrawAllStrokes();
-    }
-    else if (isDrawingSegment && lineStartPoint) {
-        try { if (window.audio_draw) { window.audio_draw.pause(); window.audio_draw.currentTime = 0; } } catch(e){}
-        const label1 = nextPointChar; const label2 = advanceChar(label1); nextPointChar = advanceChar(label2);
-        drawnStrokes.push({ type: 'segment', p1: lineStartPoint, p2: endPos, color: currentLineColor, width: 3, label1: label1, label2: label2 });
-        isDrawingSegment = false; lineStartPoint = null; redrawAllStrokes();
-    }
-    else if (isDrawingRay && lineStartPoint) {
-        try { if (window.audio_draw) { window.audio_draw.pause(); window.audio_draw.currentTime = 0; } } catch(e){}
-        const label1 = nextPointChar; const label2 = advanceChar(label1); nextPointChar = advanceChar(label2);
-        drawnStrokes.push({ type: 'ray', p1: lineStartPoint, p2: endPos, color: currentLineColor, width: 3, label1: label1, label2: label2 });
-        isDrawingRay = false; lineStartPoint = null; redrawAllStrokes();
-    }
-
-    // --- ÇOKGENLERİ KAYDET (Mouse - Sürükle Bırak Modu) ---
-    else if (currentTool.startsWith('draw_polygon_')) {
-        if (window.tempPolygonData && window.tempPolygonData.center) {
-            const finalRadius = window.tempPolygonData.radius || 0;
-            const finalRotation = window.tempPolygonData.rotation || 0;
-            
-            // SADECE EĞER SÜRÜKLEME YAPILDIYSA KAYDET (Yarıçap > 5)
-            // Eğer sadece tıkladıysanız (yarıçap küçükse) işlem yapma, 2. tıklamayı bekle.
-            if (finalRadius > 5) {
-                const currentType = window.tempPolygonData.type;
-                
-                if (currentType === 0) window.PolygonTool.finalizeCircle(finalRadius);
-                else window.PolygonTool.finalizeDraw(finalRadius, finalRotation);
-                
-                polygonPreviewLabel.classList.add('hidden');
-                
-                // Hemen yeni bir çizim için hazırlık yap
-                window.PolygonTool.handleDrawClick(null, currentType);
-                
-                
-            }
-        }
-    }
-
-    isDrawing = false; snapTarget = null; snapIndicator.style.display = 'none';
+    // Genel sıfırlama (Çizgiler, çokgenler vb.)
+    isDrawing = false; 
+    snapTarget = null; 
+    if (typeof snapIndicator !== 'undefined') snapIndicator.style.display = 'none';
 });
+
 
 // --- TOUCHCANCEL (ARAMA GELİNCE ÇİZİMİ İPTAL ETME) ---
 canvas.addEventListener('touchcancel', (e) => {
