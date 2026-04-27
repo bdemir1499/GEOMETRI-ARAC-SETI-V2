@@ -1637,16 +1637,30 @@ canvas.addEventListener('pointerup', (e) => {
 
 
 
-// --- TOUCHCANCEL (ARAMA GELİNCE ÇİZİMİ İPTAL ETME) ---
-canvas.addEventListener('touchcancel', (e) => {
-    e.preventDefault();
-    // İşlemi iptal et ve temizle
+// --- POINTERCANCEL (KESİNTİ DURUMUNDA SIFIRLAMA) ---
+canvas.addEventListener('pointercancel', (e) => {
+    // İşlemi iptal et ve tüm bayrakları (flag) indir
     isDrawing = false;
     isMoving = false;
+    isPinching = false; // Varsa zoom işlemini de durdur
+    
+    // Geçici verileri temizle
     snapshotStart = null;
     snapTarget = null;
-    snapIndicator.style.display = 'none';
-}, { passive: false });
+    lineStartPoint = null;
+    window.tempPolygonData = null;
+
+    // Arayüz elemanlarını gizle
+    if (snapIndicator) snapIndicator.style.display = 'none';
+    if (polygonPreviewLabel) polygonPreviewLabel.classList.add('hidden');
+    if (eraserPreview) eraserPreview.style.display = 'none';
+
+    // Yarım kalan önizlemeleri ekrandan temizlemek için
+    redrawAllStrokes(); 
+    
+    console.log("Pointer işlemi bir sistem kesintisi nedeniyle iptal edildi.");
+});
+
 
 // --- YAPIŞTIRMA (PASTE) DESTEĞİ (CTRL+V) ---
 window.addEventListener('paste', (e) => {
