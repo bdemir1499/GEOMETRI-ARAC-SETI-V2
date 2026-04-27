@@ -612,6 +612,11 @@ function endDrag(e) {
     isMoving = false;
     selectedItem = null;
 
+    // Snapshot modundan çık
+    if (currentTool === 'snapshot') {
+        currentTool = 'none';
+    }
+
     // Event listener’ları kaldır
     document.removeEventListener('mousemove', onDrag);
     document.removeEventListener('mouseup', endDrag);
@@ -1338,6 +1343,8 @@ canvas.addEventListener('mousedown', (e) => {
             redrawAllStrokes();
         }
     }
+
+
     // --- "TAŞI" MODU SONU ---
 
     // --- 3. DİĞER ÇİZİM ARAÇLARI KONTROLÜ ---
