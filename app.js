@@ -1784,6 +1784,53 @@ canvas.addEventListener('mouseup', () => {
     isDrawing = false;
     clearTimeout(snapHoverTimer);
     snapHoverTimer = null;
+
+// --- app.js içindeki mouseup olayının sonuna ekleyin ---
+
+const endPos = snapTarget || currentMousePos;
+
+// 1. Çizgi Çeşitlerini Bitir
+if (isDrawingLine && lineStartPoint) {
+    drawnStrokes.push({ type: 'straightLine', p1: lineStartPoint, p2: endPos, color: currentLineColor, width: 3 });
+    isDrawingLine = false; lineStartPoint = null; redrawAllStrokes();
+}
+else if (isDrawingInfinityLine && lineStartPoint) {
+    const label1 = nextPointChar; const label2 = advanceChar(label1); nextPointChar = advanceChar(label2);
+    drawnStrokes.push({ type: 'line', p1: lineStartPoint, p2: endPos, color: currentLineColor, width: 3, label1: label1, label2: label2 });
+    isDrawingInfinityLine = false; lineStartPoint = null; redrawAllStrokes();
+}
+else if (isDrawingSegment && lineStartPoint) {
+    const label1 = nextPointChar; const label2 = advanceChar(label1); nextPointChar = advanceChar(label2);
+    drawnStrokes.push({ type: 'segment', p1: lineStartPoint, p2: endPos, color: currentLineColor, width: 3, label1: label1, label2: label2 });
+    isDrawingSegment = false; lineStartPoint = null; redrawAllStrokes();
+}
+else if (isDrawingRay && lineStartPoint) {
+    const label1 = nextPointChar; const label2 = advanceChar(label1); nextPointChar = advanceChar(label2);
+    drawnStrokes.push({ type: 'ray', p1: lineStartPoint, p2: endPos, color: currentLineColor, width: 3, label1: label1, label2: label2 });
+    isDrawingRay = false; lineStartPoint = null; redrawAllStrokes();
+}
+
+// 2. Çokgenleri Bitir
+else if (currentTool.startsWith('draw_polygon_')) {
+    if (window.tempPolygonData && window.tempPolygonData.center) {
+        const finalRadius = window.tempPolygonData.radius || 0;
+        const finalRotation = window.tempPolygonData.rotation || 0;
+
+        // Sadece fare hareket ettiyse (yarıçap oluştuysa) bitir
+        if (finalRadius > 5) {
+            const currentType = window.tempPolygonData.type;
+            if (currentType === 0) window.PolygonTool.finalizeCircle(finalRadius);
+            else window.PolygonTool.finalizeDraw(finalRadius, finalRotation);
+            
+            polygonPreviewLabel.classList.add('hidden');
+            window.tempPolygonData.center = null; // Merkezi sıfırla ki yeni çizim başlayabilsin
+            window.PolygonTool.handleDrawClick(null, currentType);
+            redrawAllStrokes();
+        }
+    }
+}
+
+
 });
 
 
