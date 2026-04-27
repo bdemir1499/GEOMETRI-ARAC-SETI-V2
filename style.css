@@ -920,6 +920,15 @@ body.cursor-snapshot {
     padding: 10px !important; 
 }
 
+/* Cetvel, Gönye, Açıölçer ve Pergel konteynırları için */
+.ruler-container, .gonye-container, .aciolcer-container, #compass-container {
+    touch-action: none !important; /* Tarayıcı kaydırmasını engeller */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent; /* Tıklayınca oluşan mavi gölgeyi siler */
+}
+
+/* Kanvasın kendisi için de emin olalım */
 #drawing-canvas {
     touch-action: none !important;
 }
