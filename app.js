@@ -1499,140 +1499,85 @@ canvas.addEventListener('pointermove', (e) => {
 }, { passive: false });
 
 
+// app.js içindeki 'pointerup' olayını bu şekilde güncelle:
 canvas.addEventListener('pointerup', (e) => {
-    // 1. Zıplamayı engelleyen güvenlik kilidini kaldır
+    // 1. Tarayıcı kilitlerini kaldır
     canvas.releasePointerCapture(e.pointerId);
-
-    // 2. Tarayıcıya "işlemi ben hallettim, ekstra bir şey (zoom vb.) yapma" de
     if (e.pointerType === 'touch' && e.cancelable) e.preventDefault();
 
-    // --- A. TAŞIMA (MOVE) MANTIĞI ---
+    // -----------------------------------------------------------------
+    // KRİTİK: Zıplamayı bitiren dokunuş!
+    // Etkinlikten gelen (e.clientX) koordinatı okumuyoruz.
+    // Hareket sırasında (pointermove) kaydedilen son kararlı konumu kullanıyoruz.
+    // -----------------------------------------------------------------
+    const finalPos = snapTarget || currentMousePos;
+
+    // A) FİZİKSEL ARAÇLARIN ÇİZİMİNİ BİTİR
+    // Araçlar zaten kendi içlerinde 'activeRect' (dondurulmuş koordinat) kullanıyor.
+    if (currentTool === 'ruler' && window.RulerTool) window.RulerTool.finalizeDraw();
+    if (currentTool === 'gonye' && window.GonyeTool) window.GonyeTool.finalizeDraw();
+    if (currentTool === 'aciolcer' && window.AciolcerTool) window.AciolcerTool.finalizeDraw();
+    if (currentTool === 'pergel' && window.PergelTool) window.PergelTool.finalizeDraw();
+
+    // Eğer fiziksel araç modundaysak, aşağıya (normal çizime) devam etme
+    const isPhysicalTool = ['ruler', 'gonye', 'aciolcer', 'pergel'].includes(currentTool);
+    if (isPhysicalTool) {
+        isDrawing = false;
+        redrawAllStrokes();
+        return; 
+    }
+
+    // B) TAŞIMA (MOVE) MANTIĞI
     if (currentTool === 'move' && isMoving) {
         isMoving = false;
         selectedPointKey = null;
-        rotationPivot = null;
-        originalStartPos = {};
-
-        // OTOMATİK GERİ DÖNÜŞ (Snapshot sonrası)
         if (returnToSnapshot) {
             returnToSnapshot = false;
             setActiveTool('snapshot');
-            if (animateButton) {
-                animateButton.classList.add('active');
-                body.classList.add('cursor-snapshot');
-            }
         }
         redrawAllStrokes();
-        return; 
-    }
-
-    // --- B. SİHİRLİ KOPYALAMA (SNAPSHOT - BEYAZ TEMİZLEME) ---
-    if (currentTool === 'snapshot' && snapshotStart) {
-        // DİKKAT: Zıplamayı önlemek için 'pos' değil 'currentMousePos' kullanıyoruz
-        const endPosSnapshot = snapTarget || currentMousePos;
-        
-        let sx = Math.min(snapshotStart.x, endPosSnapshot.x);
-        let sy = Math.min(snapshotStart.y, endPosSnapshot.y);
-        let sw = Math.abs(endPosSnapshot.x - snapshotStart.x);
-        let sh = Math.abs(endPosSnapshot.y - snapshotStart.y);
-
-        if (sw > 10 && sh > 10) {
-            redrawAllStrokes(); 
-            const imageData = ctx.getImageData(sx, sy, sw, sh);
-            const data = imageData.data;
-
-            // Beyazları temizle
-            for (let i = 0; i < data.length; i += 4) {
-                if (data[i] > 230 && data[i+1] > 230 && data[i+2] > 230) data[i+3] = 0;
-            }
-
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = sw; tempCanvas.height = sh;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.putImageData(imageData, 0, 0);
-            
-            const newImg = new Image();
-            newImg.src = tempCanvas.toDataURL();
-            newImg.onload = () => {
-                const newObj = {
-                    type: 'image', img: newImg,
-                    x: sx + sw / 2, y: sy + sh / 2,
-                    width: sw, height: sh, rotation: 0
-                };
-                drawnStrokes.push(newObj);
-                snapshotStart = null;
-                setActiveTool('move');
-                selectedItem = newObj;
-                isMoving = false; 
-                returnToSnapshot = true; 
-                redrawAllStrokes();
-                if (window.audio_click) window.audio_click.play();
-            };
-        }
-        snapshotStart = null;
         return;
     }
 
-    // --- C. SİLGİ MODU ---
-    if (currentTool === 'eraser') {
-        isDrawing = false;
-        isDrawingLine = isDrawingInfinityLine = isDrawingSegment = isDrawingRay = false;
-        lineStartPoint = null;
-        redrawAllStrokes();
-        return; 
+    // C) NORMAL ÇİZGİLERİ KAYDET (Zıplama burada engelleniyor)
+    if (lineStartPoint && finalPos) {
+        if (isDrawingLine) {
+            drawnStrokes.push({ type: 'straightLine', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3 });
+        }
+        else if (isDrawingInfinityLine) {
+            const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
+            drawnStrokes.push({ type: 'line', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 });
+        }
+        else if (isDrawingSegment) {
+            const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
+            drawnStrokes.push({ type: 'segment', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 });
+        }
+        else if (isDrawingRay) {
+            const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
+            drawnStrokes.push({ type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 });
+        }
     }
 
-    // Fiziksel araç kontrolü
-    if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciolcer' || currentTool === 'pergel') return;
-
-    // --- D. ÇİZGİ VE ÇOKGEN ÇEŞİTLERİNİ KAYDET (TABLETTEKİ ZIPLAMAYI BİTİREN KISIM) ---
-    // DİKKAT: 'pos' DEĞİL 'currentMousePos' KULLANIYORUZ!
-    // Böylece parmak kalkarken oluşan o son 1 piksellik kayma (zıplama) iptal olur.
-    const finalEndPos = snapTarget || currentMousePos;
-
-    // 1. Çizgileri Kaydet
-    if (isDrawingLine && lineStartPoint) {
-        drawnStrokes.push({ type: 'straightLine', p1: lineStartPoint, p2: finalEndPos, color: currentLineColor, width: 3 });
-    }
-    else if (isDrawingInfinityLine && lineStartPoint) {
-        const label1 = nextPointChar; const label2 = advanceChar(label1); nextPointChar = advanceChar(label2);
-        drawnStrokes.push({ type: 'line', p1: lineStartPoint, p2: finalEndPos, color: currentLineColor, width: 3, label1, label2 });
-    }
-    else if (isDrawingSegment && lineStartPoint) {
-        const label1 = nextPointChar; const label2 = advanceChar(label1); nextPointChar = advanceChar(label2);
-        drawnStrokes.push({ type: 'segment', p1: lineStartPoint, p2: finalEndPos, color: currentLineColor, width: 3, label1, label2 });
-    }
-    else if (isDrawingRay && lineStartPoint) {
-        const label1 = nextPointChar; const label2 = advanceChar(label1); nextPointChar = advanceChar(label2);
-        drawnStrokes.push({ type: 'ray', p1: lineStartPoint, p2: finalEndPos, color: currentLineColor, width: 3, label1, label2 });
-    }
-    // 2. Çokgenleri Bitir
-    else if (currentTool.startsWith('draw_polygon_')) {
+    // D) ÇOKGENLERİ BİTİR
+    if (currentTool.startsWith('draw_polygon_')) {
         if (window.tempPolygonData && window.tempPolygonData.center) {
             const finalRadius = window.tempPolygonData.radius || 0;
             if (finalRadius > 5) {
-                const currentType = window.tempPolygonData.type;
-                if (currentType === 0) window.PolygonTool.finalizeCircle(finalRadius);
+                if (window.tempPolygonData.type === 0) window.PolygonTool.finalizeCircle(finalRadius);
                 else window.PolygonTool.finalizeDraw(finalRadius, window.tempPolygonData.rotation);
-                
-                polygonPreviewLabel.classList.add('hidden');
-                window.tempPolygonData.center = null;
-                window.PolygonTool.handleDrawClick(null, currentType);
             }
         }
     }
 
-    // GENEL SIFIRLAMA
+    // SIFIRLAMA
     isDrawing = false;
     isDrawingLine = isDrawingInfinityLine = isDrawingSegment = isDrawingRay = false;
     lineStartPoint = null;
     snapTarget = null;
-    snapIndicator.style.display = 'none';
+    if (snapIndicator) snapIndicator.style.display = 'none';
     redrawAllStrokes();
 
 }, { passive: false });
-
-
 
 
 // --- POINTERCANCEL (KESİNTİ DURUMUNDA SIFIRLAMA) ---
