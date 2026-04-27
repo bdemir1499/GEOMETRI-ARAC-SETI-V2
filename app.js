@@ -583,6 +583,7 @@ function onDrag(e) {
 function endDrag(e) {
     if (selectedItem) {
         selectedItem.isDragging = false;
+        redrawAllStrokes();   // <-- ekle: seçim kutusunu yeniden çiz
     }
     document.removeEventListener('mousemove', onDrag);
     document.removeEventListener('mouseup', endDrag);
@@ -629,7 +630,7 @@ function findHit(pos) {
         if (stroke.type === 'polygon') {
             
             // ÖNCELİK 1: Döndürme ve Boyutlandırma Butonları Kavgası
-            if (currentTool === 'move' && selectedItem === stroke) {
+            if ((currentTool === 'move' && selectedItem === stroke) || stroke.isDragging) {
                 const rotateHandlePos = window.PolygonTool.getRotateHandlePosition(stroke);
                 const resizeHandlePos = stroke.vertices && stroke.vertices.length > 0 ? stroke.vertices[0] : null;
 
@@ -1849,6 +1850,9 @@ canvas.addEventListener('mouseup', () => {
                 };
                 
                 drawnStrokes.push(newObj);
+attachDragEvents(newObj);
+selectedItem = newObj;
+newObj.isDragging = false;
 
                 // --- GÜNCELLENEN KISIM BAŞLANGIÇ ---
                 
