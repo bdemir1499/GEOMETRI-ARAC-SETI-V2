@@ -2299,7 +2299,7 @@ canvas.addEventListener('touchmove', (e) => {
 canvas.addEventListener('touchend', (e) => { 
     if (e && e.cancelable) e.preventDefault();
 
-    // 1. PINCH ZOOM (İki parmakla büyütme) BİTİŞİ
+    // 1. PINCH ZOOM BİTİŞİ
     if (typeof isPinching !== 'undefined' && isPinching) {
         isPinching = false;
         isMoving = false; 
@@ -2311,17 +2311,16 @@ canvas.addEventListener('touchend', (e) => {
         return;
     }
 
-    // 2. FİZİKSEL ARAÇLAR (Hemen çıkış yap)
+    // 2. FİZİKSEL ARAÇLAR
     if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciolcer' || currentTool === 'pergel') return;
 
-    // 3. TAŞIMA DURDURMA (Sürükleme bittiğinde)
+    // 3. TAŞIMA DURDURMA
     if (currentTool === 'move' && isMoving) {
         isMoving = false;
         selectedPointKey = null;
         rotationPivot = null;
         originalStartPos = {};
         
-        // Eğer kopyalamadan sonra geçici taşıma yapıyorsak geri dön
         if (typeof returnToSnapshot !== 'undefined' && returnToSnapshot) {
             returnToSnapshot = false; 
             setActiveTool('snapshot'); 
@@ -2329,23 +2328,22 @@ canvas.addEventListener('touchend', (e) => {
         return;
     }
 
-    // 🚀 4. AKILLI KIRPMA, ŞEFFAFLIK VE KOPYALAMA (TEK VE ANA BLOĞUNUZ)
+    // 🚀 4. AKILLI KIRPMA, ŞEFFAFLIK VE KOPYALAMA (TAMİR EDİLDİ)
     if (currentTool === 'snapshot' && snapshotStart) {
-        const endPos = snapTarget || (typeof currentMousePos !== 'undefined' ? currentMousePos : pos);
+        // HATALI SATIR DÜZELTİLDİ: 'pos' yerine 'snapshotStart' yedeği eklendi
+        const endPos = snapTarget || (typeof currentMousePos !== 'undefined' ? currentMousePos : snapshotStart);
         
         let rawX = Math.min(snapshotStart.x, endPos.x);
         let rawY = Math.min(snapshotStart.y, endPos.y);
         let rawW = Math.abs(endPos.x - snapshotStart.x);
         let rawH = Math.abs(endPos.y - snapshotStart.y);
 
-        // Çok küçük dokunuşları (hata payı) engelle
         if (rawW > 10 && rawH > 10) {
-            redrawAllStrokes(); // Seçim kutusunu ekrandan temizle
+            redrawAllStrokes(); 
 
             const imageData = ctx.getImageData(rawX, rawY, rawW, rawH);
             const data = imageData.data;
 
-            // --- AKILLI ALGORİTMA: Şeklin Gerçek Sınırlarını Bul ve Beyazları Sil ---
             let minX = rawW, minY = rawH, maxX = 0, maxY = 0;
             let found = false;
 
@@ -2353,8 +2351,6 @@ canvas.addEventListener('touchend', (e) => {
                 for (let x = 0; x < rawW; x++) {
                     const i = (y * rawW + x) * 4;
                     const r = data[i], g = data[i+1], b = data[i+2];
-
-                    // Beyaz değilse (Yani orada bir çizim/resim varsa)
                     if (r < 240 || g < 240 || b < 240) { 
                         if (x < minX) minX = x;
                         if (x > maxX) maxX = x;
@@ -2362,15 +2358,13 @@ canvas.addEventListener('touchend', (e) => {
                         if (y > maxY) maxY = y;
                         found = true;
                     } else {
-                        data[i + 3] = 0; // Beyaz bölgeleri %100 şeffaf yap
+                        data[i + 3] = 0; 
                     }
                 }
             }
 
-            // Eğer seçilen alan bomboşsa iptal et
             if (!found) { snapshotStart = null; return; }
 
-            // Sadece dolu olan kısmı kes (Trim işlemi)
             const realW = maxX - minX + 1;
             const realH = maxY - minY + 1;
             
@@ -2378,8 +2372,6 @@ canvas.addEventListener('touchend', (e) => {
             cutCanvas.width = realW;
             cutCanvas.height = realH;
             const cutCtx = cutCanvas.getContext('2d');
-            
-            // Veriyi kaydırarak sadece dolu alanı tuvale yerleştir
             cutCtx.putImageData(imageData, -minX, -minY); 
 
             const newImg = new Image();
@@ -2393,22 +2385,23 @@ canvas.addEventListener('touchend', (e) => {
                     y: rawY + minY + realH / 2,
                     width: realW,
                     height: realH,
-                    rotation: 0
+                    rotation: 0,
+                    isBackground: false // 👈 Kopya olduğu için arka plan değil
                 };
                 
                 drawnStrokes.push(newObj);
                 
-                // Kopya oluştuktan sonraki ayarlar
                 if (typeof attachDragEvents === 'function') attachDragEvents(newObj);
                 
-                selectedItem = newObj;
+                selectedItem = newObj; // 👈 Butonların görünmesini sağlar
                 snapshotStart = null;
-                setActiveTool('move'); // Anında taşıma moduna geç
-                isMoving = false;      // Ama hemen sürüklemeye başlama (Hoca dokunsun)
+                setActiveTool('move'); // 👈 Taşıma modunu tetikler
+                isMoving = false; 
                 
+                // İşlem bitince snapshot'a dönmesi için işaret koy
                 if (typeof returnToSnapshot !== 'undefined') returnToSnapshot = true; 
                 
-                redrawAllStrokes();
+                redrawAllStrokes(); // 👈 Sahneyi ve butonları çizer
                 if (window.audio_click) window.audio_click.play();
             };
         }
@@ -2424,12 +2417,10 @@ canvas.addEventListener('touchend', (e) => {
         return; 
     }
 
-    // Genel sıfırlama (Çizgiler, çokgenler vb.)
     isDrawing = false; 
     snapTarget = null; 
     if (typeof snapIndicator !== 'undefined') snapIndicator.style.display = 'none';
 });
-
 
 // --- TOUCHCANCEL (ARAMA GELİNCE ÇİZİMİ İPTAL ETME) ---
 canvas.addEventListener('touchcancel', (e) => {
