@@ -331,7 +331,7 @@ function redrawAllStrokes() {
             ctx.drawImage(stroke.img, -stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
             
             // Eğer "Taşı" aracı seçiliyse etrafına kutu ve kulpları çiz
-            if (currentTool === 'move' && selectedItem === stroke) {
+            if ((currentTool === 'move' && selectedItem === stroke) || stroke.isDragging) {
                 // 1. Kesikli Çerçeve
                 ctx.strokeStyle = '#00FFCC';
                 ctx.lineWidth = 2;
@@ -630,7 +630,7 @@ function findHit(pos) {
         if (stroke.type === 'polygon') {
             
             // ÖNCELİK 1: Döndürme ve Boyutlandırma Butonları Kavgası
-            if ((currentTool === 'move' && selectedItem === stroke) || stroke.isDragging) {
+            if (currentTool === 'move' && selectedItem === stroke) {
                 const rotateHandlePos = window.PolygonTool.getRotateHandlePosition(stroke);
                 const resizeHandlePos = stroke.vertices && stroke.vertices.length > 0 ? stroke.vertices[0] : null;
 
