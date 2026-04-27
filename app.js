@@ -1499,47 +1499,54 @@ canvas.addEventListener('pointermove', (e) => {
 }, { passive: false });
 
 
-// app.js içindeki 'pointerup' olayını bu şekilde güncelle:
+// --- app.js içindeki 'pointerup' olayının nihai ve zıplamayan hali ---
 canvas.addEventListener('pointerup', (e) => {
-    // 1. Tarayıcı kilitlerini kaldır
+    // 1. Tarayıcı kilitlerini kaldır ve standart hareketleri engelle
     canvas.releasePointerCapture(e.pointerId);
     if (e.pointerType === 'touch' && e.cancelable) e.preventDefault();
 
     // -----------------------------------------------------------------
     // KRİTİK: Zıplamayı bitiren dokunuş!
-    // Etkinlikten gelen (e.clientX) koordinatı okumuyoruz.
-    // Hareket sırasında (pointermove) kaydedilen son kararlı konumu kullanıyoruz.
+    // Etkinlikten (e) gelen anlık koordinatı okumuyoruz.
+    // 'pointermove' sırasında kaydedilen en son "kararlı" konumu (currentMousePos)
+    // baz alıyoruz. Tabletteki parmak kaldırma titremesini böylece yok sayıyoruz.
     // -----------------------------------------------------------------
     const finalPos = snapTarget || currentMousePos;
 
-    // A) FİZİKSEL ARAÇLARIN ÇİZİMİNİ BİTİR
-    // Araçlar zaten kendi içlerinde 'activeRect' (dondurulmuş koordinat) kullanıyor.
-    if (currentTool === 'ruler' && window.RulerTool) window.RulerTool.finalizeDraw();
-    if (currentTool === 'gonye' && window.GonyeTool) window.GonyeTool.finalizeDraw();
-    if (currentTool === 'aciolcer' && window.AciolcerTool) window.AciolcerTool.finalizeDraw();
-    if (currentTool === 'pergel' && window.PergelTool) window.PergelTool.finalizeDraw();
-
-    // Eğer fiziksel araç modundaysak, aşağıya (normal çizime) devam etme
+    // --- A) FİZİKSEL ARAÇLARIN ÇİZİMİNİ BİTİR ---
     const isPhysicalTool = ['ruler', 'gonye', 'aciolcer', 'pergel'].includes(currentTool);
+    
     if (isPhysicalTool) {
+        // Araçlar kendi içlerinde 'activeRect' (dondurulmuş referans) kullanarak çizimi bitirir.
+        if (currentTool === 'ruler' && window.RulerTool) window.RulerTool.finalizeDraw();
+        if (currentTool === 'gonye' && window.GonyeTool) window.GonyeTool.finalizeDraw();
+        if (currentTool === 'aciolcer' && window.AciolcerTool) window.AciolcerTool.finalizeDraw();
+        if (currentTool === 'pergel' && window.PergelTool) window.PergelTool.finalizeDraw();
+
+        // KRİTİK: Eğer fiziksel araç aktifse, app.js burada durmalı! 
+        // Aşağıdaki normal çizim kodlarına ulaşırsa "çift çizgi" veya "zıplama" yapar.
         isDrawing = false;
         redrawAllStrokes();
-        return; 
+        return; // Fonksiyondan çıkıyoruz, zıplama ihtimalini kökten kestik.
     }
 
-    // B) TAŞIMA (MOVE) MANTIĞI
+    // --- B) TAŞIMA (MOVE) MANTIĞI ---
     if (currentTool === 'move' && isMoving) {
         isMoving = false;
         selectedPointKey = null;
         if (returnToSnapshot) {
             returnToSnapshot = false;
             setActiveTool('snapshot');
+            // Snapshot aktifleştiğinde imleci ve butonları güncelle
+            if (typeof animateButton !== 'undefined' && animateButton) animateButton.classList.add('active');
+            document.body.classList.add('cursor-snapshot');
         }
         redrawAllStrokes();
         return;
     }
 
-    // C) NORMAL ÇİZGİLERİ KAYDET (Zıplama burada engelleniyor)
+    // --- C) NORMAL ÇİZGİLERİ KAYDET ---
+    // Burada 'finalPos' (currentMousePos) kullanarak titremeyi engelliyoruz.
     if (lineStartPoint && finalPos) {
         if (isDrawingLine) {
             drawnStrokes.push({ type: 'straightLine', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3 });
@@ -1558,27 +1565,33 @@ canvas.addEventListener('pointerup', (e) => {
         }
     }
 
-    // D) ÇOKGENLERİ BİTİR
+    // --- D) ÇOKGENLERİ BİTİR ---
     if (currentTool.startsWith('draw_polygon_')) {
         if (window.tempPolygonData && window.tempPolygonData.center) {
             const finalRadius = window.tempPolygonData.radius || 0;
             if (finalRadius > 5) {
-                if (window.tempPolygonData.type === 0) window.PolygonTool.finalizeCircle(finalRadius);
+                const currentType = window.tempPolygonData.type;
+                if (currentType === 0) window.PolygonTool.finalizeCircle(finalRadius);
                 else window.PolygonTool.finalizeDraw(finalRadius, window.tempPolygonData.rotation);
+                
+                // Çokgen çizimi bittikten sonra araçları temizle
+                if (typeof polygonPreviewLabel !== 'undefined') polygonPreviewLabel.classList.add('hidden');
+                window.tempPolygonData.center = null;
+                window.PolygonTool.handleDrawClick(null, currentType);
             }
         }
     }
 
-    // SIFIRLAMA
+    // --- GENEL SIFIRLAMA ---
     isDrawing = false;
     isDrawingLine = isDrawingInfinityLine = isDrawingSegment = isDrawingRay = false;
     lineStartPoint = null;
     snapTarget = null;
-    if (snapIndicator) snapIndicator.style.display = 'none';
+    if (typeof snapIndicator !== 'undefined' && snapIndicator) snapIndicator.style.display = 'none';
+    
     redrawAllStrokes();
 
 }, { passive: false });
-
 
 // --- POINTERCANCEL (KESİNTİ DURUMUNDA SIFIRLAMA) ---
 canvas.addEventListener('pointercancel', (e) => {

@@ -273,17 +273,34 @@ window.AciolcerTool = {
 
     onPointerUp: function(e) {
         if (this.interactionMode === 'none') return;
+
+        // 1. Kilidi kaldır
         if (e.target && e.target.releasePointerCapture) {
              try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
         }
+
         if (this.interactionMode === 'drawing') {
+            // Sesi durdur
             if (window.audio_draw) {
                 window.audio_draw.pause();
                 window.audio_draw.currentTime = 0;
             }
-            this.finalizeDraw();
+
+            // --- SON POZİSYON GÜVENLİĞİ ---
+            // finalizeDraw fonksiyonuna girdiğimizde, fonksiyon zaten en son 
+            // 'handleDraw' (pointermove) aşamasında hesaplanıp kaydedilen 
+            // 'this.state.currentDrawAngleLocal' değerini kullanacaktır.
+            // Parmağınız kalkarken oluşan titreme böylece görmezden gelinir.
+            this.finalizeDraw(); 
+            
+            // finalizeDraw bittikten sonra çizim flag'ini kapatıyoruz
             this.state.isDrawing = false;
-            this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+            
+            // Görsel temizlik
+            if (this.previewCtx) {
+                this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+            }
+
             setTimeout(() => {
                 this.previewCanvas.style.display = 'none'; 
                 this.redLine.style.transition = 'transform 0.05s ease-out';
@@ -293,7 +310,11 @@ window.AciolcerTool = {
                 this.drawHandleLabel.style.display = 'none';
             }, 50); 
         }
-        if (this.interactionMode === 'dragging') this.bodyElement.style.cursor = 'grab';
+
+        if (this.interactionMode === 'dragging') {
+            this.bodyElement.style.cursor = 'grab';
+        }
+
         this.interactionMode = 'none';
     },
 

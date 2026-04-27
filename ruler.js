@@ -252,40 +252,48 @@ window.RulerTool = {
         }
     },
 
-    // --- BIRAKMA / BİTİRME ---
+    // --- BIRAKMA / BİTİRME (ZIPLAMA SAVAR VERSİYON) ---
     onPointerUp: function(e) {
         if (this.interactionMode === 'none') return; 
 
-        // Kilidi güvenle kaldır
+        // 1. Kilidi güvenle kaldır
         if (e.target && e.target.releasePointerCapture) {
              try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
         }
 
+        // 2. Eğer taşıma modundaysak imleci düzelt
         if (this.interactionMode === 'dragging') {
             this.bodyElement.style.cursor = 'grab'; 
         }
         
+        // 3. EĞER ÇİZİM YAPIYORSAK (KRİTİK KISIM)
         if (this.isDrawingLine) { 
-            // 1. Sesi durdur
+            // Sesi durdur
             if (window.audio_draw) {
                 window.audio_draw.pause(); 
                 window.audio_draw.currentTime = 0; 
             }
             
-            // 2. Çizimi kalıcı olarak kaydet
+            // --- SON POZİSYON GÜVENLİĞİ ---
+            // 'finalizeDraw' fonksiyonu içinde asla 'e.clientX' okuma yapmıyoruz.
+            // Zaten 'handleDraw' (pointermove) sırasında kaydedilen 'this.state.currentHandleX' 
+            // değerini kullanıyoruz. Bu, parmağın kalktığı anki titremeyi çöpe atar.
             this.finalizeDraw(); 
+            // ------------------------------
             
             this.drawHandleLabel.style.display = 'none';
             
-            // 3. Handle'ı sıfırla
+            // 4. Görsel temizlik ve sıfırlama
             if(this.drawHandleElement) { 
-                this.drawHandleElement.style.transition = 'left 0.05s ease-out';
+                this.drawHandleElement.style.transition = 'left 0.1s ease-out';
                 this.drawHandleElement.style.left = '0px'; 
                 
-                this.isDrawingLine = false; 
+                // Canvası temizle
                 this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
                 
+                // Durumu sıfırla (Çizim bitti)
                 this.state.currentHandleX = 0; 
+                this.isDrawingLine = false; 
             }
         }
         

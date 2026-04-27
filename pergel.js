@@ -249,21 +249,46 @@ window.PergelTool = {
         }
     },
 
+    // --- BIRAKMA VE BİTİRME (ZIPLAMA VE TİTREME SAVAR) ---
     onPointerUp: function(e) {
         if (this.interactionMode === 'none') return;
+
+        // 1. Kilidi kaldır (Parmağı serbest bırak)
         if (e.target && e.target.releasePointerCapture) {
              try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
         }
+
+        // 2. Çizim modundaysak işlemi mühürle
         if (this.interactionMode === 'drawing') {
-            if (window.audio_draw) { window.audio_draw.pause(); window.audio_draw.currentTime = 0; }
+            if (window.audio_draw) { 
+                window.audio_draw.pause(); 
+                window.audio_draw.currentTime = 0; 
+            }
+
+            // --- SON POZİSYON GÜVENLİĞİ ---
+            // 'finalizeDraw' içinde asla 'e.clientX' okumuyoruz.
+            // Sadece 'onPointerMove' sırasında 'this.state.rotation' içine 
+            // kaydedilen en son "temiz" açıyı kullanıyoruz.
             this.finalizeDraw();
+            
+            // finalizeDraw bittikten sonra çizim durumunu kapatıyoruz
             this.state.isDrawing = false;
+            
+            // Görsel temizliği geciktirerek (50ms) tarayıcıya nefes aldırıyoruz
             setTimeout(() => {
                 if (this.previewCanvas) this.previewCanvas.style.display = 'none';
-                if (this.previewCtx) this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+                if (this.previewCtx) {
+                    this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+                }
             }, 50); 
         }
-        if (this.interactionMode === 'resizing') if (this.radiusLabel) this.radiusLabel.style.display = 'none';
+
+        // 3. Boyutlandırma etiketini gizle
+        if (this.interactionMode === 'resizing') {
+            if (this.radiusLabel) this.radiusLabel.style.display = 'none';
+        }
+        
+        // Etkileşimi tamamen sıfırla
         this.interactionMode = 'none';
     },
 

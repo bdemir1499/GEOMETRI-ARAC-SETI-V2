@@ -231,6 +231,7 @@ window.GonyeTool = {
     onPointerUp: function(e) {
         if (this.interactionMode === 'none') return;
 
+        // 1. Kilidi kaldır
         if (e.target && e.target.releasePointerCapture) {
              try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
         }
@@ -239,20 +240,29 @@ window.GonyeTool = {
             this.bodyElement.style.cursor = 'grab';
         }
         
+        // 2. Çizim bitirme mantığı (Son Pozisyon Güvenliği)
         if (this.isDrawingLine) {
             if (window.audio_draw) {
                 window.audio_draw.pause();
                 window.audio_draw.currentTime = 0;
             }
+
+            // KRİTİK: Etkinlik koordinatlarını (e.clientX) hiç okumadan 
+            // sadece state içindeki son kararlı veriyi kullanarak çizimi bitiriyoruz.
             this.finalizeDraw();
+            
             this.drawHandleLabel.style.display = 'none';
+            
             if(this.drawHandleElement) { 
-                this.drawHandleElement.style.transition = 'top 0.05s ease-out';
+                this.drawHandleElement.style.transition = 'top 0.1s ease-out';
                 this.drawHandleElement.style.top = `${this.state.height - 20}px`; 
-                this.isDrawingLine = false;
+                
+                // Canvas temizliği ve durum sıfırlama
                 this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
+                this.isDrawingLine = false; // finalizeDraw'dan sonra kapatıyoruz
             }
         }
+        
         this.interactionMode = 'none';
     },
 
