@@ -2569,7 +2569,7 @@ if (isPinching) {
 // 2. Silgi Temizle
 if (currentTool === 'eraser') {
     isDrawing = false; 
-    // setActiveTool('none');  <-- BU SATIR BURADAYSA MUTLAKA SİL!
+    
     // redrawAllStrokes(); // Gerekirse ekranda son bir temizlik için kalabilir
     return; 
 }
