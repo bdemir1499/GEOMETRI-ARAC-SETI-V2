@@ -382,6 +382,7 @@ window.AciolcerTool = {
     finalizeDraw: function() {
         if (!this.state.isDrawing) return;
 
+        // Tıklayıp bırakma kontrolü (hiç sürüklemediysen çizme)
         if (this.state.currentDrawAngleLocal < 0.1 && !this.state.hasDragged) {
             return;
         }
@@ -389,12 +390,15 @@ window.AciolcerTool = {
         const cx = this.state.x;
         const cy = this.state.y;
 
+        // 1. ANA KANVASIN GERÇEK KONUMUNU AL (Zıplama Engelleyici)
+        const mainCanvas = document.getElementById('drawing-canvas');
+        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
+
+        // 2. Lokal açıdan Global açıya geç
         const localAngleDeg = this.state.currentDrawAngleLocal;
         const globalAngleRad = ((360 - localAngleDeg) + this.state.angle) * Math.PI / 180;
 
-        const mainCanvas = document.querySelector('canvas');
-        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
-
+        // 3. P1 (Merkez) ve P2 (Işın ucu) koordinatlarını kanvasa göre ayarla
         const p1 = {
             x: cx - rect.left,
             y: cy - rect.top
@@ -404,6 +408,7 @@ window.AciolcerTool = {
             y: p1.y + Math.sin(globalAngleRad) * 1000
         };
 
+        // 4. Kaydet
         if (window.drawnStrokes && window.redrawAllStrokes) {
             let l1 = '', l2 = '';
             if (window.nextPointChar && window.advanceChar) {

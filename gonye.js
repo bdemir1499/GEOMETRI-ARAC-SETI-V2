@@ -413,7 +413,7 @@ window.GonyeTool = {
         this.drawCtx.stroke();
     },
 
-    finalizeDraw: function() {
+   finalizeDraw: function() {
         const handleY = this.state.currentHandleY || 0; 
         
         const startX_local = 4; 
@@ -440,8 +440,19 @@ window.GonyeTool = {
         const p2_rotated_x = e_rel_center_x * cosAngle - e_rel_center_y * sinAngle;
         const p2_rotated_y = e_rel_center_x * sinAngle + e_rel_center_y * cosAngle;
 
-        const p1 = { x: p1_rotated_x + centerX, y: p1_rotated_y + centerY };
-        const p2 = { x: p2_rotated_x + centerX, y: p2_rotated_y + centerY };
+        // --- ANA KANVAS OFSETİNİ HESAPLA (ZIPLAMAYI BİTİREN KOD) ---
+        const mainCanvas = document.querySelector('canvas');
+        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
+
+        const p1 = { 
+            x: p1_rotated_x + centerX - rect.left, 
+            y: p1_rotated_y + centerY - rect.top 
+        };
+        const p2 = { 
+            x: p2_rotated_x + centerX - rect.left, 
+            y: p2_rotated_y + centerY - rect.top 
+        };
+        // -------------------------------------------------------------
         
         const lengthPx = window.distance(p1, p2);
         const cmText = (lengthPx / this.PIXELS_PER_CM).toFixed(1).replace('.', ',') + " cm";
@@ -469,8 +480,6 @@ window.GonyeTool = {
                 lengthLabelPos: midPoint
             });
             window.redrawAllStrokes(); 
-        } else {
-            console.error("Hata: drawnStrokes veya redrawAllStrokes globalda bulunamadı!");
         }
     }
 };

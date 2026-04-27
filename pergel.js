@@ -476,25 +476,17 @@ window.PergelTool = {
     finalizeDraw: function() {
         if (!this.state.isDrawing) return;
 
-        console.log("Pergel: finalizeDraw() çağrıldı.");
-        
-        const mainCanvas = document.querySelector('canvas');
-        if (!mainCanvas) {
-             console.error("Pergel HATASI: Ana <canvas> bulunamadı!");
-             return; 
-        }
-        
-        const rect = mainCanvas.getBoundingClientRect();
+        // 1. ANA KANVASIN KONUMUNU AL
+        const mainCanvas = document.getElementById('drawing-canvas');
+        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
 
         if (window.drawnStrokes && window.redrawAllStrokes) {
-            
-            console.log("Pergel BAŞARILI: app.js motoru bulundu.");
-
             const centerLabel = window.nextPointChar;
             window.nextPointChar = window.advanceChar(centerLabel);
 
             window.drawnStrokes.push({
                 type: 'arc',
+                // BURASI KRİTİK: startState içindeki pivot koordinatından rect değerlerini çıkarıyoruz
                 cx: this.startState.pivot.x - rect.left, 
                 cy: this.startState.pivot.y - rect.top, 
                 radius: this.state.radius,
@@ -505,12 +497,7 @@ window.PergelTool = {
                 label: centerLabel 
             });
             
-            console.log("Pergel: Çizim hafızaya eklendi.");
-            
             window.redrawAllStrokes(); 
-            
-        } else {
-            console.error("Pergel KRİTİK HATA: app.js motoru bulunamadı!");
         }
     }
 };

@@ -431,8 +431,19 @@ window.RulerTool = {
         const p2_rotated_x = e_rel_center_x * cosAngle - e_rel_center_y * sinAngle;
         const p2_rotated_y = e_rel_center_x * sinAngle + e_rel_center_y * cosAngle;
 
-        const p1 = { x: p1_rotated_x + centerX, y: p1_rotated_y + centerY };
-        const p2 = { x: p2_rotated_x + centerX, y: p2_rotated_y + centerY };
+        // --- ANA KANVAS OFSETİNİ HESAPLA (ZIPLAMAYI BİTİREN KOD) ---
+        const mainCanvas = document.querySelector('canvas');
+        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
+
+        const p1 = { 
+            x: p1_rotated_x + centerX - rect.left, 
+            y: p1_rotated_y + centerY - rect.top 
+        };
+        const p2 = { 
+            x: p2_rotated_x + centerX - rect.left, 
+            y: p2_rotated_y + centerY - rect.top 
+        };
+        // -------------------------------------------------------------
         
         const cmText = (handleX / this.PIXELS_PER_CM).toFixed(1).replace('.', ',') + " cm";
         const midPoint = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
@@ -452,6 +463,6 @@ window.RulerTool = {
             console.error("Hata: drawnStrokes veya redrawAllStrokes globalda bulunamadı!");
         }
     }
-}; 
+}; // <--- İŞTE BURASI ÇOK ÖNEMLİ! (RulerTool nesnesini kapatır)
 
 window.RulerTool.init();
