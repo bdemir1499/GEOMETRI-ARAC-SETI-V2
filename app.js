@@ -2520,12 +2520,13 @@ async function renderPDFPage(num) {
 
     const img = new Image();
     img.onload = () => {
-        // EĞER ekranda zaten bir PDF sayfası varsa, onun RESMİNİ değiştir (Konumunu koru)
+        // EĞER ekranda zaten bir PDF sayfası varsa, onun RESMİNİ değiştir
         if (pdfImageStroke && drawnStrokes.includes(pdfImageStroke)) {
-            pdfImageStroke.img = img; // Sadece resmi güncelle
+            pdfImageStroke.img = img; 
+            pdfImageStroke.isBackground = true; // 🚀 BURAYA EKLEYİN (Emniyet Kemeri)
             redrawAllStrokes();
         } else {
-            // Ekranda yoksa (ilk kez veya silinmişse) yeni ekle
+            // Ekranda yoksa yeni ekle
             addNewImageToCanvas(img, true);
         }
     };
@@ -2549,7 +2550,8 @@ function addNewImageToCanvas(img, isPDF = false) {
         width: startWidth,
         height: startHeight,
         rotation: 0,
-        isBackground: true // <--- BU SATIR ÇOK ÖNEMLİ (SİLMEK İÇİN GEREKLİ)
+        // EĞER bu bir PDF ise veya dışarıdan yüklenen ana resimse Arka Plan yap
+        isBackground: true 
     };
     
     // Listeye ekle
