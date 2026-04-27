@@ -629,76 +629,73 @@ function endDrag(e) {
 
 // --- KUSURSUZ HEDEF YAKALAYICI (findHit) - AKILLI HAKEM SÜRÜMÜ ---
 function findHit(pos) {
-    const HIT_RADIUS = 30; // Genel hedef (merkez, köşeler, kenarlar)
-    const BTN_RADIUS = 30; // Buton hedefi
+    const HIT_RADIUS = 30; // Genel hedef
+    const BTN_RADIUS = 35; // Buton hedefi (Tablette daha kolay tutması için 35 yaptık)
 
     for (let i = drawnStrokes.length - 1; i >= 0; i--) {
         const stroke = drawnStrokes[i];
 
-        // 1. RESİMLER İÇİN MANTIK
+        // 1. RESİMLER İÇİN MANTIK (KOPYALAR VE PDF)
         if (stroke.type === 'image') {
+            const isBG = stroke.isBackground === true; // Bu ana PDF mi?
+            
+            // 🚀 KRİTİK AYAR: Canlandır modundaysak ve parmağımız PDF'e (arka plan) değiyorsa
+            // Onu 'yok' sayıyoruz ki alttaki Snapshot başlatma koduna sıra gelsin.
+            // Ama PDF olmayan (Hocanın kopyası) bir resme dokunduysak onu her zaman yakalarız.
+            if (currentTool === 'snapshot' && isBG) continue;
+
             const halfW = stroke.width / 2;
             const halfH = stroke.height / 2;
-            const angleRad = stroke.rotation * (Math.PI / 180);
+            const angleRad = (stroke.rotation || 0) * (Math.PI / 180);
 
+            // A. DÖNDÜRME BUTONU (Yeşil Buton) - En Üst Öncelik
             const handleDist = halfH + 30;
             const rotX = stroke.x + Math.sin(angleRad) * handleDist;
             const rotY = stroke.y - Math.cos(angleRad) * handleDist;
             if (distance(pos, {x: rotX, y: rotY}) < BTN_RADIUS) return { item: stroke, pointKey: 'image_rotate' };
 
+            // B. BOYUTLANDIRMA BUTONU (Alt Sağ Köşe) - Yüksek Öncelik
             const resLocalX = halfW * Math.cos(angleRad) - halfH * Math.sin(angleRad);
             const resLocalY = halfW * Math.sin(angleRad) + halfH * Math.cos(angleRad);
             if (distance(pos, {x: stroke.x + resLocalX, y: stroke.y + resLocalY}) < BTN_RADIUS) return { item: stroke, pointKey: 'image_resize' };
 
+            // C. RESMİN KENDİSİ (Taşıma Alanı)
             const dx = pos.x - stroke.x;
             const dy = pos.y - stroke.y;
             const localClickX = dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad);
             const localClickY = dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad);
-            if (localClickX > -halfW && localClickX < halfW && localClickY > -halfH && localClickY < halfH) return { item: stroke, pointKey: 'self' };
+            
+            if (localClickX > -halfW && localClickX < halfW && localClickY > -halfH && localClickY < halfH) {
+                return { item: stroke, pointKey: 'self' };
+            }
         }
         
         // ==========================================
-        // ÇOKGENLER (POLYGON) - HAKEMLİ ÇÖZÜM
+        // ÇOKGENLER (POLYGON) - HAKEMLİ ÇÖZÜM (Aynen Korundu)
         // ==========================================
         if (stroke.type === 'polygon') {
-            
-            // ÖNCELİK 1: Döndürme ve Boyutlandırma Butonları Kavgası
             if ((currentTool === 'move' && selectedItem === stroke) || stroke.isDragging) {
-
                 const rotateHandlePos = window.PolygonTool.getRotateHandlePosition(stroke);
                 const resizeHandlePos = stroke.vertices && stroke.vertices.length > 0 ? stroke.vertices[0] : null;
-
                 const dRot = distance(pos, rotateHandlePos);
                 const dRes = resizeHandlePos ? distance(pos, resizeHandlePos) : Infinity;
 
-                // --- KRİTİK ÇÖZÜM: EN YAKIN OLAN KAZANIR ---
-                // Eğer parmak butonlardan herhangi birinin menziline girmişse:
                 if (dRot < BTN_RADIUS || dRes < BTN_RADIUS) {
-                    // Hangisine DAHA YAKINSA (mesafe daha küçükse) onu seç
-                    if (dRes <= dRot) {
-                        return { item: stroke, pointKey: 'resize' }; // Pembeye daha yakın
-                    } else {
-                        return { item: stroke, pointKey: 'rotate' }; // Yeşile daha yakın
-                    }
+                    if (dRes <= dRot) return { item: stroke, pointKey: 'resize' };
+                    else return { item: stroke, pointKey: 'rotate' };
                 }
             }
 
-            // ÖNCELİK 2: MERKEZ (Taşıma İşlemi)
             const merkezX = stroke.cx !== undefined ? stroke.cx : (stroke.center ? stroke.center.x : null);
             const merkezY = stroke.cy !== undefined ? stroke.cy : (stroke.center ? stroke.center.y : null);
             if (merkezX !== null && merkezY !== null && distance(pos, {x: merkezX, y: merkezY}) < HIT_RADIUS) {
                 return { item: stroke, pointKey: 'center' };
             }
 
-            // ÖNCELİK 3: Köşeler (İç Açılar)
             if (stroke.vertices) {
                 for (let j = 0; j < stroke.vertices.length; j++) {
                     if (distance(pos, stroke.vertices[j]) < HIT_RADIUS) return { item: stroke, pointKey: 'toggle_angles' };
                 }
-            }
-
-            // ÖNCELİK 4: Kenarlar (Uzunluklar)
-            if (stroke.vertices) {
                 for (let j = 0; j < stroke.vertices.length; j++) {
                     const v1 = stroke.vertices[j];
                     const v2 = stroke.vertices[(j + 1) % stroke.vertices.length];
@@ -713,25 +710,20 @@ function findHit(pos) {
                 }
             }
         }
-        // ==========================================
 
-        // ÇEMBERLER İÇİN MANTIK
+        // ÇEMBERLER, NOKTALAR VE ÇİZGİLER (Aynen Korundu)
         if (stroke.type === 'arc' && stroke.cx) {
             if (distance(pos, {x: stroke.cx, y: stroke.cy}) < HIT_RADIUS) return { item: stroke, pointKey: 'center' };
             if (Math.abs(distance(pos, {x: stroke.cx, y: stroke.cy}) - stroke.radius) < HIT_RADIUS) return { item: stroke, pointKey: 'toggle_circle_info' };
         }
-
-        // DİĞER ÇİZGİLER VE NOKTALAR İÇİN MANTIK
         if (stroke.type === 'point') {
             if (distance(pos, stroke) < HIT_RADIUS) return { item: stroke, pointKey: 'self' };
         }
         if (stroke.p1 && distance(pos, stroke.p1) < HIT_RADIUS) return { item: stroke, pointKey: 'p1' };
         if (stroke.p2 && distance(pos, stroke.p2) < HIT_RADIUS) return { item: stroke, pointKey: 'p2' };
     }
-    
     return null; 
 }
-
 
 // Global atamalar
 window.redrawAllStrokes = redrawAllStrokes;
@@ -741,10 +733,10 @@ window.distance = distance;
 
 // --- ARAÇ SEÇİMİ (TAMAMEN DÜZELTİLMİŞ VERSİYON) ---
 function setActiveTool(tool) {
-    // 1. Önceki tüm aktiflikleri temizle (Çizgi butonu dahil!)
+    // 1. Önceki tüm aktiflikleri temizle
     penButton.classList.remove('active');
     eraserButton.classList.remove('active');
-    lineButton.classList.remove('active'); // <-- KRİTİK SATIR
+    lineButton.classList.remove('active'); 
     pointButton.classList.remove('active');
     straightLineButton.classList.remove('active');
     infinityLineButton.classList.remove('active');
@@ -761,7 +753,7 @@ function setActiveTool(tool) {
     regularPolygonButtons.forEach(b => b.classList.remove('active'));
     
     if(fillButton) fillButton.classList.remove('active');
-    if(animateButton) animateButton.classList.remove('active'); 
+    if(animateButton) animateButton.classList.add('active'); // Not: snapshot kısmında zaten active yapılıyor
 
     // İmleçleri temizle
     body.classList.remove('cursor-pen');
@@ -771,8 +763,6 @@ function setActiveTool(tool) {
     // Menüleri gizle
     if (polygonOptions) { polygonOptions.classList.add('hidden'); polygonOptions.style.display = ''; }
     
-    // Çizgi menüsünü, SADECE yeni seçilen araç bir çizgi aracı DEĞİLSE gizle
-    // (Böylece alt araçlar arasında gezerken menü kapanmaz)
     const isLineTool = ['point', 'straightLine', 'line', 'segment', 'ray'].includes(tool);
     if (!isLineTool && lineOptions) { 
         lineOptions.classList.add('hidden'); 
@@ -792,7 +782,14 @@ function setActiveTool(tool) {
     isDrawingRay = false; 
     
     window.tempPolygonData = null; 
-    polygonPreviewLabel.classList.add('hidden'); 
+    if (polygonPreviewLabel) polygonPreviewLabel.classList.add('hidden'); 
+    
+    // 🔥 SEÇİM KİLİDİ (BURASI ÇOK ÖNEMLİ):
+    // Eğer 'Taşı' (move) veya 'Canlandır' (snapshot) araçları arasında geçiş yapıyorsak 
+    // seçili nesneyi (selectedItem) SIFIRLAMA. Böylece kopya oluşur oluşmaz butonları görünür kalır.
+    if (tool !== 'move' && tool !== 'snapshot') {
+        selectedItem = null;
+    }
     
     // Fiziksel Araçları gizle
     if (window.RulerTool) window.RulerTool.hide();
@@ -808,6 +805,7 @@ function setActiveTool(tool) {
     if (window.AciolcerTool) window.AciolcerTool.interactionMode = 'none';
     if (window.PergelTool) window.PergelTool.interactionMode = 'none';
     
+    // Sadece gerekli olduğunda temizle
     ctx.clearRect(0, 0, canvas.width, canvas.height); 
     redrawAllStrokes(); 
 
@@ -825,10 +823,9 @@ function setActiveTool(tool) {
         if(animateButton) animateButton.classList.add('active');
         body.classList.add('cursor-snapshot');
     } 
-    // --- ÇİZGİ ARAÇLARI GRUBU ---
     else if (tool === 'point') {
-        lineButton.classList.add('active'); // Ana buton aktif
-        pointButton.classList.add('active'); // Alt buton aktif
+        lineButton.classList.add('active'); 
+        pointButton.classList.add('active'); 
         lineOptions.classList.remove('hidden'); 
     } else if (tool === 'straightLine') { 
         lineButton.classList.add('active');
@@ -847,7 +844,6 @@ function setActiveTool(tool) {
         rayButton.classList.add('active');
         lineOptions.classList.remove('hidden');
     } 
-    // --- DİĞER ARAÇLAR ---
     else if (tool === 'ruler') {
         rulerButton.classList.add('active');
         if (window.RulerTool) window.RulerTool.show();
@@ -878,6 +874,7 @@ function setActiveTool(tool) {
     
     redrawAllStrokes(); 
 }
+
 // --- BUTON OLAYLARI ---
 
 penButton.addEventListener('click', () => setActiveTool(currentTool === 'pen' ? 'none' : 'pen'));
