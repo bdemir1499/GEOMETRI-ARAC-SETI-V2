@@ -1851,7 +1851,6 @@ canvas.addEventListener('mouseup', () => {
                 drawnStrokes.push(newObj);
 attachDragEvents(newObj);
 selectedItem = newObj;
-newObj.isDragging = false;
 
                 // --- GÜNCELLENEN KISIM BAŞLANGIÇ ---
                 
