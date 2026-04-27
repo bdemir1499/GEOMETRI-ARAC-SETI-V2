@@ -2565,10 +2565,12 @@ if (isPinching) {
     }
 
     // 2. Silgi Temizle
-    if (currentTool === 'eraser') {
-        
-        isDrawing = false;  return; 
-    }
+
+if (currentTool === 'eraser') {
+    isDrawing = false; 
+    setActiveTool('none'); // <-- SORUNLU SATIR BURASI! Bunu sil.
+    return; 
+}
 
     const endPos = snapTarget || currentMousePos;
 
