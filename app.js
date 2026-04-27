@@ -1880,53 +1880,52 @@ snapHoverTimer = null;
 
 
 canvas.addEventListener('touchstart', (e) => {
-    e.preventDefault(); 
+    if (e.cancelable) e.preventDefault(); 
     const pos = getEventPosition(e);
     const snapPos = snapTarget || pos;
     currentMousePos = pos; 
 
-    // 1. FİZİKSEL ARAÇ KONTROLÜ (Mevcut kodunuz...)
+    // 1. FİZİKSEL ARAÇ KONTROLÜ
     const isToolElementClicked = e.target.closest('.ruler-container, .gonye-container, .aciolcer-container, #compass-container');
     if (isToolElementClicked) return; 
 
-    // 🔥 GÜNCELLENMİŞ MOBİL ÖNCELİK (PDF Korumalı)
+    // 🎯 TEK VE ANA HEDEF KONTROLÜ (Hit Test)
     const hit = findHit(pos);
-    
-    // SADECE "isBackground" OLMAYAN (Yani sizin kestiğiniz kopya) resimler için otomatik taşımaya geç
-    if (hit && hit.item.type === 'image' && !hit.item.isBackground) {
+    const isUserCopy = hit && hit.item.type === 'image' && !hit.item.isBackground;
+
+    // 🔥 2. CANLANDIRMA (SNAPSHOT) ÖNCELİĞİ
+    // Eğer araç 'snapshot' ise ve parmak PDF'e (arka plana) veya boşluğa değdiyse
+    if (currentTool === 'snapshot') {
+        // Sadece kullanıcı kopyasına dokunulmadıysa kopyalama başlat
+        if (!isUserCopy) {
+            isDrawing = false;
+            isMoving = false;
+            isPinching = false;
+            snapshotStart = { x: pos.x, y: pos.y }; // Ham koordinat (Zıplamayı önler)
+            return; 
+        }
+    }
+
+    // 3. MOBİL TAŞIMA ÖNCELİĞİ (Sadece kopyalanmış küçük parçalar için)
+    // Araç ne olursa olsun, bir kopyaya dokunulursa onu taşıma moduna al
+    if (isUserCopy) {
         isMoving = true; 
         selectedItem = hit.item; 
         selectedPointKey = hit.pointKey; 
         dragStartPos = pos; 
         
         originalStartPos = { 
-            x: hit.item.x, 
-            y: hit.item.y, 
+            x: hit.item.x, y: hit.item.y, 
             rotation: hit.item.rotation, 
-            width: hit.item.width, 
-            height: hit.item.height 
+            width: hit.item.width, height: hit.item.height 
         };
 
-        setActiveTool('move'); // Sadece küçük kopya resimse taşıyı aktif yap
+        setActiveTool('move'); 
         redrawAllStrokes();
-        return; // İşlem bitti, aşağıya (snapshot'a) uğrama
-    }
-
-    // 🚀 2. CANLANDIRMA (SNAPSHOT) BAŞLANGICI
-    // Eğer parmağınız boşluğa veya PDF'e (arka plana) değdiyse buraya gelir
-    if (currentTool === 'snapshot') {
-        isDrawing = false;
-        isMoving = false;
-        isPinching = false;
-        
-        // KRİTİK: snapPos kullanma! snapPos mıknatıs gibi sayfa köşesine zıplatır.
-        // Doğrudan parmağının değdiği ham noktayı (pos) al.
-        snapshotStart = { x: pos.x, y: pos.y }; 
-        
         return; 
     }
 
-    // 3. TAŞIMA (MOVE) VE PINCH ZOOM
+    // 4. STANDART TAŞIMA (MOVE) VE PINCH ZOOM
     if (currentTool === 'move') {
         // A. İki Parmakla Zoom (Pinch)
         if (e.touches.length === 2 && selectedItem && selectedItem.type === 'image') {
@@ -1942,70 +1941,44 @@ canvas.addEventListener('touchstart', (e) => {
             return; 
         }
         
-        // B. Tek Parmakla Seçim ve Taşıma (GÜNCELLENMİŞ - PDF KORUMALI)
-        const hit = findHit(pos);
+        // B. Diğer Nesneleri (Nokta, Çizgi vb.) Yakalama
         if (hit) {
-            // 🚀 1. ÖNCELİKLİ AYRIM: Bu bir "Kullanıcı Kopyası" mı yoksa "Arka Plan PDF" mi?
-            const isUserCopy = hit.item.type === 'image' && !hit.item.isBackground;
+            // Etiket kontrolleri
+            if (hit.pointKey === 'toggle_edges') { hit.item.showEdgeLabels = !hit.item.showEdgeLabels; redrawAllStrokes(); return; }
+            if (hit.pointKey === 'toggle_angles') { hit.item.showAngleLabels = !hit.item.showAngleLabels; redrawAllStrokes(); return; }
+            if (hit.pointKey === 'toggle_circle_info') { hit.item.showCircleInfo = !hit.item.showCircleInfo; redrawAllStrokes(); return; }
 
-            // EĞER dokunulan şey bir KOPYA ise VEYA zaten TAŞIMA modu seçiliyse (PDF'i taşımak için)
-            if (isUserCopy || currentTool === 'move') {
-                
-                // Etiketleme kontrolleri (Mevcut özellikleriniz korunuyor)
-                if (hit.pointKey === 'toggle_edges') { hit.item.showEdgeLabels = !hit.item.showEdgeLabels; redrawAllStrokes(); return; }
-                if (hit.pointKey === 'toggle_angles') { hit.item.showAngleLabels = !hit.item.showAngleLabels; redrawAllStrokes(); return; }
-                if (hit.pointKey === 'toggle_circle_info') { hit.item.showCircleInfo = !hit.item.showCircleInfo; redrawAllStrokes(); return; }
+            isMoving = true; 
+            selectedItem = hit.item; 
+            selectedPointKey = hit.pointKey; 
+            dragStartPos = pos; 
+            rotationPivot = null; 
 
-                // Kopyaya dokunulmuşsa aracı otomatik 'Taşı' yap (Snapshot'ı kesmek için)
-                if (isUserCopy && currentTool !== 'move') {
-                    setActiveTool('move'); 
-                }
-                        
-                isMoving = true; 
-                selectedItem = hit.item; 
-                selectedPointKey = hit.pointKey; 
-                dragStartPos = pos; 
-                rotationPivot = null; 
-
-                // Koordinatları hazırla (Mevcut mantığınızın geliştirilmiş hali)
-                originalStartPos = {}; 
-                if (hit.pointKey === 'self' || hit.pointKey === 'image_resize' || hit.pointKey === 'image_rotate') {
-                    originalStartPos = { 
-                        x: hit.item.x, 
-                        y: hit.item.y, 
-                        rotation: hit.item.rotation, 
-                        width: hit.item.width, 
-                        height: hit.item.height 
-                    };
-                }
-                else if (hit.pointKey === 'p1') originalStartPos = { x: hit.item.p1.x, y: hit.item.p1.y };
-                else if (hit.pointKey === 'p2') originalStartPos = { x: hit.item.p2.x, y: hit.item.p2.y };
-                else if (hit.pointKey === 'center') { 
-                    originalStartPos = { 
-                        x: (hit.item.cx !== undefined ? hit.item.cx : hit.item.center.x), 
-                        y: (hit.item.cy !== undefined ? hit.item.cy : hit.item.center.y) 
-                    }; 
-                }
-
-                // Doğru/Işın döndürme mantığınız (Aynen korundu)
-                const itemType = hit.item.type;
-                if ((itemType === 'line' || itemType === 'segment' || itemType === 'ray' || itemType === 'straightLine') && (hit.pointKey === 'p1' || hit.pointKey === 'p2')) {
-                    rotationPivot = (hit.pointKey === 'p1') ? hit.item.p2 : hit.item.p1;
-                    const movingPoint = (hit.pointKey === 'p1') ? hit.item.p1 : hit.item.p2;
-                    selectedItem.startRadius = distance(movingPoint, rotationPivot);
-                }
-                
-                redrawAllStrokes();
-                return; // ⭐️ BURASI KİLİT: Buradan çıkınca alttaki kopyalama (snapshot) başlama koduna GİRMEZ.
+            originalStartPos = {}; 
+            if (hit.pointKey === 'self') originalStartPos = { x: hit.item.x, y: hit.item.y };
+            else if (hit.pointKey === 'p1') originalStartPos = { x: hit.item.p1.x, y: hit.item.p1.y };
+            else if (hit.pointKey === 'p2') originalStartPos = { x: hit.item.p2.x, y: hit.item.p2.y };
+            else if (hit.pointKey === 'center') { originalStartPos = { x: (hit.item.cx !== undefined ? hit.item.cx : hit.item.center.x), y: (hit.item.cy !== undefined ? hit.item.cy : hit.item.center.y) }; }
+            else if (['rotate', 'resize', 'image_resize'].includes(hit.pointKey)) { 
+                originalStartPos = { radius: hit.item.radius, rotation: hit.item.rotation, width: hit.item.width, height: hit.item.height }; 
             }
+            
+            const itemType = hit.item.type;
+            if (['line', 'segment', 'ray', 'straightLine'].includes(itemType) && (hit.pointKey === 'p1' || hit.pointKey === 'p2')) {
+                rotationPivot = (hit.pointKey === 'p1') ? hit.item.p2 : hit.item.p1;
+                const movingPoint = (hit.pointKey === 'p1') ? hit.item.p1 : hit.item.p2;
+                selectedItem.startRadius = distance(movingPoint, rotationPivot);
+            }
+            redrawAllStrokes();
+            return; 
         }
-}
+    }
     
-    // 4. DOLDURMA (FILL)
+    // 5. DOLDURMA (FILL)
     if (currentTool === 'fill') {
-        const hit = findHit(pos); 
-        if (hit && (hit.item.type === 'polygon' || hit.item.type === 'arc')) {
-            hit.item.fillColor = (currentFillColor === 'transparent') ? null : currentFillColor;
+        const hitFill = findHit(pos); 
+        if (hitFill && (hitFill.item.type === 'polygon' || hitFill.item.type === 'arc')) {
+            hitFill.item.fillColor = (currentFillColor === 'transparent') ? null : currentFillColor;
             redrawAllStrokes(); 
             try { if (window.audio_click) { window.audio_click.currentTime = 0; window.audio_click.play(); } } catch(err){}
         }
@@ -2013,11 +1986,10 @@ canvas.addEventListener('touchstart', (e) => {
         return;
     }
 
-    // Araç Kontrolleri
-    if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciolcer' || currentTool === 'pergel') return;
-    if (currentTool === 'none') return;
+    // Fiziksel araç ve boş mod kontrolleri
+    if (['ruler', 'gonye', 'aciolcer', 'pergel', 'none'].includes(currentTool)) return;
 
-    // 5. ÇOKGEN MERKEZ TIKLAMA
+    // 6. ÇOKGEN MERKEZ TIKLAMA
     if (currentTool.startsWith('draw_polygon_')) {
         if (window.tempPolygonData && window.tempPolygonData.center === null) {
              window.tempPolygonData.center = snapPos;
@@ -2028,13 +2000,12 @@ canvas.addEventListener('touchstart', (e) => {
              polygonPreviewLabel.style.left = `${snapPos.x}px`;
              polygonPreviewLabel.style.top = `${snapPos.y - 40}px`;
              polygonPreviewLabel.innerText = "Merkez";
-                     }
+        }
         return; 
     }
 
-    // 6. ÇİZİM ARAÇLARI (İŞTE BU KISIM EKSİKTİ)
-
-if (['point', 'straightLine', 'line', 'segment', 'ray'].includes(currentTool)) {
+    // 7. ÇİZİM ARAÇLARI
+    if (['point', 'straightLine', 'line', 'segment', 'ray'].includes(currentTool)) {
         if (lineOptions) {
             lineOptions.classList.add('hidden');
             lineOptions.style.display = 'none';
@@ -2046,35 +2017,31 @@ if (['point', 'straightLine', 'line', 'segment', 'ray'].includes(currentTool)) {
         drawnStrokes.push({ type: 'pen', path: [snapPos], color: currentPenColor, width: currentPenWidth });
     }
     else if (currentTool === 'point') {
-        
         isDrawing = false;
         drawnStrokes.push({ type: 'point', x: snapPos.x, y: snapPos.y, label: nextPointChar });
         nextPointChar = advanceChar(nextPointChar);
         redrawAllStrokes();
     }
     else if (currentTool === 'eraser') {
-        
         isDrawing = true; 
     }
     else if (currentTool === 'straightLine') {
-        
         isDrawingLine = true; lineStartPoint = snapPos;
         redrawAllStrokes(); drawDot(snapPos, currentLineColor);
     }
     else if (currentTool === 'line') {
-                isDrawingInfinityLine = true; lineStartPoint = pos; 
+        isDrawingInfinityLine = true; lineStartPoint = pos; 
         redrawAllStrokes(); drawDot(pos, currentLineColor);
     }
     else if (currentTool === 'segment') {
-                isDrawingSegment = true; lineStartPoint = snapPos; 
+        isDrawingSegment = true; lineStartPoint = snapPos; 
         redrawAllStrokes(); drawDot(snapPos, currentLineColor);
     }
     else if (currentTool === 'ray') {
-                isDrawingRay = true; lineStartPoint = pos; 
+        isDrawingRay = true; lineStartPoint = pos; 
         redrawAllStrokes(); drawDot(pos, currentLineColor);
     }
 });
-
 canvas.addEventListener('touchmove', (e) => {
     // 1. TABLET KAYMA KONTROLÜ
     // Seçim yaparken veya bir nesneyi taşırken sayfanın (PDF'in) kaymasını durdurur.
@@ -2386,22 +2353,25 @@ canvas.addEventListener('touchend', (e) => {
                     width: realW,
                     height: realH,
                     rotation: 0,
-                    isBackground: false // 👈 Kopya olduğu için arka plan değil
+                    isBackground: false 
                 };
                 
                 drawnStrokes.push(newObj);
                 
+                // 1. Önce aleti değiştir (Bu işlem seçimi sıfırlayabilir)
+                setActiveTool('move'); 
+
+                // 2. Alet değiştikten SONRA nesneyi seç (Artık sahipsiz kalmaz)
+                selectedItem = newObj; 
+                
                 if (typeof attachDragEvents === 'function') attachDragEvents(newObj);
                 
-                selectedItem = newObj; // 👈 Butonların görünmesini sağlar
                 snapshotStart = null;
-                setActiveTool('move'); // 👈 Taşıma modunu tetikler
                 isMoving = false; 
                 
-                // İşlem bitince snapshot'a dönmesi için işaret koy
                 if (typeof returnToSnapshot !== 'undefined') returnToSnapshot = true; 
                 
-                redrawAllStrokes(); // 👈 Sahneyi ve butonları çizer
+                redrawAllStrokes(); 
                 if (window.audio_click) window.audio_click.play();
             };
         }
