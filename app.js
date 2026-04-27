@@ -1500,13 +1500,10 @@ canvas.addEventListener('pointermove', (e) => {
 
 
 canvas.addEventListener('pointerup', (e) => {
-    // 1. Koordinatı en taze haliyle al
-    const pos = getPointerPos(e);
-    
-    // 2. Kilidi kaldır (Zıplamayı engelleyen güvenlik kilidi)
+    // 1. Zıplamayı engelleyen güvenlik kilidini kaldır
     canvas.releasePointerCapture(e.pointerId);
 
-    // 3. Tarayıcıya "işlemi ben hallettim, ekstra bir şey (zoom vb.) yapma" de
+    // 2. Tarayıcıya "işlemi ben hallettim, ekstra bir şey (zoom vb.) yapma" de
     if (e.pointerType === 'touch' && e.cancelable) e.preventDefault();
 
     // --- A. TAŞIMA (MOVE) MANTIĞI ---
@@ -1531,8 +1528,8 @@ canvas.addEventListener('pointerup', (e) => {
 
     // --- B. SİHİRLİ KOPYALAMA (SNAPSHOT - BEYAZ TEMİZLEME) ---
     if (currentTool === 'snapshot' && snapshotStart) {
-        // Zıplamayı önlemek için 'pos' kullanıyoruz
-        const endPosSnapshot = snapTarget || pos;
+        // DİKKAT: Zıplamayı önlemek için 'pos' değil 'currentMousePos' kullanıyoruz
+        const endPosSnapshot = snapTarget || currentMousePos;
         
         let sx = Math.min(snapshotStart.x, endPosSnapshot.x);
         let sy = Math.min(snapshotStart.y, endPosSnapshot.y);
@@ -1588,8 +1585,10 @@ canvas.addEventListener('pointerup', (e) => {
     // Fiziksel araç kontrolü
     if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciolcer' || currentTool === 'pergel') return;
 
-    // --- D. ÇİZGİ VE ÇOKGEN ÇEŞİTLERİNİ KAYDET (PC'DEKİ TAKILMAYI BİTİREN KISIM) ---
-    const finalEndPos = snapTarget || pos;
+    // --- D. ÇİZGİ VE ÇOKGEN ÇEŞİTLERİNİ KAYDET (TABLETTEKİ ZIPLAMAYI BİTİREN KISIM) ---
+    // DİKKAT: 'pos' DEĞİL 'currentMousePos' KULLANIYORUZ!
+    // Böylece parmak kalkarken oluşan o son 1 piksellik kayma (zıplama) iptal olur.
+    const finalEndPos = snapTarget || currentMousePos;
 
     // 1. Çizgileri Kaydet
     if (isDrawingLine && lineStartPoint) {
@@ -1632,7 +1631,6 @@ canvas.addEventListener('pointerup', (e) => {
     redrawAllStrokes();
 
 }, { passive: false });
-
 
 
 
