@@ -583,7 +583,6 @@ function onDrag(e) {
 function endDrag(e) {
     if (selectedItem) {
         selectedItem.isDragging = false;
-        redrawAllStrokes();   // <-- ekle: seçim kutusunu yeniden çiz
     }
     document.removeEventListener('mousemove', onDrag);
     document.removeEventListener('mouseup', endDrag);
