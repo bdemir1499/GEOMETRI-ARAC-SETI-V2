@@ -605,8 +605,14 @@ function onDrag(e) {
 function endDrag(e) {
     if (selectedItem) {
         selectedItem.isDragging = false;
-        redrawAllStrokes();
+        redrawAllStrokes();   // seçim kutusunu yeniden çiz
     }
+
+    // Taşıma durumunu sıfırla
+    isMoving = false;
+    selectedItem = null;
+
+    // Event listener’ları kaldır
     document.removeEventListener('mousemove', onDrag);
     document.removeEventListener('mouseup', endDrag);
     document.removeEventListener('touchmove', onDrag);
@@ -1252,6 +1258,14 @@ canvas.addEventListener('mousedown', (e) => {
         return; 
     }
     // --- FİZİKSEL ARAÇ KONTROLÜ SONU ---
+
+    // Önceki taşıma durumunu sıfırla
+    isMoving = false;
+    if (selectedItem) {
+        selectedItem.isDragging = false;
+    }
+
+
 
     const pos = getEventPosition(e);
 
