@@ -1885,20 +1885,20 @@ canvas.addEventListener('touchstart', (e) => {
     const snapPos = snapTarget || pos;
     currentMousePos = pos; 
 
-    // 1. FİZİKSEL ARAÇ KONTROLÜ (Çakışma Önleyici)
+    // 1. FİZİKSEL ARAÇ KONTROLÜ (Mevcut kodunuz...)
     const isToolElementClicked = e.target.closest('.ruler-container, .gonye-container, .aciolcer-container, #compass-container');
     if (isToolElementClicked) return; 
 
-// 🔥 MOBİL ÖNCELİK: EĞER BİR RESMİN ÜZERİNE DOKUNULDUYSA TAŞIMAYA GEÇ
-    // Bu blok, araç 'snapshot' bile olsa resmin tutulmasını sağlar.
+    // 🔥 GÜNCELLENMİŞ MOBİL ÖNCELİK (PDF Korumalı)
     const hit = findHit(pos);
-    if (hit && hit.item.type === 'image') {
+    
+    // SADECE "isBackground" OLMAYAN (Yani sizin kestiğiniz kopya) resimler için otomatik taşımaya geç
+    if (hit && hit.item.type === 'image' && !hit.item.isBackground) {
         isMoving = true; 
         selectedItem = hit.item; 
         selectedPointKey = hit.pointKey; 
         dragStartPos = pos; 
         
-        // Koordinatları hazırla (Zıplama yapmaması için)
         originalStartPos = { 
             x: hit.item.x, 
             y: hit.item.y, 
@@ -1907,20 +1907,20 @@ canvas.addEventListener('touchstart', (e) => {
             height: hit.item.height 
         };
 
-        setActiveTool('move'); // Aracı otomatik 'Taşı' yap
+        setActiveTool('move'); // Sadece küçük kopya resimse taşıyı aktif yap
         redrawAllStrokes();
-        return; // ⭐️ ÖNEMLİ: Resim tutulduğu için alttaki snapshot kutu çizimine GEÇME!
+        return; // İşlem bitti, aşağıya (snapshot'a) uğrama
     }
 
-
-   // 2. YÜKSEK ÖNCELİK: CANLANDIRMA BAŞLANGICI
+    // 🚀 2. CANLANDIRMA (SNAPSHOT) BAŞLANGICI
+    // Eğer parmağınız boşluğa veya PDF'e (arka plana) değdiyse buraya gelir
     if (currentTool === 'snapshot') {
         isDrawing = false;
         isMoving = false;
         isPinching = false;
         
-        // 🔥 KRİTİK: snapPos veya snapTarget ASLA kullanma! 
-        // Sadece parmağın o anki ham konumunu (pos) al.
+        // KRİTİK: snapPos kullanma! snapPos mıknatıs gibi sayfa köşesine zıplatır.
+        // Doğrudan parmağının değdiği ham noktayı (pos) al.
         snapshotStart = { x: pos.x, y: pos.y }; 
         
         return; 
