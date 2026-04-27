@@ -331,7 +331,7 @@ function redrawAllStrokes() {
             ctx.drawImage(stroke.img, -stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
             
             // Eğer "Taşı" aracı seçiliyse etrafına kutu ve kulpları çiz
-            if ((currentTool === 'move' && selectedItem === stroke) || stroke.isDragging) {
+            if (currentTool === 'move' && selectedItem === stroke) {
                 // 1. Kesikli Çerçeve
                 ctx.strokeStyle = '#00FFCC';
                 ctx.lineWidth = 2;
