@@ -921,5 +921,5 @@ body.cursor-snapshot {
 }
 
 #drawing-canvas {
-    touch-action: none; /* Tarayıcının 'ben burayı kaydırırım' demesini engeller */
+    touch-action: none !important;
 }
