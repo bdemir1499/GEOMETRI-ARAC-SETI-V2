@@ -1919,9 +1919,9 @@ canvas.addEventListener('touchstart', (e) => {
         isMoving = false;
         isPinching = false;
         
-        // KRİTİK DÜZELTME: snapPos yerine doğrudan parmak ucu (pos) kullanıyoruz!
-        // snapPos bazen ekranın köşesine zıpladığı için alanı kocaman yapıyordu.
-        snapshotStart = pos; 
+        // 🔥 KRİTİK: snapPos veya snapTarget ASLA kullanma! 
+        // Sadece parmağın o anki ham konumunu (pos) al.
+        snapshotStart = { x: pos.x, y: pos.y }; 
         
         return; 
     }
@@ -2110,11 +2110,11 @@ canvas.addEventListener('touchmove', (e) => {
         return;
     }
 
-    // 4. CANLANDIRMA (SNAPSHOT) ÖNİZLEMESİ (DOKUNMATİK) - GÜNCELLENDİ
+   // 4. CANLANDIRMA (SNAPSHOT) ÖNİZLEMESİ
     else if (currentTool === 'snapshot' && snapshotStart) {
         redrawAllStrokes(); 
-        
-        // KRİTİK: Tablette zıplama olmaması için ham 'pos' kullanıyoruz
+
+        // 🔥 snapTarget'ı tamamen görmezden gel, sadece parmağı izle
         const w = pos.x - snapshotStart.x;
         const h = pos.y - snapshotStart.y;
         
@@ -2124,6 +2124,7 @@ canvas.addEventListener('touchmove', (e) => {
         ctx.lineWidth = 2;
         ctx.strokeRect(snapshotStart.x, snapshotStart.y, w, h); 
         ctx.restore();
+        
         return; 
     }
 

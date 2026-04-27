@@ -919,3 +919,7 @@ body.cursor-snapshot {
     /* Mobilde dokunma alanını genişletmek için (görünmez padding) */
     padding: 10px !important; 
 }
+
+#drawing-canvas {
+    touch-action: none; /* Tarayıcının 'ben burayı kaydırırım' demesini engeller */
+}
