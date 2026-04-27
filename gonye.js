@@ -1,4 +1,4 @@
-// --- gonye.js (Evrensel Pointer ile Zıplamayan Versiyon) ---
+// --- gonye.js (Zıplama Engelleyici Dondurulmuş Referans Sürümü) ---
 
 window.GonyeTool = {
     gonyeElement: null,
@@ -22,6 +22,7 @@ window.GonyeTool = {
     interactionMode: 'none', 
     startPos: { x: 0, y: 0 },
     startState: {}, 
+    activeRect: null, // Kanvas konumunu dondurmak için
     
     PIXELS_PER_CM: 30, 
     isDrawingLine: false,
@@ -45,45 +46,34 @@ window.GonyeTool = {
         
         // Köşe Etiketleri
         const labelA = document.createElement('div');
-        labelA.className = 'gonye-corner-label';
-        labelA.id = 'gonye-label-a';
-        labelA.innerText = 'A';
+        labelA.className = 'gonye-corner-label'; labelA.id = 'gonye-label-a'; labelA.innerText = 'A';
         this.markingsElement.appendChild(labelA);
         
         const labelB = document.createElement('div');
-        labelB.className = 'gonye-corner-label';
-        labelB.id = 'gonye-label-b';
-        labelB.innerText = 'B';
+        labelB.className = 'gonye-corner-label'; labelB.id = 'gonye-label-b'; labelB.innerText = 'B';
         this.markingsElement.appendChild(labelB);
         
         const labelC = document.createElement('div');
-        labelC.className = 'gonye-corner-label';
-        labelC.id = 'gonye-label-c';
-        labelC.innerText = 'C';
+        labelC.className = 'gonye-corner-label'; labelC.id = 'gonye-label-c'; labelC.innerText = 'C';
         this.markingsElement.appendChild(labelC);
 
-        // Döndürme Butonu
         const rotateA = document.createElement('div');
         rotateA.className = 'gonye-rotate-handle';
         this.gonyeElement.appendChild(rotateA);
         
-        // Çizim Tutamacı
         this.drawHandleElement = document.createElement('div');
         this.drawHandleElement.className = 'gonye-draw-handle';
         this.gonyeElement.appendChild(this.drawHandleElement);
 
-        // Çizim Etiketi
         this.drawHandleLabel = document.createElement('div');
         this.drawHandleLabel.className = 'gonye-draw-label';
         this.drawHandleLabel.innerText = '0,0 cm';
         this.drawHandleElement.appendChild(this.drawHandleLabel);
         
-        // Boyutlandırma Tutamacı
         this.resizeHandle = document.createElement('div');
         this.resizeHandle.className = 'gonye-resize-handle';
         this.gonyeElement.appendChild(this.resizeHandle);
         
-        // Çizim Alanı
         this.drawCanvas = document.createElement('canvas');
         this.drawCanvas.style.position = 'absolute';
         this.drawCanvas.style.top = '0';
@@ -96,7 +86,6 @@ window.GonyeTool = {
         this.gonyeElement.style.display = 'none';
         
         this.addListeners();
-        
         this.updateTransform();
         this.updateMarkings();
         this.updateDrawCanvasSize();
@@ -127,15 +116,12 @@ window.GonyeTool = {
     updateTransform: function() {
         if (!this.gonyeElement) return; 
         const { x, y, width, height, angle } = this.state;
-        
         this.gonyeElement.style.left = `${x}px`;
         this.gonyeElement.style.top = `${y}px`;
         this.gonyeElement.style.width = `${width}px`;
         this.gonyeElement.style.height = `${height}px`;
-        
         this.gonyeElement.style.transformOrigin = 'center center';
         this.gonyeElement.style.transform = `rotate(${angle}deg)`;
-            
         this.updateDrawCanvasSize();
     },
     
@@ -145,7 +131,6 @@ window.GonyeTool = {
         this.drawCanvas.height = this.state.height;
     },
 
-    // --- 2. EVRENSEL POINTER OLAYLARI (Zıplama Çözümü) ---
     addListeners: function() {
         const body = this.bodyElement;
         const rotateA = this.gonyeElement.querySelector('.gonye-rotate-handle');
@@ -154,7 +139,6 @@ window.GonyeTool = {
 
         const handlePointerDown = this.onPointerDown.bind(this);
 
-        // Mousedown/Touchstart silindi, Pointer bağlandı
         body.addEventListener('pointerdown', handlePointerDown);
         rotateA.addEventListener('pointerdown', handlePointerDown);
         drawHandle.addEventListener('pointerdown', handlePointerDown);
@@ -165,21 +149,22 @@ window.GonyeTool = {
         window.addEventListener('pointercancel', this.onPointerUp.bind(this));
     },
 
-    // Temiz koordinat okuyucu
     getPointerPos: function(e) {
         return { x: e.clientX, y: e.clientY };
     },
 
-    // DOKUNMA/TIKLAMA BAŞLANGICI
+    // --- 2. DOKUNMA BAŞLANGICI (BURADA REFERANSI DONDURUYORUZ) ---
     onPointerDown: function(e) {
         if (e.pointerType === 'touch') e.preventDefault(); 
         e.stopPropagation();
+
+        // ZIPLAMAYI BİTİREN KRİTİK ADIM: Kanvas konumunu dondur
+        const mainCanvas = document.getElementById('drawing-canvas');
+        this.activeRect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
         
         if (window.bringToolToFront) window.bringToolToFront(this.gonyeElement); 
         
         const target = e.target;
-
-        // KRİTİK: Zıplamayı engelleyen ve hedefi parmağa kilitleyen kod
         target.setPointerCapture(e.pointerId);
 
         this.startPos = this.getPointerPos(e);
@@ -219,10 +204,9 @@ window.GonyeTool = {
         }
     },
 
-    // HAREKET ETTİRME
     onPointerMove: function(e) {
         if (this.interactionMode === 'none') return;
-        if (!e.isPrimary) return; // İkinci parmak sapmalarını önle
+        if (!e.isPrimary) return; 
         
         const currentPos = this.getPointerPos(e);
         const dx = currentPos.x - this.startPos.x;
@@ -239,16 +223,14 @@ window.GonyeTool = {
                 this.handleResize(dx, dy);
                 break;
             case 'drawing':
-                this.handleDraw(currentPos); // Olay yerine temiz koordinatı gönder
+                this.handleDraw(currentPos);
                 break;
         }
     },
 
-    // BIRAKMA / BİTİRME
     onPointerUp: function(e) {
         if (this.interactionMode === 'none') return;
 
-        // Kilidi güvenle kaldır
         if (e.target && e.target.releasePointerCapture) {
              try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
         }
@@ -262,24 +244,18 @@ window.GonyeTool = {
                 window.audio_draw.pause();
                 window.audio_draw.currentTime = 0;
             }
-            
             this.finalizeDraw();
-            
             this.drawHandleLabel.style.display = 'none';
-            
             if(this.drawHandleElement) { 
                 this.drawHandleElement.style.transition = 'top 0.05s ease-out';
                 this.drawHandleElement.style.top = `${this.state.height - 20}px`; 
-                
                 this.isDrawingLine = false;
                 this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
             }
         }
-        
         this.interactionMode = 'none';
     },
 
-    // --- 3. MANTIK FONKSİYONLARI ---
     handleDrag: function(dx, dy) {
         this.state.x = this.startState.x + dx;
         this.state.y = this.startState.y + dy;
@@ -288,12 +264,9 @@ window.GonyeTool = {
 
     handleRotate: function(currentPos) {
         const center = { x: this.startState.centerX, y: this.startState.centerY };
-        
         const startAngle = Math.atan2(this.startPos.y - center.y, this.startPos.x - center.x);
         const currentAngle = Math.atan2(currentPos.y - center.y, currentPos.x - center.x);
-        
         const angleDiff = currentAngle - startAngle; 
-        
         this.state.angle = this.startState.angle + (angleDiff * 180 / Math.PI);
         this.updateTransform();
     },
@@ -302,20 +275,14 @@ window.GonyeTool = {
         const angleRad = this.state.angle * (Math.PI / 180);
         const cosAngle = Math.cos(angleRad);
         const sinAngle = Math.sin(angleRad);
-        
         const projectedDelta = (dx * cosAngle) + (dy * sinAngle);
-
         let newWidth = this.startState.width + projectedDelta;
         if (newWidth < 100) newWidth = 100;
-        
         const newHeight = newWidth * 1.732;
-        
         this.state.width = newWidth;
         this.state.height = newHeight;
-        
         this.updateTransform();
         this.updateMarkings();
-        
         if (this.drawHandleElement) {
             this.drawHandleElement.style.top = `${newHeight - 20}px`;
             this.state.currentHandleY = newHeight - 20;
@@ -329,57 +296,35 @@ window.GonyeTool = {
         const height = this.state.height;
         const cmCount = Math.floor(height / this.PIXELS_PER_CM);
         
-        const labelA = document.createElement('div');
-        labelA.className = 'gonye-corner-label';
-        labelA.id = 'gonye-label-a';
-        labelA.innerText = 'A';
-        this.markingsElement.appendChild(labelA);
-        
-        const labelB = document.createElement('div');
-        labelB.className = 'gonye-corner-label';
-        labelB.id = 'gonye-label-b';
-        labelB.innerText = 'B';
-        this.markingsElement.appendChild(labelB);
-        
-        const labelC = document.createElement('div');
-        labelC.className = 'gonye-corner-label';
-        labelC.id = 'gonye-label-c';
-        labelC.innerText = 'C';
-        this.markingsElement.appendChild(labelC);
+        const labels = ['a', 'b', 'c'];
+        labels.forEach(l => {
+            const label = document.createElement('div');
+            label.className = 'gonye-corner-label'; label.id = `gonye-label-${l}`; label.innerText = l.toUpperCase();
+            this.markingsElement.appendChild(label);
+        });
         
         const zeroLabel = document.createElement('div');
-        zeroLabel.className = 'gonye-label';
-        zeroLabel.style.top = `${height}px`; 
-        zeroLabel.innerText = '0';
+        zeroLabel.className = 'gonye-label'; zeroLabel.style.top = `${height}px`; zeroLabel.innerText = '0';
         this.markingsElement.appendChild(zeroLabel);
 
         for (let cm = 1; cm <= cmCount; cm++) {
             const yPos = height - (cm * this.PIXELS_PER_CM);
-            
             const tickL = document.createElement('div');
-            tickL.className = 'gonye-tick large';
-            tickL.style.top = `${yPos}px`;
+            tickL.className = 'gonye-tick large'; tickL.style.top = `${yPos}px`;
             this.markingsElement.appendChild(tickL);
-            
             const label = document.createElement('div');
-            label.className = 'gonye-label';
-            label.style.top = `${yPos}px`;
-            label.innerText = cm;
+            label.className = 'gonye-label'; label.style.top = `${yPos}px`; label.innerText = cm;
             this.markingsElement.appendChild(label);
-            
             if (this.PIXELS_PER_CM > 20) {
                  const tickM = document.createElement('div');
-                 tickM.className = 'gonye-tick medium';
-                 tickM.style.top = `${yPos + this.PIXELS_PER_CM / 2}px`;
+                 tickM.className = 'gonye-tick medium'; tickM.style.top = `${yPos + this.PIXELS_PER_CM / 2}px`;
                  this.markingsElement.appendChild(tickM);
             }
         }
-        
         this.drawHandleElement.style.top = `${height - 20}px`; 
     },
 
     handleDraw: function(pos) {
-        // Parametre olarak artık 'e' değil, 'pos' (temiz koordinat) geliyor
         const centerX = this.state.x + (this.state.width / 2);
         const centerY = this.state.y + (this.state.height / 2);
         const relativeX_to_center = pos.x - centerX;
@@ -390,20 +335,14 @@ window.GonyeTool = {
         const localY_from_center = (relativeX_to_center * sinAngle) + (relativeY_to_center * cosAngle);
         const localY_from_top = localY_from_center + (this.state.height / 2);
         let handleY = Math.max(0, Math.min(this.state.height - 20, localY_from_top)); 
-        
         this.state.currentHandleY = handleY; 
-        
         this.drawHandleElement.style.transition = 'none'; 
         this.drawHandleElement.style.top = `${handleY}px`;
-        
         const startY_local = this.state.height;
         const endY_local = handleY + 10; 
-        
         const lengthPx = Math.abs(startY_local - endY_local);
         const cm = (lengthPx / this.PIXELS_PER_CM).toFixed(1).replace('.', ',');
-        
         this.drawHandleLabel.innerText = `${cm} cm`;
-        
         this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
         this.drawCtx.beginPath();
         this.drawCtx.moveTo(4, this.state.height); 
@@ -413,20 +352,16 @@ window.GonyeTool = {
         this.drawCtx.stroke();
     },
 
-   finalizeDraw: function() {
+    // --- 3. FİNAL ÇİZİM (DONDURULMUŞ REFERANSI KULLANAN KISIM) ---
+    finalizeDraw: function() {
         const handleY = this.state.currentHandleY || 0; 
-        
-        const startX_local = 4; 
-        const startY_local = this.state.height; 
-        const endX_local = 4;
-        const endY_local = handleY + 10; 
+        const startX_local = 4; const startY_local = this.state.height; 
+        const endX_local = 4; const endY_local = handleY + 10; 
 
         if (Math.abs(startY_local - endY_local) < 1) return; 
 
         const angleRad = this.state.angle * (Math.PI / 180);
-        const cosAngle = Math.cos(angleRad);
-        const sinAngle = Math.sin(angleRad);
-        
+        const cosAngle = Math.cos(angleRad); const sinAngle = Math.sin(angleRad);
         const centerX = this.state.x + (this.state.width / 2);
         const centerY = this.state.y + (this.state.height / 2);
 
@@ -440,44 +375,22 @@ window.GonyeTool = {
         const p2_rotated_x = e_rel_center_x * cosAngle - e_rel_center_y * sinAngle;
         const p2_rotated_y = e_rel_center_x * sinAngle + e_rel_center_y * cosAngle;
 
-        // --- ANA KANVAS OFSETİNİ HESAPLA (ZIPLAMAYI BİTİREN KOD) ---
-        const mainCanvas = document.querySelector('canvas');
-        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
+        // ZIPLAMAYI BİTİREN KOD: PointerDown'da dondurulan rect'i kullan
+        const rect = this.activeRect || { left: 0, top: 0 };
 
-        const p1 = { 
-            x: p1_rotated_x + centerX - rect.left, 
-            y: p1_rotated_y + centerY - rect.top 
-        };
-        const p2 = { 
-            x: p2_rotated_x + centerX - rect.left, 
-            y: p2_rotated_y + centerY - rect.top 
-        };
-        // -------------------------------------------------------------
+        const p1 = { x: p1_rotated_x + centerX - rect.left, y: p1_rotated_y + centerY - rect.top };
+        const p2 = { x: p2_rotated_x + centerX - rect.left, y: p2_rotated_y + centerY - rect.top };
         
-        const lengthPx = window.distance(p1, p2);
+        const lengthPx = window.distance ? window.distance(p1, p2) : Math.sqrt(Math.pow(p2.x-p1.x, 2) + Math.pow(p2.y-p1.y, 2));
         const cmText = (lengthPx / this.PIXELS_PER_CM).toFixed(1).replace('.', ',') + " cm";
-
-        const midPoint = { 
-            x: (p1.x + p2.x) / 2, 
-            y: (p1.y + p2.y) / 2 
-        };
+        const midPoint = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
         
         if (window.drawnStrokes && window.redrawAllStrokes) {
-            const label1 = window.nextPointChar;
-            window.nextPointChar = window.advanceChar(label1);
-            const label2 = window.nextPointChar;
-            window.nextPointChar = window.advanceChar(label2);
-            
+            const label1 = window.nextPointChar; window.nextPointChar = window.advanceChar(label1);
+            const label2 = window.nextPointChar; window.nextPointChar = window.advanceChar(label2);
             window.drawnStrokes.push({
-                type: 'segment', 
-                p1: p1,
-                p2: p2,
-                color: window.isToolThemeBlack ? '#000000' : window.currentLineColor, 
-                width: 3,
-                label1: label1,
-                label2: label2,
-                lengthLabel: cmText,
-                lengthLabelPos: midPoint
+                type: 'segment', p1, p2, color: window.isToolThemeBlack ? '#000000' : window.currentLineColor, 
+                width: 3, label1, label2, lengthLabel: cmText, lengthLabelPos: midPoint
             });
             window.redrawAllStrokes(); 
         }

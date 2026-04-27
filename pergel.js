@@ -1,4 +1,4 @@
-// --- pergel.js (Evrensel Pointer ile Zıplamayan ve Takılmayan Versiyon) ---
+// --- pergel.js (Referans Dondurma ile Zıplamayan Nihai Sürüm) ---
 
 window.PergelTool = {
     // HTML Elementleri
@@ -36,6 +36,7 @@ window.PergelTool = {
     interactionMode: 'none', 
     startPos: { x: 0, y: 0 },
     startState: {},
+    activeRect: null, // Kanvas konumunu dondurmak için
 
     // --- 1. BAŞLATMA ---
     init: function() {
@@ -45,7 +46,6 @@ window.PergelTool = {
             return;
         }
 
-        // 1.1. Etkileşim Noktalarını Bul
         this.handleTop = this.pergelElement.querySelector(".handle-top");
         this.needleTip = this.pergelElement.querySelector(".needle-tip");
         this.penTip = this.pergelElement.querySelector(".pen-tip");
@@ -53,7 +53,6 @@ window.PergelTool = {
         this.leftLeg = this.pergelElement.querySelector(".left-leg");
         this.rightLeg = this.pergelElement.querySelector(".right-leg");
 
-        // TURUNCU BOYUTLANDIRMA BUTONU OLUŞTUR 
         this.scaleHandle = document.createElement('div');
         this.scaleHandle.className = 'pergel-scale-handle';
         this.pergelElement.appendChild(this.scaleHandle);
@@ -63,7 +62,6 @@ window.PergelTool = {
             return;
         }
 
-        // 1.2. Gerçek zamanlı 'cm' etiketini oluştur
         this.radiusLabel = document.createElement('div');
         this.radiusLabel.className = 'pergel-radius-label'; 
         this.radiusLabel.style.position = 'fixed';
@@ -76,7 +74,6 @@ window.PergelTool = {
         this.radiusLabel.style.zIndex = '1002';
         document.body.appendChild(this.radiusLabel);
 
-        // 1.3. Çizim Önizleme Kanvasını Oluştur
         this.previewCanvas = document.createElement('canvas');
         this.previewCanvas.className = 'pergel-preview-canvas';
         this.previewCanvas.style.position = 'fixed';
@@ -89,29 +86,19 @@ window.PergelTool = {
         this.previewCtx = this.previewCanvas.getContext('2d');
         this.previewCanvas.style.display = 'none'; 
 
-        // 1.4. Olay Dinleyicilerini Ekle
         this.addListeners();
-        // 1.5. CSS'i state'e göre ayarla
         this.updateTransform();
     },
 
     toggle: function() {
         if (!this.pergelElement) this.init();
         if (!this.pergelElement) return;
-
         const isHidden = this.pergelElement.classList.contains('hidden');
-        if (isHidden) {
-            this.show();
-        } else {
-            this.hide();
-        }
+        isHidden ? this.show() : this.hide();
     },
 
-    // --- 2. GÖSTER / GİZLE ---
     show: function() {
         if (!this.pergelElement) this.init();
-        if (!this.pergelElement) return;
-
         this.pergelElement.classList.remove('hidden');
         this.state.pivot = { x: window.innerWidth / 2 - 50, y: window.innerHeight / 2 };
         this.state.radius = 100;
@@ -125,56 +112,40 @@ window.PergelTool = {
         this.pergelElement.classList.add('hidden');
     },
     
-    // --- TEMİZ KOORDİNAT OKUYUCU ---
     getPointerPos: function(e) {
         return { x: e.clientX, y: e.clientY };
     },
 
-    // --- 3. EVRENSEL POINTER DİNLEYİCİLERİ ---
     addListeners: function() {
         const boundPointerDown = this.onPointerDown.bind(this);
+        const parts = [this.needleTip, this.leftLeg, this.rightLeg, this.penTip, this.penResizeHandle, this.handleTop, this.scaleHandle];
 
-        const parts = [
-            this.needleTip, 
-            this.leftLeg, 
-            this.rightLeg, 
-            this.penTip, 
-            this.penResizeHandle, 
-            this.handleTop,
-            this.scaleHandle 
-        ];
-
-        // Mousedown ve Touchstart silindi, Pointerdown eklendi
         parts.forEach(part => {
-            if (part) {
-                part.addEventListener('pointerdown', boundPointerDown);
-            }
+            if (part) part.addEventListener('pointerdown', boundPointerDown);
         });
         
-        // PC için Çift Tıklama (Ters Çevirme)
         if (this.handleTop) {
             this.handleTop.addEventListener('dblclick', this.onFlip.bind(this));
         }
 
-        // Window'a kalıcı olarak bağlıyoruz (Takılı kalma sorununu çözer)
         window.addEventListener('pointermove', this.onPointerMove.bind(this), { passive: false });
         window.addEventListener('pointerup', this.onPointerUp.bind(this), { passive: false });
         window.addEventListener('pointercancel', this.onPointerUp.bind(this));
     },
 
-    // DOKUNMA / TIKLAMA BAŞLANGICI
+    // --- 2. DOKUNMA BAŞLANGICI (REFERANSI DONDURUYORUZ) ---
     onPointerDown: function(e) {
         if (e.pointerType === 'touch') e.preventDefault(); 
         e.stopPropagation();
         
         const target = e.target;
 
-        // KRİTİK: Zıplama Kalkanı - Pergel parçasını parmağa kilitle
-        if (target.setPointerCapture) {
-            target.setPointerCapture(e.pointerId);
-        }
+        // ZIPLAMAYI BİTİREN KRİTİK ADIM: Kanvas konumunu parmağa dokunduğun an dondur
+        const mainCanvas = document.getElementById('drawing-canvas');
+        this.activeRect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
 
-        // Çift Dokunma (Mobil Ters Çevirme) Kontrolü
+        if (target.setPointerCapture) target.setPointerCapture(e.pointerId);
+
         if (target === this.handleTop) {
             const currentTime = new Date().getTime();
             const tapLength = currentTime - this.state.lastTapTime;
@@ -197,39 +168,31 @@ window.PergelTool = {
         this.startPos = this.getPointerPos(e);
         this.startState = JSON.parse(JSON.stringify(this.state)); 
 
-        // 1. TURUNCU BUTON (BÜYÜTME)
         if (target === this.scaleHandle) {
             this.interactionMode = 'scaling_tool'; 
             this.startState.width = this.pergelElement.offsetWidth;
             this.startState.height = this.pergelElement.offsetHeight;
         }
-        // 2. PEMBE BUTON (AYAKLARI AÇMA)
         else if (target === this.penResizeHandle) {
             this.interactionMode = 'resizing';
             if (this.radiusLabel) this.radiusLabel.style.display = 'block';
         } 
-        // 3. TEPE (ÇİZİM)
         else if (target === this.handleTop) { 
             if (window.audio_draw) window.audio_draw.play(); 
             this.interactionMode = 'drawing';
             this.state.isDrawing = true; 
-            
             const currPos = this.getPointerPos(e);
             const d_dx = currPos.x - this.state.pivot.x;
             const d_dy = currPos.y - this.state.pivot.y;
             const current_raw_angle = Math.atan2(d_dy, d_dx) * 180 / Math.PI;
-            
             this.state.startAngle = this.state.rotation; 
             this.state.previousDrawAngle = current_raw_angle;
-            
             if (this.previewCanvas) {
                 this.previewCanvas.style.display = 'block';
                 this.previewCanvas.width = window.innerWidth;
                 this.previewCanvas.height = window.innerHeight;
             }
-            if (this.previewCtx) this.previewCtx.lineDashOffset = 0;
         }
-        // 4. DİĞER PARÇALAR (TAŞIMA)
         else if (target === this.needleTip || target === this.penTip || target === this.leftLeg || target === this.rightLeg) {
             this.interactionMode = 'dragging';
             this.startState.containerX = parseFloat(this.pergelElement.style.left || 0);
@@ -237,43 +200,33 @@ window.PergelTool = {
         }
     },
 
-    // HAREKET ETTİRME
     onPointerMove: function(e) {
         if (this.interactionMode === 'none') return; 
-        if (!e.isPrimary) return; // İkinci parmağı engelle
+        if (!e.isPrimary) return; 
         
         const currPos = this.getPointerPos(e);
         const dx = currPos.x - this.startPos.x;
         const dy = currPos.y - this.startPos.y;
 
         switch (this.interactionMode) {
-            // 1. PERGELİ BÜYÜTME (TURUNCU BUTON)
             case 'scaling_tool':
                 let newHeight = this.startState.height - dy; 
                 if (newHeight < 200) newHeight = 200; 
-                
-                let newWidth = newHeight * 0.8;
-                
-                this.pergelElement.style.width = `${newWidth}px`;
+                this.pergelElement.style.width = `${newHeight * 0.8}px`;
                 this.pergelElement.style.height = `${newHeight}px`;
                 this.updateTransform(); 
                 break;
-
-            // 2. TAŞIMA
             case 'dragging':
                 this.state.pivot.x = this.startState.pivot.x + dx;
                 this.state.pivot.y = this.startState.pivot.y + dy;
                 this.pergelElement.style.left = `${this.startState.containerX + dx}px`;
                 this.pergelElement.style.top = `${this.startState.containerY + dy}px`;
                 break;
-
-            // 3. AYAKLARI AÇMA (PEMBE BUTON)
             case 'resizing':
                 const r_dx = currPos.x - this.state.pivot.x;
                 const r_dy = currPos.y - this.state.pivot.y;
                 this.state.radius = Math.sqrt(r_dx * r_dx + r_dy * r_dy);
                 this.state.rotation = Math.atan2(r_dy, r_dx) * 180 / Math.PI;
-                
                 if (this.radiusLabel) { 
                     this.radiusLabel.innerText = `${(this.state.radius / 30).toFixed(1)} cm`; 
                     this.radiusLabel.style.left = `${currPos.x + 15}px`;
@@ -281,152 +234,87 @@ window.PergelTool = {
                 }
                 this.updateTransform();
                 break;
-
-            // 4. ÇİZİM
             case 'drawing':
                 const d_dx = currPos.x - this.state.pivot.x;
                 const d_dy = currPos.y - this.state.pivot.y;
                 let current_raw_angle = Math.atan2(d_dy, d_dx) * 180 / Math.PI;
-                let previous_angle = this.state.previousDrawAngle; 
-                let accumulated_angle = this.state.rotation; 
-                
-                let delta = current_raw_angle - previous_angle;
-                if (delta > 180) { delta -= 360; } 
-                else if (delta < -180) { delta += 360; }
-                
-                accumulated_angle += delta;
-                this.state.rotation = accumulated_angle;
+                let delta = current_raw_angle - this.state.previousDrawAngle;
+                if (delta > 180) delta -= 360; 
+                else if (delta < -180) delta += 360;
+                this.state.rotation += delta;
                 this.state.previousDrawAngle = current_raw_angle; 
-                
                 this.updateTransform();
                 this.drawPreviewArc(); 
                 break;
         }
     },
 
-    // BIRAKMA VE BİTİRME
     onPointerUp: function(e) {
         if (this.interactionMode === 'none') return;
-
-        // Kiliti Kaldır
         if (e.target && e.target.releasePointerCapture) {
              try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
         }
-
         if (this.interactionMode === 'drawing') {
-            if (window.audio_draw) {
-                window.audio_draw.pause();
-                window.audio_draw.currentTime = 0;
-            }
-
-            // Çizimi Kalıcı Olarak Kaydet
+            if (window.audio_draw) { window.audio_draw.pause(); window.audio_draw.currentTime = 0; }
             this.finalizeDraw();
-            
             this.state.isDrawing = false;
-            
-            // Görsel Temizliği Geciktir
             setTimeout(() => {
                 if (this.previewCanvas) this.previewCanvas.style.display = 'none';
                 if (this.previewCtx) this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
             }, 50); 
         }
-        if (this.interactionMode === 'resizing') {
-            if (this.radiusLabel) this.radiusLabel.style.display = 'none';
-        }
-        
+        if (this.interactionMode === 'resizing') if (this.radiusLabel) this.radiusLabel.style.display = 'none';
         this.interactionMode = 'none';
     },
 
-    // TERS ÇEVİRME
     onFlip: function(e) {
         if (e) { e.preventDefault(); e.stopPropagation(); }
-
         this.state.isDrawing = false;
         this.interactionMode = 'none';
-        
-        if (window.audio_draw) {
-            window.audio_draw.pause();
-            window.audio_draw.currentTime = 0;
-        }
-        
-        if (this.previewCtx && this.previewCanvas) {
-            this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
-            this.previewCanvas.style.display = 'none';
-        }
-        
-        this.state.startDrawAngle = 0;
-        this.state.previousDrawAngle = 0;
-
+        if (window.audio_draw) { window.audio_draw.pause(); window.audio_draw.currentTime = 0; }
+        if (this.previewCtx) this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
         this.state.isFlipped = !this.state.isFlipped;
-
         if (this.state.isFlipped) {
-            this.leftLeg.appendChild(this.penTip);
-            this.leftLeg.appendChild(this.penResizeHandle);
+            this.leftLeg.appendChild(this.penTip); this.leftLeg.appendChild(this.penResizeHandle);
             this.rightLeg.appendChild(this.needleTip);
         } else {
             this.leftLeg.appendChild(this.needleTip);
-            this.rightLeg.appendChild(this.penTip);
-            this.rightLeg.appendChild(this.penResizeHandle);
+            this.rightLeg.appendChild(this.penTip); this.rightLeg.appendChild(this.penResizeHandle);
         }
-
         const PI_RAD = Math.PI / 180;
         const oldPen = {
             x: this.state.pivot.x + this.state.radius * Math.cos(this.state.rotation * PI_RAD),
             y: this.state.pivot.y + this.state.radius * Math.sin(this.state.rotation * PI_RAD)
         };
-
         this.state.pivot = oldPen; 
         this.state.rotation = (this.state.rotation + 180) % 360; 
-
         this.state.previousDrawAngle = this.state.rotation;
         this.state.startAngle = this.state.rotation;
-
         this.updateTransform();
     },
 
-    // --- 5. GÖRSEL GÜNCELLEME ---
     updateTransform: function() {
         if (!this.pergelElement) return;
-
         const PI_RAD = Math.PI / 180;
         const pivot = this.state.pivot;
-        
         const containerHeight = this.pergelElement.offsetHeight;
         const L = containerHeight * 0.8; 
-
         const pen = {
             x: pivot.x + this.state.radius * Math.cos(this.state.rotation * PI_RAD),
             y: pivot.y + this.state.radius * Math.sin(this.state.rotation * PI_RAD)
         };
-
         let R = this.state.radius;
-        if (R > L * 2) {
-             R = L * 2; 
-             this.state.radius = R;
-        }
+        if (R > L * 2) { R = L * 2; this.state.radius = R; }
         const h = Math.sqrt(Math.max(0, L * L - (R / 2) * (R / 2)));
         const M = { x: (pivot.x + pen.x) / 2, y: (pivot.y + pen.y) / 2 };
         const v_dx = (R === 0) ? 0 : (pen.x - pivot.x) / R;
         const v_dy = (R === 0) ? 0 : (pen.y - pivot.y) / R;
-        
-        let v_perp_x = v_dy;
-        let v_perp_y = -v_dx;
-
-        if (v_dx < 0) {
-            v_perp_x = -v_perp_x;
-            v_perp_y = -v_perp_y;
-        }
-        
-        const joint = {
-            x: M.x + v_perp_x * h,
-            y: M.y + v_perp_y * h
-        };
-
+        let v_perp_x = v_dy; let v_perp_y = -v_dx;
+        if (v_dx < 0) { v_perp_x = -v_perp_x; v_perp_y = -v_perp_y; }
+        const joint = { x: M.x + v_perp_x * h, y: M.y + v_perp_y * h };
         const angleToPivotRad = Math.atan2(pivot.y - joint.y, pivot.x - joint.x);
         const angleToPenRad = Math.atan2(pen.y - joint.y, pen.x - joint.x);
-        
         let cssAngleLeft, cssAngleRight;
-
         if (this.state.isFlipped) {
             cssAngleLeft = angleToPenRad * (180 / Math.PI) - 90;
             cssAngleRight = angleToPivotRad * (180 / Math.PI) - 90;
@@ -434,51 +322,27 @@ window.PergelTool = {
             cssAngleLeft = angleToPivotRad * (180 / Math.PI) - 90;
             cssAngleRight = angleToPenRad * (180 / Math.PI) - 90;
         }
-
         this.pergelElement.style.setProperty('--angle-left', `${cssAngleLeft}deg`);
         this.pergelElement.style.setProperty('--angle-right', `${cssAngleRight}deg`);
-
-        const containerWidth = this.pergelElement.offsetWidth;
-        
-        const jointOffsetX = containerWidth / 2;
-        const jointOffsetY = containerHeight * this.JOINT_OFFSET_Y_PERCENT; 
-        const containerX = joint.x - jointOffsetX;
-        const containerY = joint.y - jointOffsetY;
-
-        this.pergelElement.style.left = `${containerX}px`;
-        this.pergelElement.style.top = `${containerY}px`;
+        this.pergelElement.style.left = `${joint.x - (this.pergelElement.offsetWidth / 2)}px`;
+        this.pergelElement.style.top = `${joint.y - (containerHeight * this.JOINT_OFFSET_Y_PERCENT)}px`;
         this.pergelElement.style.transform = 'none'; 
     },
     
-    // --- 6. ÇİZİM ---
     drawPreviewArc: function() {
         if (!this.previewCtx) return; 
-        
         this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
-        this.previewCtx.lineDashOffset = (this.previewCtx.lineDashOffset - 0.5) % 16;
-        
         this.previewCtx.beginPath();
-        this.previewCtx.arc(
-            this.state.pivot.x,
-            this.state.pivot.y,
-            this.state.radius,
-            this.state.startAngle * (Math.PI / 180), 
-            this.state.rotation * (Math.PI / 180), 
-            false 
-        );
-        this.previewCtx.strokeStyle = "rgba(255, 0, 255, 0.7)"; 
-        this.previewCtx.lineWidth = 3;
-        this.previewCtx.setLineDash([5, 5]);
-        this.previewCtx.stroke();
-        this.previewCtx.setLineDash([]);
+        this.previewCtx.arc(this.state.pivot.x, this.state.pivot.y, this.state.radius, this.state.startAngle * (Math.PI / 180), this.state.rotation * (Math.PI / 180), false);
+        this.previewCtx.strokeStyle = "rgba(255, 0, 255, 0.7)"; this.previewCtx.lineWidth = 3; this.previewCtx.stroke();
     },
     
+    // --- 3. FİNAL ÇİZİM (DONDURULMUŞ REFERANSI KULLANAN KISIM) ---
     finalizeDraw: function() {
         if (!this.state.isDrawing) return;
 
-        // 1. ANA KANVASIN KONUMUNU AL
-        const mainCanvas = document.getElementById('drawing-canvas');
-        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
+        // ZIPLAMAYI BİTİREN KOD: PointerDown'da dondurulan rect'i kullan
+        const rect = this.activeRect || { left: 0, top: 0 };
 
         if (window.drawnStrokes && window.redrawAllStrokes) {
             const centerLabel = window.nextPointChar;
@@ -486,7 +350,7 @@ window.PergelTool = {
 
             window.drawnStrokes.push({
                 type: 'arc',
-                // BURASI KRİTİK: startState içindeki pivot koordinatından rect değerlerini çıkarıyoruz
+                // Dondurulmuş rect ile koordinatları mılıyoruz
                 cx: this.startState.pivot.x - rect.left, 
                 cy: this.startState.pivot.y - rect.top, 
                 radius: this.state.radius,
@@ -496,7 +360,6 @@ window.PergelTool = {
                 width: 3,
                 label: centerLabel 
             });
-            
             window.redrawAllStrokes(); 
         }
     }

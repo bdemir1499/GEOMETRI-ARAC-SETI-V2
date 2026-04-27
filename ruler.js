@@ -170,6 +170,11 @@ window.RulerTool = {
         if (e.pointerType === 'touch') e.preventDefault(); 
         e.stopPropagation();
 
+        // --- YENİ: ZIPLAMAYI BİTİREN REFERANS DONDURMA ---
+        const mainCanvas = document.getElementById('drawing-canvas');
+        this.activeRect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
+        // ------------------------------------------------
+
         // Aracı öne getir
         if (window.bringToolToFront) {
              window.bringToolToFront(this.rulerElement); 
@@ -433,7 +438,7 @@ window.RulerTool = {
 
         // --- ANA KANVAS OFSETİNİ HESAPLA (ZIPLAMAYI BİTİREN KOD) ---
         const mainCanvas = document.querySelector('canvas');
-        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
+        const rect = this.activeRect || { left: 0, top: 0 };
 
         const p1 = { 
             x: p1_rotated_x + centerX - rect.left, 
