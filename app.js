@@ -560,6 +560,36 @@ function clearAllStrokes() {
     redrawAllStrokes();
 }
 
+function startDrag(e) {
+    e.preventDefault();
+    // Eğer bir öğe seçiliyse onu kaybetme
+    if (selectedItem) {
+        selectedItem.isDragging = true;
+    }
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('touchmove', onDrag);
+    document.addEventListener('touchend', endDrag);
+}
+
+function onDrag(e) {
+    if (selectedItem && selectedItem.isDragging) {
+        // Burada sürükleme mantığını uygula
+        // Örneğin: selectedItem.x = e.clientX; selectedItem.y = e.clientY;
+        redrawAllStrokes();
+    }
+}
+
+function endDrag(e) {
+    if (selectedItem) {
+        selectedItem.isDragging = false;
+    }
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('mouseup', endDrag);
+    document.removeEventListener('touchmove', onDrag);
+    document.removeEventListener('touchend', endDrag);
+}
+
 
 
 
@@ -2422,6 +2452,10 @@ canvas.addEventListener('touchend', (e) => {
                 };
                 
                 drawnStrokes.push(newObj);
+
+attachDragEvents(newObj);   // PC’de sürükleme için gerekli
+selectedItem = newObj;      // Yeni parçayı seçili yap
+
 
                 // OTOMATİK TAŞIMA MODUNA GEÇ
                 snapshotStart = null;
