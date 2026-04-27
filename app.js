@@ -2564,11 +2564,13 @@ if (isPinching) {
         return;
     }
 
-    // 2. Silgi Temizle
+    // app.js içindeki touchend bloğunda burayı bul:
 
+// 2. Silgi Temizle
 if (currentTool === 'eraser') {
     isDrawing = false; 
-    setActiveTool('none'); // <-- SORUNLU SATIR BURASI! Bunu sil.
+    // setActiveTool('none');  <-- BU SATIR BURADAYSA MUTLAKA SİL!
+    // redrawAllStrokes(); // Gerekirse ekranda son bir temizlik için kalabilir
     return; 
 }
 
