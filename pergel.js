@@ -250,6 +250,7 @@ window.PergelTool = {
     },
 
     // --- BIRAKMA VE BİTİRME (ZIPLAMA VE TİTREME SAVAR) ---
+    // --- BIRAKMA VE BİTİRME (ZIPLAMA VE TİTREME SAVAR) ---
     onPointerUp: function(e) {
         if (this.interactionMode === 'none') return;
 
