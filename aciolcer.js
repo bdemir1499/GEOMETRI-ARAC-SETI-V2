@@ -274,7 +274,7 @@ window.AciolcerTool = {
     onPointerUp: function(e) {
         if (this.interactionMode === 'none') return;
 
-        // 1. Kilidi kaldır
+        // 1. Kilidi kaldır (Parmağı serbest bırak)
         if (e.target && e.target.releasePointerCapture) {
              try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
         }
@@ -287,13 +287,12 @@ window.AciolcerTool = {
             }
 
             // --- SON POZİSYON GÜVENLİĞİ ---
-            // finalizeDraw fonksiyonuna girdiğimizde, fonksiyon zaten en son 
-            // 'handleDraw' (pointermove) aşamasında hesaplanıp kaydedilen 
-            // 'this.state.currentDrawAngleLocal' değerini kullanacaktır.
-            // Parmağınız kalkarken oluşan titreme böylece görmezden gelinir.
+            // finalizeDraw'ı çağırıyoruz. Bu fonksiyon asla 'e.clientX' okumaz,
+            // sadece 'handleDraw' (pointermove) anında kaydedilen 'this.state.currentDrawAngleLocal'
+            // değerini kullanır. Titreme böylece sisteme sızamaz.
             this.finalizeDraw(); 
             
-            // finalizeDraw bittikten sonra çizim flag'ini kapatıyoruz
+            // finalizeDraw bittikten sonra çizim durumunu kapatıyoruz
             this.state.isDrawing = false;
             
             // Görsel temizlik
@@ -303,9 +302,9 @@ window.AciolcerTool = {
 
             setTimeout(() => {
                 this.previewCanvas.style.display = 'none'; 
-                this.redLine.style.transition = 'transform 0.05s ease-out';
+                this.redLine.style.transition = 'transform 0.1s ease-out';
                 this.redLine.style.transform = 'rotate(0deg)';
-                this.drawHandle.style.transition = 'transform 0.05s ease-out';
+                this.drawHandle.style.transition = 'transform 0.1s ease-out';
                 this.drawHandle.style.transform = 'translateX(-50%)'; 
                 this.drawHandleLabel.style.display = 'none';
             }, 50); 
@@ -346,20 +345,30 @@ window.AciolcerTool = {
         this.redLine.style.transform = `rotate(${-localAngleDeg}deg)`;
     },
 
-    // --- 3. FİNAL ÇİZİM (DONDURULMUŞ REFERANSI KULLANAN KISIM) ---
     finalizeDraw: function() {
         if (!this.state.isDrawing) return;
-        if (this.state.currentDrawAngleLocal < 0.1 && !this.state.hasDragged) return;
+        // Eğer çok küçük bir hareketse veya hiç sürüklenmemişse ışını çizme
+        if (Math.abs(this.state.currentDrawAngleLocal) < 0.1 && !this.state.hasDragged) return;
 
-        const cx = this.state.x; const cy = this.state.y;
+        const cx = this.state.x; 
+        const cy = this.state.y;
         const localAngleDeg = this.state.currentDrawAngleLocal;
         const globalAngleRad = ((360 - localAngleDeg) + this.state.angle) * Math.PI / 180;
 
-        // ZIPLAMAYI BİTİREN KOD: PointerDown'da dondurulan rect'i kullan
+        // --- ZIPLAMAYI BİTİREN KRİTİK KOORDİNAT HESABI ---
+        // 'pointerdown' anında dondurulan (this.activeRect) referansını kullanıyoruz.
+        // Bu çıkarma işlemi açıölçer HTML olduğu için ZORUNLUDUR.
         const rect = this.activeRect || { left: 0, top: 0 };
 
-        const p1 = { x: cx - rect.left, y: cy - rect.top };
-        const p2 = { x: p1.x + Math.cos(globalAngleRad) * 1000, y: p1.y + Math.sin(globalAngleRad) * 1000 };
+        const p1 = { 
+            x: cx - rect.left, 
+            y: cy - rect.top 
+        };
+        const p2 = { 
+            x: p1.x + Math.cos(globalAngleRad) * 1000, 
+            y: p1.y + Math.sin(globalAngleRad) * 1000 
+        };
+        // -------------------------------------------------------------
 
         if (window.drawnStrokes && window.redrawAllStrokes) {
             let l1 = '', l2 = '';
@@ -367,9 +376,15 @@ window.AciolcerTool = {
                 l1 = window.nextPointChar; window.nextPointChar = window.advanceChar(l1);
                 l2 = window.nextPointChar; window.nextPointChar = window.advanceChar(l2);
             }
+            
             window.drawnStrokes.push({
-                type: 'ray', p1, p2, color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
-                width: 3, label1: l1, label2: l2
+                type: 'ray', 
+                p1, 
+                p2, 
+                color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
+                width: 3, 
+                label1: l1, 
+                label2: l2
             });
             window.redrawAllStrokes();
         }

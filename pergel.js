@@ -250,7 +250,6 @@ window.PergelTool = {
     },
 
     // --- BIRAKMA VE BİTİRME (ZIPLAMA VE TİTREME SAVAR) ---
-    // --- BIRAKMA VE BİTİRME (ZIPLAMA VE TİTREME SAVAR) ---
     onPointerUp: function(e) {
         if (this.interactionMode === 'none') return;
 
@@ -259,7 +258,7 @@ window.PergelTool = {
              try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
         }
 
-        // 2. Çizim modundaysak işlemi mühürle
+        // 2. Eğer çizim yapılıyorsa mühürle
         if (this.interactionMode === 'drawing') {
             if (window.audio_draw) { 
                 window.audio_draw.pause(); 
@@ -267,15 +266,15 @@ window.PergelTool = {
             }
 
             // --- SON POZİSYON GÜVENLİĞİ ---
-            // 'finalizeDraw' içinde asla 'e.clientX' okumuyoruz.
-            // Sadece 'onPointerMove' sırasında 'this.state.rotation' içine 
-            // kaydedilen en son "temiz" açıyı kullanıyoruz.
+            // finalizeDraw fonksiyonuna girdiğimizde, fonksiyon zaten en son 
+            // 'onPointerMove' anında kaydedilen 'this.state.rotation' 
+            // ve 'this.state.radius' değerlerini kullanacaktır.
             this.finalizeDraw();
             
-            // finalizeDraw bittikten sonra çizim durumunu kapatıyoruz
+            // Çizim durumunu mühürleme bittikten sonra kapatıyoruz
             this.state.isDrawing = false;
             
-            // Görsel temizliği geciktirerek (50ms) tarayıcıya nefes aldırıyoruz
+            // Görsel temizlik (50ms gecikme tabletteki görsel takılmaları engeller)
             setTimeout(() => {
                 if (this.previewCanvas) this.previewCanvas.style.display = 'none';
                 if (this.previewCtx) {
@@ -284,12 +283,11 @@ window.PergelTool = {
             }, 50); 
         }
 
-        // 3. Boyutlandırma etiketini gizle
+        // 3. Boyutlandırma etiketini temizle
         if (this.interactionMode === 'resizing') {
             if (this.radiusLabel) this.radiusLabel.style.display = 'none';
         }
         
-        // Etkileşimi tamamen sıfırla
         this.interactionMode = 'none';
     },
 
@@ -363,11 +361,13 @@ window.PergelTool = {
         this.previewCtx.strokeStyle = "rgba(255, 0, 255, 0.7)"; this.previewCtx.lineWidth = 3; this.previewCtx.stroke();
     },
     
-    // --- 3. FİNAL ÇİZİM (DONDURULMUŞ REFERANSI KULLANAN KISIM) ---
+   // --- 3. FİNAL ÇİZİM (DONDURULMUŞ REFERANSI KULLANAN KISIM) ---
     finalizeDraw: function() {
         if (!this.state.isDrawing) return;
 
-        // ZIPLAMAYI BİTİREN KOD: PointerDown'da dondurulan rect'i kullan
+        // ZIPLAMAYI BİTİREN KRİTİK KOORDİNAT HESABI:
+        // 'pointerdown' anında dondurulan referansı kullanıyoruz.
+        // Pergel HTML olduğu için bu çıkarma işlemi zorunludur.
         const rect = this.activeRect || { left: 0, top: 0 };
 
         if (window.drawnStrokes && window.redrawAllStrokes) {
@@ -376,9 +376,9 @@ window.PergelTool = {
 
             window.drawnStrokes.push({
                 type: 'arc',
-                // Dondurulmuş rect ile koordinatları mılıyoruz
-                cx: this.startState.pivot.x - rect.left, 
-                cy: this.startState.pivot.y - rect.top, 
+                // Dondurulmuş rect ile iğne ucunu kanvasa mılıyoruz
+                cx: this.state.pivot.x - rect.left, 
+                cy: this.state.pivot.y - rect.top, 
                 radius: this.state.radius,
                 startAngle: this.state.startAngle, 
                 endAngle: this.state.rotation, 
@@ -386,6 +386,7 @@ window.PergelTool = {
                 width: 3,
                 label: centerLabel 
             });
+            
             window.redrawAllStrokes(); 
         }
     }

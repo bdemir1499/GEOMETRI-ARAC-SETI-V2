@@ -1475,19 +1475,24 @@ canvas.addEventListener('pointerup', (e) => {
     // --- A) FİZİKSEL ARAÇLARIN ÇİZİMİNİ BİTİR ---
     const isPhysicalTool = ['ruler', 'gonye', 'aciolcer', 'pergel'].includes(currentTool);
     
-    if (isPhysicalTool) {
-        // Araçlar kendi içlerinde çizimi bitirsin
-        if (currentTool === 'ruler' && window.RulerTool) window.RulerTool.finalizeDraw();
-        else if (currentTool === 'gonye' && window.GonyeTool) window.GonyeTool.finalizeDraw();
-        else if (currentTool === 'aciolcer' && window.AciolcerTool) window.AciolcerTool.finalizeDraw();
-        else if (currentTool === 'pergel' && window.PergelTool) window.PergelTool.finalizeDraw();
+   // --- app.js içindeki o kısmın en temiz hali ---
+if (isPhysicalTool) {
+    const toolMap = {
+        'ruler': window.RulerTool,
+        'gonye': window.GonyeTool,
+        'aciolcer': window.AciolcerTool,
+        'pergel': window.PergelTool
+    };
 
-        // KRİTİK: Fiziksel araç aktifse, app.js burada dursun!
-        // Aşağıdaki kodlara (B, C, D) geçerse "çift çizgi" veya "zıplama" oluşur.
-        isDrawing = false;
-        redrawAllStrokes();
-        return; // Fonksiyondan anında çıkıyoruz.
+    const activeInstance = toolMap[currentTool];
+    if (activeInstance && activeInstance.finalizeDraw) {
+        activeInstance.finalizeDraw();
     }
+
+    isDrawing = false;
+    redrawAllStrokes();
+    return; // Zıplamayı önleyen bariyer!
+}
 
     // --- B) TAŞIMA (MOVE) MANTIĞI ---
     if (currentTool === 'move' && isMoving) {

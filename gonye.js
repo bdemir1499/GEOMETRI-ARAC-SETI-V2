@@ -385,13 +385,21 @@ window.GonyeTool = {
         const p2_rotated_x = e_rel_center_x * cosAngle - e_rel_center_y * sinAngle;
         const p2_rotated_y = e_rel_center_x * sinAngle + e_rel_center_y * cosAngle;
 
-        // ZIPLAMAYI BİTİREN KOD: PointerDown'da dondurulan rect'i kullan
+        // ZIPLAMAYI BİTİREN KRİTİK KOORDİNAT HESABI: 
+        // 'pointerdown' anında dondurulan (this.activeRect) referansını kullanıyoruz.
+        // Bu çıkarma işlemi (rect.left/top) gönye HTML olduğu için ZORUNLUDUR.
         const rect = this.activeRect || { left: 0, top: 0 };
 
-        const p1 = { x: p1_rotated_x + centerX - rect.left, y: p1_rotated_y + centerY - rect.top };
-        const p2 = { x: p2_rotated_x + centerX - rect.left, y: p2_rotated_y + centerY - rect.top };
+        const p1 = { 
+            x: p1_rotated_x + centerX - rect.left, 
+            y: p1_rotated_y + centerY - rect.top 
+        };
+        const p2 = { 
+            x: p2_rotated_x + centerX - rect.left, 
+            y: p2_rotated_y + centerY - rect.top 
+        };
         
-        const lengthPx = window.distance ? window.distance(p1, p2) : Math.sqrt(Math.pow(p2.x-p1.x, 2) + Math.pow(p2.y-p1.y, 2));
+        const lengthPx = Math.sqrt(Math.pow(p2.x-p1.x, 2) + Math.pow(p2.y-p1.y, 2));
         const cmText = (lengthPx / this.PIXELS_PER_CM).toFixed(1).replace('.', ',') + " cm";
         const midPoint = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
         
@@ -399,8 +407,15 @@ window.GonyeTool = {
             const label1 = window.nextPointChar; window.nextPointChar = window.advanceChar(label1);
             const label2 = window.nextPointChar; window.nextPointChar = window.advanceChar(label2);
             window.drawnStrokes.push({
-                type: 'segment', p1, p2, color: window.isToolThemeBlack ? '#000000' : window.currentLineColor, 
-                width: 3, label1, label2, lengthLabel: cmText, lengthLabelPos: midPoint
+                type: 'segment', 
+                p1, 
+                p2, 
+                color: window.isToolThemeBlack ? '#000000' : window.currentLineColor, 
+                width: 3, 
+                label1, 
+                label2, 
+                lengthLabel: cmText, 
+                lengthLabelPos: midPoint
             });
             window.redrawAllStrokes(); 
         }

@@ -444,8 +444,9 @@ window.RulerTool = {
         const p2_rotated_x = e_rel_center_x * cosAngle - e_rel_center_y * sinAngle;
         const p2_rotated_y = e_rel_center_x * sinAngle + e_rel_center_y * cosAngle;
 
-        // --- ANA KANVAS OFSETİNİ HESAPLA (ZIPLAMAYI BİTİREN KOD) ---
-        const mainCanvas = document.querySelector('canvas');
+        // --- ZIPLAMAYI BİTİREN KRİTİK KOORDİNAT HESABI ---
+        // 'pointerdown' anında dondurduğumuz rect değerini kullanıyoruz.
+        // Eğer bunu silersen cetvel komple kayık çizer!
         const rect = this.activeRect || { left: 0, top: 0 };
 
         const p1 = { 
@@ -472,8 +473,6 @@ window.RulerTool = {
                 lengthLabelPos: midPoint 
             });
             window.redrawAllStrokes(); 
-        } else {
-            console.error("Hata: drawnStrokes veya redrawAllStrokes globalda bulunamadı!");
         }
     }
 }; // <--- İŞTE BURASI ÇOK ÖNEMLİ! (RulerTool nesnesini kapatır)
