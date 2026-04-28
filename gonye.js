@@ -158,10 +158,7 @@ window.GonyeTool = {
         if (e.pointerType === 'touch') e.preventDefault(); 
         e.stopPropagation();
 
-        // Çizimin başladığı an dondurulan koordinatı (activeRect) kullanıyoruz
-const mainCanvas = document.getElementById('drawing-canvas');
-const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 });
-        
+                
         if (window.bringToolToFront) window.bringToolToFront(this.gonyeElement); 
         
         const target = e.target;
@@ -169,6 +166,11 @@ const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect()
 
         this.startPos = this.getPointerPos(e);
         this.startState = JSON.parse(JSON.stringify(this.state)); 
+
+// 👇👇👇 İŞTE BURAYI EKLEMELİSİNİZ 👇👇👇
+        const mainCanvas = document.getElementById('drawing-canvas');
+        this.activeRect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
+        // 👆👆👆 ----------------------------- 👆👆👆
         
         if (target.classList.contains('gonye-body')) {
             this.interactionMode = 'dragging';
@@ -385,11 +387,8 @@ const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect()
         const p2_rotated_x = e_rel_center_x * cosAngle - e_rel_center_y * sinAngle;
         const p2_rotated_y = e_rel_center_x * sinAngle + e_rel_center_y * cosAngle;
 
-        // --- CANLI KOORDİNAT HESABI (TABLETTEKİ KAYMAYI ÖNLER) ---
-        // 'activeRect' (donmuş veri) yerine, çizimin tam bittiği anki 
-        // gerçek ve güncel kanvas konumunu alıyoruz.
-        const mainCanvas = document.getElementById('drawing-canvas');
-        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
+       const mainCanvas = document.getElementById('drawing-canvas');
+        const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 });
 
         const p1 = { 
             x: p1_rotated_x + centerX - rect.left, 

@@ -140,10 +140,7 @@ window.PergelTool = {
         
         const target = e.target;
 
-        // Çizimin başladığı an dondurulan koordinatı (activeRect) kullanıyoruz
-const mainCanvas = document.getElementById('drawing-canvas');
-const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 });
-
+        
         if (target.setPointerCapture) target.setPointerCapture(e.pointerId);
 
         if (target === this.handleTop) {
@@ -167,6 +164,12 @@ const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect()
         
         this.startPos = this.getPointerPos(e);
         this.startState = JSON.parse(JSON.stringify(this.state)); 
+
+// 👇👇👇 EKLENECEK KISIM BURASI 👇👇👇
+        // Dokunmanın başladığı an kanvasın konumunu dondur ve kaydet
+        const mainCanvas = document.getElementById('drawing-canvas');
+        this.activeRect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
+        // 👆👆👆 ----------------------- 👆👆👆
 
         if (target === this.scaleHandle) {
             this.interactionMode = 'scaling_tool'; 
@@ -365,11 +368,8 @@ const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect()
     finalizeDraw: function() {
         if (!this.state.isDrawing) return;
 
-        // --- CANLI KOORDİNAT HESABI (TABLETTEKİ KAYMAYI ÖNLER) ---
-        // 'activeRect' (donmuş veri) yerine, çizimin tam bittiği anki 
-        // gerçek ve güncel kanvas konumunu alıyoruz.
         const mainCanvas = document.getElementById('drawing-canvas');
-        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
+        const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 });
 
         if (window.drawnStrokes && window.redrawAllStrokes) {
             const centerLabel = window.nextPointChar;

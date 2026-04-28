@@ -98,20 +98,6 @@ html, body {
     min-width: 120px; /* Butonların aynı genişlikte olması için */
 }
 
-/* --- DOKUNMATİK KAYDIRMAYI ENGELLEME (KİLİT) --- */
-#drawing-canvas, body, html {
-    /* Tarayıcının varsayılan dokunmatik işlemlerini kapat */
-    touch-action: none !important;
-    
-    /* Sayfa sonuna gelince oluşan yaylanma efektini kapat */
-    overscroll-behavior: none !important;
-    
-    /* Sayfanın taşmasını engelle */
-    overflow: hidden !important;
-    height: 100%;
-    width: 100%;
-    position: fixed;
-}
 /* Buton üzerine gelince ve tıklanınca */
 .tool-button:hover {
     transform: translateY(-2px);
@@ -553,49 +539,6 @@ body.cursor-eraser .eraser-cursor-preview {
     background-color: #1565c0 !important; /* Orta koyulukta mavi */
     box-shadow: none !important;
     border: 1px solid #0d47a1;
-}
-/* --- DOKUNMATİK KİLİDİ (ZOOM İÇİN ŞART) --- */
-html, body {
-    overflow: hidden;     /* Sayfa taşmasını engelle */
-    touch-action: none;   /* Tarayıcı zoom'unu kapat */
-    overscroll-behavior: none; /* Yaylanma efektini kapat */
-}
-
-#drawing-canvas {
-    touch-action: none;   /* Kanvas üzerinde tarayıcı müdahalesini kapat */
-    width: 100%;
-    height: 100%;
-}
-
-/* --- DOKUNMATİK ÇİZİM İÇİN ZORUNLU KİLİT --- */
-html, body {
-    overscroll-behavior: none; /* Sayfa yaylanmasını kapat */
-    overflow: hidden;          /* Sayfa taşmasını kapat */
-}
-
-#drawing-canvas {
-    touch-action: none !important; /* Tarayıcının dokunma işlemlerini İPTAL ET */
-    display: block;
-    width: 100vw;
-    height: 100vh;
-}
-
-/* --- DOKUNMATİK ÇİZİM İÇİN ZORUNLU KİLİT --- */
-html, body {
-    margin: 0;
-    padding: 0;
-    overflow: hidden !important;          /* Sayfa taşmasını ve kaydırmayı kapat */
-    overscroll-behavior: none !important; /* Yaylanma efektini kapat (iOS/Android) */
-    touch-action: none !important;        /* Tarayıcı zoom/pan hareketlerini kapat */
-}
-
-#drawing-canvas {
-    display: block;
-    width: 100vw;
-    height: 100vh;
-    touch-action: none !important;        /* Kanvas üzerinde dokunmayı tamamen JS'e bırak */
-    user-select: none !important;         /* Metin seçimini engelle */
-    -webkit-user-select: none !important;
 }
 
 /* --- FİZİKSEL ARAÇLAR İÇİN TOK MAVİ TEMA (PROFESYONEL) --- */

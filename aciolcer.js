@@ -197,10 +197,7 @@ window.AciolcerTool = {
         if (e.pointerType === 'touch') e.preventDefault(); 
         e.stopPropagation();
 
-        // Çizimin başladığı an dondurulan koordinatı (activeRect) kullanıyoruz
-const mainCanvas = document.getElementById('drawing-canvas');
-const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 });
-        
+                
         if (window.bringToolToFront) window.bringToolToFront(this.aciolcerElement); 
 
         const target = e.target;
@@ -208,6 +205,13 @@ const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect()
 
         this.startPos = this.getPointerPos(e);
         this.startState = JSON.parse(JSON.stringify(this.state));
+
+// 👇👇👇 EKLENECEK KISIM BURASI 👇👇👇
+        // Dokunmanın başladığı an kanvasın konumunu dondur ve kaydet
+        const mainCanvas = document.getElementById('drawing-canvas');
+        this.activeRect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
+        // 👆👆👆 ----------------------- 👆👆👆
+
 
         if (target === this.bodyElement) {
             this.interactionMode = 'dragging';
@@ -356,11 +360,8 @@ const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect()
         const localAngleDeg = this.state.currentDrawAngleLocal;
         const globalAngleRad = ((360 - localAngleDeg) + this.state.angle) * Math.PI / 180;
 
-        // --- CANLI KOORDİNAT HESABI (TABLETTEKİ KAYMAYI ÖNLER) ---
-        // 'activeRect' (donmuş veri) yerine, çizimin tam bittiği anki 
-        // gerçek ve güncel kanvas konumunu alıyoruz.
         const mainCanvas = document.getElementById('drawing-canvas');
-        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
+        const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 });
 
         const p1 = { 
             x: cx - rect.left, 
