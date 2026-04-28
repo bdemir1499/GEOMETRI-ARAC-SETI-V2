@@ -197,9 +197,9 @@ window.AciolcerTool = {
         if (e.pointerType === 'touch') e.preventDefault(); 
         e.stopPropagation();
 
-        // ZIPLAMAYI BİTİREN KRİTİK ADIM: Kanvas konumunu dondur
-        const mainCanvas = document.getElementById('drawing-canvas');
-        this.activeRect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
+        // Çizimin başladığı an dondurulan koordinatı (activeRect) kullanıyoruz
+const mainCanvas = document.getElementById('drawing-canvas');
+const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 });
         
         if (window.bringToolToFront) window.bringToolToFront(this.aciolcerElement); 
 

@@ -170,9 +170,9 @@ window.RulerTool = {
         if (e.pointerType === 'touch') e.preventDefault(); 
         e.stopPropagation();
 
-        // --- YENİ: ZIPLAMAYI BİTİREN REFERANS DONDURMA ---
-        const mainCanvas = document.getElementById('drawing-canvas');
-        this.activeRect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
+        // Çizimin başladığı an dondurulan koordinatı (activeRect) kullanıyoruz
+const mainCanvas = document.getElementById('drawing-canvas');
+const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 });
         // ------------------------------------------------
 
         // Aracı öne getir

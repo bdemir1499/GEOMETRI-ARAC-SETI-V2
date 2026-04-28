@@ -1,74 +1,66 @@
-html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden; /* Sayfanın aşağı yukarı oynamasını kökten keser */
-    position: fixed; /* Adres çubuğunun boyutuyla oynamasını engeller */
-    touch-action: none;
-}
-
-
-/* --- EVRENSEL DOKUNMATİK VE SEÇİM AYARLARI --- */
-* {
-    /* Metin seçimini engelle (Uygulama hissi verir) */
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-
-    /* Dokunmatik gecikmelerini kaldır */
-    -webkit-tap-highlight-color: transparent;
-    
-    /* Akıllı tahtalarda sürüklemeyi tarayıcının yönetmesini engelle */
-    touch-action: none; 
-}
-
-body, html {
-    /* Kaydırmayı ve lastik efektini kapat */
-    overscroll-behavior: none;
-    overflow: hidden; 
-    width: 100%;
-    height: 100%;
-    position: fixed; /* iOS'ta sayfanın oynamasını engeller */
-}
-
-
-
-/* Input alanlarına (Metin kutusu vs.) tekrar seçim izni ver */
-input, textarea {
-    -webkit-user-select: text;
-    user-select: text;
-    touch-action: auto;
-}
-
-/* --- BURADAN AŞAĞISI SİZİN ESKİ KODLARINIZ OLSUN --- */
-
-
-/* Temel Sıfırlamalar */
+/* =========================================
+   1. EVRENSEL SIFIRLAMA VE DOKUNMATİK KİLİDİ
+   ========================================= */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    
+    /* Metin seçimini ve tıklama parlamalarını engelle (Uygulama hissi) */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
-body {
-    font-family: 'Arial', sans-serif;
-    background-color: #0d0d2b; /* Koyu cyberpunk arka plan */
-    color: #00ffcc; /* Neon metin rengi */
-    overflow: hidden; /* Kaydırmayı engelle */
+/* Input alanlarına metin seçim izni geri ver */
+input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
 }
 
-/* Ana Çizim Alanı */
-#drawing-canvas {
-    display: block;
-    background-color: #0a0a1f; /* Kanvas için biraz daha koyu */
+/* =========================================
+   2. TARAYICI ARAYÜZÜNÜ VE KAYDIRMAYI ÇİVİLEME
+   ========================================= */
+html, body {
     width: 100vw;
     height: 100vh;
-    touch-action: none;        /* Tarayıcının varsayılan dokunmatik hareketlerini (kaydırma/zoom) kapat */
-    overscroll-behavior: none; /* Sayfa sonuna gelince sekme efektini kapat */
+    margin: 0;
+    padding: 0;
+    
+    /* SAYFAYI EKRANA ÇİVİLER: Adres çubuğunun ekranı kaydırmasını KESİN engeller */
+    position: fixed; 
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    
+    /* Tüm yaylanma, kaydırma ve zoom hareketlerini kapatır */
+    overflow: hidden !important; 
+    overscroll-behavior: none !important; 
+    touch-action: none !important; 
+    
+    /* Tema renkleriniz */
+    font-family: 'Arial', sans-serif;
+    background-color: #0d0d2b; 
+    color: #00ffcc; 
 }
 
+/* =========================================
+   3. ANA ÇİZİM ALANI (KANVAS)
+   ========================================= */
+#drawing-canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    background-color: #0a0a1f; 
+    
+    /* Kanvas üzerindeki tüm dokunmatik hareketleri JS'e bırak */
+    touch-action: none !important; 
+}
+
+/* --- BURADAN AŞAĞISI SİZİN PANELLER VE ARAÇ STİLLERİNİZ OLSUN (.panel, .tool-button vs.) --- */
 /* Panellerin Genel Stili */
 .panel {
     position: fixed;
