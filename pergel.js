@@ -361,14 +361,15 @@ window.PergelTool = {
         this.previewCtx.strokeStyle = "rgba(255, 0, 255, 0.7)"; this.previewCtx.lineWidth = 3; this.previewCtx.stroke();
     },
     
-   // --- 3. FİNAL ÇİZİM (DONDURULMUŞ REFERANSI KULLANAN KISIM) ---
+   // --- 3. FİNAL ÇİZİM (CANLI REFERANS KULLANAN KISIM) ---
     finalizeDraw: function() {
         if (!this.state.isDrawing) return;
 
-        // ZIPLAMAYI BİTİREN KRİTİK KOORDİNAT HESABI:
-        // 'pointerdown' anında dondurulan referansı kullanıyoruz.
-        // Pergel HTML olduğu için bu çıkarma işlemi zorunludur.
-        const rect = this.activeRect || { left: 0, top: 0 };
+        // --- CANLI KOORDİNAT HESABI (TABLETTEKİ KAYMAYI ÖNLER) ---
+        // 'activeRect' (donmuş veri) yerine, çizimin tam bittiği anki 
+        // gerçek ve güncel kanvas konumunu alıyoruz.
+        const mainCanvas = document.getElementById('drawing-canvas');
+        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
 
         if (window.drawnStrokes && window.redrawAllStrokes) {
             const centerLabel = window.nextPointChar;
@@ -376,7 +377,7 @@ window.PergelTool = {
 
             window.drawnStrokes.push({
                 type: 'arc',
-                // Dondurulmuş rect ile iğne ucunu kanvasa mılıyoruz
+                // Canlı rect ile iğne ucunu kanvasa tam mılıyoruz
                 cx: this.state.pivot.x - rect.left, 
                 cy: this.state.pivot.y - rect.top, 
                 radius: this.state.radius,

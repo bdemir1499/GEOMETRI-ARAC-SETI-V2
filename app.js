@@ -1472,27 +1472,16 @@ canvas.addEventListener('pointerup', (e) => {
     // -----------------------------------------------------------------
     const finalPos = snapTarget || currentMousePos;
 
-    // --- A) FİZİKSEL ARAÇLARIN ÇİZİMİNİ BİTİR ---
+    // --- A) FİZİKSEL ARAÇLAR İÇİN GÜVENLİK DUVARI ---
     const isPhysicalTool = ['ruler', 'gonye', 'aciolcer', 'pergel'].includes(currentTool);
     
-   // --- app.js içindeki o kısmın en temiz hali ---
-if (isPhysicalTool) {
-    const toolMap = {
-        'ruler': window.RulerTool,
-        'gonye': window.GonyeTool,
-        'aciolcer': window.AciolcerTool,
-        'pergel': window.PergelTool
-    };
-
-    const activeInstance = toolMap[currentTool];
-    if (activeInstance && activeInstance.finalizeDraw) {
-        activeInstance.finalizeDraw();
+    if (isPhysicalTool) {
+        // BURADAKİ TÜM finalizeDraw ÇAĞRILARINI SİLDİK! 
+        // Her araç kendi çizimini kendisi sorunsuz kaydedecek.
+        isDrawing = false;
+        redrawAllStrokes();
+        return; // app.js burada durur, tahtaya fazladan çizgi atmaz.
     }
-
-    isDrawing = false;
-    redrawAllStrokes();
-    return; // Zıplamayı önleyen bariyer!
-}
 
     // --- B) TAŞIMA (MOVE) MANTIĞI ---
     if (currentTool === 'move' && isMoving) {

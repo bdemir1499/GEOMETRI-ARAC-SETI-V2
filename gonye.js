@@ -362,7 +362,7 @@ window.GonyeTool = {
         this.drawCtx.stroke();
     },
 
-    // --- 3. FİNAL ÇİZİM (DONDURULMUŞ REFERANSI KULLANAN KISIM) ---
+    // --- 3. FİNAL ÇİZİM (CANLI REFERANS KULLANAN KISIM) ---
     finalizeDraw: function() {
         const handleY = this.state.currentHandleY || 0; 
         const startX_local = 4; const startY_local = this.state.height; 
@@ -385,10 +385,11 @@ window.GonyeTool = {
         const p2_rotated_x = e_rel_center_x * cosAngle - e_rel_center_y * sinAngle;
         const p2_rotated_y = e_rel_center_x * sinAngle + e_rel_center_y * cosAngle;
 
-        // ZIPLAMAYI BİTİREN KRİTİK KOORDİNAT HESABI: 
-        // 'pointerdown' anında dondurulan (this.activeRect) referansını kullanıyoruz.
-        // Bu çıkarma işlemi (rect.left/top) gönye HTML olduğu için ZORUNLUDUR.
-        const rect = this.activeRect || { left: 0, top: 0 };
+        // --- CANLI KOORDİNAT HESABI (TABLETTEKİ KAYMAYI ÖNLER) ---
+        // 'activeRect' (donmuş veri) yerine, çizimin tam bittiği anki 
+        // gerçek ve güncel kanvas konumunu alıyoruz.
+        const mainCanvas = document.getElementById('drawing-canvas');
+        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
 
         const p1 = { 
             x: p1_rotated_x + centerX - rect.left, 
@@ -398,6 +399,7 @@ window.GonyeTool = {
             x: p2_rotated_x + centerX - rect.left, 
             y: p2_rotated_y + centerY - rect.top 
         };
+        // -------------------------------------------------------------
         
         const lengthPx = Math.sqrt(Math.pow(p2.x-p1.x, 2) + Math.pow(p2.y-p1.y, 2));
         const cmText = (lengthPx / this.PIXELS_PER_CM).toFixed(1).replace('.', ',') + " cm";

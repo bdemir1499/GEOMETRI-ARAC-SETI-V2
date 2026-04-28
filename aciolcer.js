@@ -345,6 +345,7 @@ window.AciolcerTool = {
         this.redLine.style.transform = `rotate(${-localAngleDeg}deg)`;
     },
 
+    // --- 3. FİNAL ÇİZİM (CANLI REFERANS KULLANAN KISIM) ---
     finalizeDraw: function() {
         if (!this.state.isDrawing) return;
         // Eğer çok küçük bir hareketse veya hiç sürüklenmemişse ışını çizme
@@ -355,10 +356,11 @@ window.AciolcerTool = {
         const localAngleDeg = this.state.currentDrawAngleLocal;
         const globalAngleRad = ((360 - localAngleDeg) + this.state.angle) * Math.PI / 180;
 
-        // --- ZIPLAMAYI BİTİREN KRİTİK KOORDİNAT HESABI ---
-        // 'pointerdown' anında dondurulan (this.activeRect) referansını kullanıyoruz.
-        // Bu çıkarma işlemi açıölçer HTML olduğu için ZORUNLUDUR.
-        const rect = this.activeRect || { left: 0, top: 0 };
+        // --- CANLI KOORDİNAT HESABI (TABLETTEKİ KAYMAYI ÖNLER) ---
+        // 'activeRect' (donmuş veri) yerine, çizimin tam bittiği anki 
+        // gerçek ve güncel kanvas konumunu alıyoruz.
+        const mainCanvas = document.getElementById('drawing-canvas');
+        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
 
         const p1 = { 
             x: cx - rect.left, 
@@ -389,6 +391,6 @@ window.AciolcerTool = {
             window.redrawAllStrokes();
         }
     }
-}; 
+}; // <--- İŞTE BURASI ÇOK ÖNEMLİ! (AciolcerTool nesnesini kapatır)
 
 window.AciolcerTool.init();
