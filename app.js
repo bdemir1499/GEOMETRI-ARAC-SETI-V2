@@ -1,3 +1,16 @@
+// app.js dosyasının başına ekle
+function getGlobalCoordinates(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+    const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+
+    return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+    };
+}
+
+
 // --- 3. ADIM: TAHTA (KISA LİNK) GİRİŞ KONTROLÜ ---
 const urlParams = new URLSearchParams(window.location.search);
 const odaPin = urlParams.get('oda');
@@ -1256,13 +1269,13 @@ canvas.addEventListener('pointermove', (e) => {
     // 1. GÜVENLİK: Sadece ana dokunuşu takip et (Zıplama önleyici)
     if (!e.isPrimary) return; 
 
-    // 2. TEMİZ KOORDİNAT: Tek bir kaynaktan alıyoruz
-    const pos = getPointerPos(e);
-    currentMousePos = pos;
+    // 2. MERKEZİ KOORDİNAT HESABI: 
+    // Tüm proje bu 'pos' değişkenini "tek gerçek" kabul edecek.
+    const pos = getPointerPos(e); 
+    currentMousePos = pos; // app.js'in geri kalanı için senkronize et
 
     // --- 1. TAŞIMA (MOVE) MANTIĞI ---
     if (currentTool === 'move' && isMoving) {
-        // NOT: getEventPosition(e) tamamen silindi, 'pos' kullanılıyor
         const dx = pos.x - dragStartPos.x;
         const dy = pos.y - dragStartPos.y;
         
@@ -1278,31 +1291,26 @@ canvas.addEventListener('pointermove', (e) => {
              const r_dx = pos.x - selectedItem.x;
              const r_dy = pos.y - selectedItem.y;
              const angleRad = Math.atan2(r_dy, r_dx);
-             let angleDeg = angleRad * (180 / Math.PI) + 90;
-             selectedItem.rotation = angleDeg;
+             selectedItem.rotation = angleRad * (180 / Math.PI) + 90;
         }        
         // C. Çokgen Döndürme
         else if (selectedPointKey === 'rotate') {
             const center = selectedItem.center;
             const r_dx = pos.x - center.x;
             const r_dy = pos.y - center.y;
-            const newAngleRad = Math.atan2(r_dy, r_dx); 
-            selectedItem.rotation = newAngleRad * (180 / Math.PI);
+            selectedItem.rotation = Math.atan2(r_dy, r_dx) * (180 / Math.PI);
         } 
         // D. Çokgen/Çember Boyutlandırma
         else if (selectedPointKey === 'resize') {
-            const center = selectedItem.center;
-            selectedItem.radius = distance(center, pos);
+            selectedItem.radius = distance(selectedItem.center, pos);
         } 
-        // E. Çizgi Döndürme (Pivot Noktası Etrafında)
+        // E. Çizgi Döndürme (Pivot)
         else if (rotationPivot) { 
-            const pivot = rotationPivot;
-            const movingPointKey = selectedPointKey; 
-            const r_dx = pos.x - pivot.x;
-            const r_dy = pos.y - pivot.y;
+            const r_dx = pos.x - rotationPivot.x;
+            const r_dy = pos.y - rotationPivot.y;
             const currentAngle = Math.atan2(r_dy, r_dx);
-            selectedItem[movingPointKey].x = pivot.x + Math.cos(currentAngle) * selectedItem.startRadius;
-            selectedItem[movingPointKey].y = pivot.y + Math.sin(currentAngle) * selectedItem.startRadius;
+            selectedItem[selectedPointKey].x = rotationPivot.x + Math.cos(currentAngle) * selectedItem.startRadius;
+            selectedItem[selectedPointKey].y = rotationPivot.y + Math.sin(currentAngle) * selectedItem.startRadius;
         } 
         // F. Genel Yer Değiştirme (Sürükleme)
         else {
@@ -1330,17 +1338,17 @@ canvas.addEventListener('pointermove', (e) => {
         return; 
     }
 
-    // Fiziksel araçlar veya araç seçilmediyse işlem yapma
-    if (currentTool === 'ruler' || currentTool === 'gonye' || currentTool === 'aciolcer' || currentTool === 'pergel') return;
+    // KRİTİK: Fiziksel araçlar çalışırken app.js'in koordinat sistemini meşgul etme!
+    const isPhysicalTool = ['ruler', 'gonye', 'aciolcer', 'pergel'].includes(currentTool);
+    if (isPhysicalTool) return;
     if (currentTool === 'none') return;
 
     // --- 2. AKILLI YAKALAMA (SNAP) SİSTEMİ ---
     clearTimeout(snapHoverTimer);
     snapHoverTimer = null;
     
-    const canSnap = (currentTool === 'point' || currentTool === 'straightLine' || currentTool === 'pen' || currentTool === 'segment');
-    if (canSnap) {
-        const potentialSnap = findSnapPoint(pos); // Burada artık direkt 'pos' kullanılıyor
+    if (['point', 'straightLine', 'pen', 'segment'].includes(currentTool)) {
+        const potentialSnap = findSnapPoint(pos); 
         if (potentialSnap) {
             snapHoverTimer = setTimeout(() => {
                 snapTarget = potentialSnap;
@@ -1352,9 +1360,6 @@ canvas.addEventListener('pointermove', (e) => {
             snapTarget = null;
             snapIndicator.style.display = 'none';
         }
-    } else {
-        snapTarget = null;
-        snapIndicator.style.display = 'none';
     }
 
     // --- 3. SİLGİ ÖNİZLEMESİ ---
@@ -1362,68 +1367,47 @@ canvas.addEventListener('pointermove', (e) => {
         eraserPreview.style.left = `${pos.x}px`;
         eraserPreview.style.top = `${pos.y}px`;
         eraserPreview.style.display = 'block';
-    } else {
-        eraserPreview.style.display = 'none';
     }
 
     // --- 4. ÇİZİM ÖN İZLEMELERİ ---
     let previewActive = false;
-    ctx.globalAlpha = 0.6; 
-    ctx.setLineDash([8, 4]);
+    const endPos = snapTarget || pos;
 
-    const endPos = snapTarget || currentMousePos;
-
-    // A. Düz Çizgi Önizleme
-    if (currentTool === 'straightLine' && isDrawingLine) {
-        redrawAllStrokes(); 
-        ctx.beginPath();
-        ctx.moveTo(lineStartPoint.x, lineStartPoint.y);
-        ctx.lineTo(endPos.x, endPos.y);
-        ctx.strokeStyle = currentLineColor; ctx.lineWidth = 3; ctx.stroke();
-        previewActive = true; 
-    }
-    // B. Sonsuz Doğru Önizleme
-    else if (currentTool === 'line' && isDrawingInfinityLine) {
+    if (isDrawingLine || isDrawingInfinityLine || isDrawingSegment || isDrawingRay) {
         redrawAllStrokes();
-        drawInfinityLine(lineStartPoint, currentMousePos, currentLineColor, 3, false);
-        previewActive = true;
-    }
-    // C. Doğru Parçası Önizleme
-    else if (currentTool === 'segment' && isDrawingSegment) {
-        redrawAllStrokes(); 
-        ctx.beginPath();
-        ctx.moveTo(lineStartPoint.x, lineStartPoint.y);
-        ctx.lineTo(endPos.x, endPos.y);
-        ctx.strokeStyle = currentLineColor; ctx.lineWidth = 3; ctx.stroke();
-        drawDot(lineStartPoint, currentLineColor);
-        drawDot(endPos, currentLineColor);
-        previewActive = true;
-    }
-    // D. Işın Önizleme
-    else if (currentTool === 'ray' && isDrawingRay) {
-        redrawAllStrokes(); 
-        drawInfinityLine(lineStartPoint, currentMousePos, currentLineColor, 3, true); 
-        drawDot(lineStartPoint, currentLineColor);
+        ctx.globalAlpha = 0.6; ctx.setLineDash([8, 4]);
+        
+        if (currentTool === 'straightLine' || currentTool === 'segment') {
+            ctx.beginPath();
+            ctx.moveTo(lineStartPoint.x, lineStartPoint.y);
+            ctx.lineTo(endPos.x, endPos.y);
+            ctx.strokeStyle = currentLineColor; ctx.lineWidth = 3; ctx.stroke();
+            if(currentTool === 'segment') { drawDot(lineStartPoint, currentLineColor); drawDot(endPos, currentLineColor); }
+        } else if (currentTool === 'line') {
+            drawInfinityLine(lineStartPoint, pos, currentLineColor, 3, false);
+        } else if (currentTool === 'ray') {
+            drawInfinityLine(lineStartPoint, pos, currentLineColor, 3, true);
+            drawDot(lineStartPoint, currentLineColor);
+        }
+        ctx.globalAlpha = 1.0; ctx.setLineDash([]);
         previewActive = true;
     }
     // E. Çokgen ve Çember Önizleme
     else if (window.tempPolygonData && window.tempPolygonData.center) {
         const center = window.tempPolygonData.center;
-        const type = window.tempPolygonData.type;
-        const currentRadius = distance(center, currentMousePos);
-        const dx = currentMousePos.x - center.x;
-        const dy = currentMousePos.y - center.y;
-        const currentRotationDeg = Math.atan2(dy, dx) * (180 / Math.PI); 
+        const currentRadius = distance(center, pos);
+        const currentRotationDeg = Math.atan2(pos.y - center.y, pos.x - center.x) * (180 / Math.PI); 
 
         window.tempPolygonData.rotation = currentRotationDeg; 
         window.tempPolygonData.radius = currentRadius; 
 
         redrawAllStrokes(); 
+        ctx.globalAlpha = 0.6; ctx.setLineDash([8, 4]);
         ctx.beginPath();
-        if (type === 0) { 
+        if (window.tempPolygonData.type === 0) { 
             ctx.arc(center.x, center.y, currentRadius, 0, 2 * Math.PI);
         } else { 
-            const vertices = window.PolygonTool.calculateVertices(center, currentRadius, type, currentRotationDeg); 
+            const vertices = window.PolygonTool.calculateVertices(center, currentRadius, window.tempPolygonData.type, currentRotationDeg); 
             if (vertices.length > 0) {
                  ctx.moveTo(vertices[0].x, vertices[0].y);
                  for (let i = 1; i < vertices.length; i++) ctx.lineTo(vertices[i].x, vertices[i].y);
@@ -1432,31 +1416,17 @@ canvas.addEventListener('pointermove', (e) => {
         }
         ctx.strokeStyle = window.currentLineColor; ctx.lineWidth = 3; ctx.stroke();
         drawDot(center, window.currentLineColor);
-        previewActive = true; 
         
-        polygonPreviewLabel.style.left = `${currentMousePos.x}px`;
-        polygonPreviewLabel.style.top = `${currentMousePos.y}px`;
+        polygonPreviewLabel.style.left = `${pos.x}px`;
+        polygonPreviewLabel.style.top = `${pos.y}px`;
         polygonPreviewLabel.classList.remove('hidden');
-
-        let labelText = "";
-        const cmRadius = (currentRadius / (window.PolygonTool.PIXELS_PER_CM || 30)).toFixed(1);
-        if (type === 0) labelText = `Yarıçap: ${cmRadius} cm`;
-        else labelText = `Kenar: ${((2 * currentRadius * Math.sin(Math.PI / type)) / 30).toFixed(1)} cm`;
-        polygonPreviewLabel.innerText = labelText;
-    }
-    // F. Canlandırma (Snapshot) Kutu Önizleme
-    else if (currentTool === 'snapshot' && snapshotStart) {
-        redrawAllStrokes(); 
-        const sw = currentMousePos.x - snapshotStart.x;
-        const sh = currentMousePos.y - snapshotStart.y;
-        ctx.save();
-        ctx.setLineDash([5, 5]); ctx.strokeStyle = '#FF0000'; ctx.lineWidth = 2;
-        ctx.strokeRect(snapshotStart.x, snapshotStart.y, sw, sh); 
-        ctx.restore();
+        const cmRadius = (currentRadius / 30).toFixed(1);
+        polygonPreviewLabel.innerText = window.tempPolygonData.type === 0 ? `Yarıçap: ${cmRadius} cm` : `Kenar: ${((2 * currentRadius * Math.sin(Math.PI / window.tempPolygonData.type)) / 30).toFixed(1)} cm`;
+        
+        ctx.globalAlpha = 1.0; ctx.setLineDash([]);
         previewActive = true; 
     }
 
-    ctx.globalAlpha = 1.0; ctx.setLineDash([]);
     if (previewActive) return; 
 
     // --- 5. AKTİF ÇİZİM (KALEM / SİLGİ) ---
@@ -1471,45 +1441,34 @@ canvas.addEventListener('pointermove', (e) => {
         let needsRedraw = false;
         for (const stroke of drawnStrokes) {
             let touched = false;
-            // Çizim tipine göre silme kontrolü (pos değişkeni ile)
             if (stroke.type === 'pen') {
                 for (const point of stroke.path) { if (distance(point, pos) < 10) { touched = true; break; } }
-            } 
-            else if (stroke.type === 'point') {
+            } else if (stroke.type === 'point') {
                 if (distance(stroke, pos) < 10) touched = true;
-            } 
-            else if (['straightLine', 'line', 'segment', 'ray'].includes(stroke.type)) {
+            } else if (['straightLine', 'line', 'segment', 'ray'].includes(stroke.type)) {
                 const steps = Math.max(1, Math.floor(distance(stroke.p1, stroke.p2) / 5)); 
                 for (let i = 0; i <= steps; i++) {
                     const t = i / steps;
-                    const sx = stroke.p1.x + (stroke.p2.x - stroke.p1.x) * t;
-                    const sy = stroke.p1.y + (stroke.p2.y - stroke.p1.y) * t;
-                    if (distance({x: sx, y: sy}, pos) < 10) { touched = true; break; }
+                    if (distance({x: stroke.p1.x + (stroke.p2.x - stroke.p1.x) * t, y: stroke.p1.y + (stroke.p2.y - stroke.p1.y) * t}, pos) < 10) { touched = true; break; }
                 }
             }
-            // ... (Diğer şekillerin silme mantığı da 'pos' ile çalışır) ...
-
             if (touched) needsRedraw = true; else strokesToKeep.push(stroke);
         }
-        if (needsRedraw) {
-            drawnStrokes = strokesToKeep; window.drawnStrokes = strokesToKeep;
-            redrawAllStrokes(); 
-        }
+        if (needsRedraw) { drawnStrokes = strokesToKeep; window.drawnStrokes = strokesToKeep; redrawAllStrokes(); }
     }
 }, { passive: false });
 
-
 // --- app.js içindeki 'pointerup' olayının nihai ve zıplamayan hali ---
+// --- app.js içindeki 'pointerup' olayının nihai ve zıplamayan tam hali ---
 canvas.addEventListener('pointerup', (e) => {
     // 1. Tarayıcı kilitlerini kaldır ve standart hareketleri engelle
     canvas.releasePointerCapture(e.pointerId);
     if (e.pointerType === 'touch' && e.cancelable) e.preventDefault();
 
     // -----------------------------------------------------------------
-    // KRİTİK: Zıplamayı bitiren dokunuş!
-    // Etkinlikten (e) gelen anlık koordinatı okumuyoruz.
-    // 'pointermove' sırasında kaydedilen en son "kararlı" konumu (currentMousePos)
-    // baz alıyoruz. Tabletteki parmak kaldırma titremesini böylece yok sayıyoruz.
+    // KRİTİK: Zıplamayı bitiren altın kural!
+    // Parmağını kaldırdığın an etkinlikten (e) gelen hatalı koordinatı OKUMUYORUZ.
+    // 'pointermove' sırasında kaydedilen son "kararlı" konumu (currentMousePos) kullanıyoruz.
     // -----------------------------------------------------------------
     const finalPos = snapTarget || currentMousePos;
 
@@ -1517,17 +1476,17 @@ canvas.addEventListener('pointerup', (e) => {
     const isPhysicalTool = ['ruler', 'gonye', 'aciolcer', 'pergel'].includes(currentTool);
     
     if (isPhysicalTool) {
-        // Araçlar kendi içlerinde 'activeRect' (dondurulmuş referans) kullanarak çizimi bitirir.
+        // Araçlar kendi içlerinde çizimi bitirsin
         if (currentTool === 'ruler' && window.RulerTool) window.RulerTool.finalizeDraw();
-        if (currentTool === 'gonye' && window.GonyeTool) window.GonyeTool.finalizeDraw();
-        if (currentTool === 'aciolcer' && window.AciolcerTool) window.AciolcerTool.finalizeDraw();
-        if (currentTool === 'pergel' && window.PergelTool) window.PergelTool.finalizeDraw();
+        else if (currentTool === 'gonye' && window.GonyeTool) window.GonyeTool.finalizeDraw();
+        else if (currentTool === 'aciolcer' && window.AciolcerTool) window.AciolcerTool.finalizeDraw();
+        else if (currentTool === 'pergel' && window.PergelTool) window.PergelTool.finalizeDraw();
 
-        // KRİTİK: Eğer fiziksel araç aktifse, app.js burada durmalı! 
-        // Aşağıdaki normal çizim kodlarına ulaşırsa "çift çizgi" veya "zıplama" yapar.
+        // KRİTİK: Fiziksel araç aktifse, app.js burada dursun!
+        // Aşağıdaki kodlara (B, C, D) geçerse "çift çizgi" veya "zıplama" oluşur.
         isDrawing = false;
         redrawAllStrokes();
-        return; // Fonksiyondan çıkıyoruz, zıplama ihtimalini kökten kestik.
+        return; // Fonksiyondan anında çıkıyoruz.
     }
 
     // --- B) TAŞIMA (MOVE) MANTIĞI ---
@@ -1537,7 +1496,6 @@ canvas.addEventListener('pointerup', (e) => {
         if (returnToSnapshot) {
             returnToSnapshot = false;
             setActiveTool('snapshot');
-            // Snapshot aktifleştiğinde imleci ve butonları güncelle
             if (typeof animateButton !== 'undefined' && animateButton) animateButton.classList.add('active');
             document.body.classList.add('cursor-snapshot');
         }
@@ -1546,7 +1504,6 @@ canvas.addEventListener('pointerup', (e) => {
     }
 
     // --- C) NORMAL ÇİZGİLERİ KAYDET ---
-    // Burada 'finalPos' (currentMousePos) kullanarak titremeyi engelliyoruz.
     if (lineStartPoint && finalPos) {
         if (isDrawingLine) {
             drawnStrokes.push({ type: 'straightLine', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3 });
@@ -1566,7 +1523,7 @@ canvas.addEventListener('pointerup', (e) => {
     }
 
     // --- D) ÇOKGENLERİ BİTİR ---
-    if (currentTool.startsWith('draw_polygon_')) {
+    if (currentTool && currentTool.startsWith('draw_polygon_')) {
         if (window.tempPolygonData && window.tempPolygonData.center) {
             const finalRadius = window.tempPolygonData.radius || 0;
             if (finalRadius > 5) {
@@ -1574,10 +1531,9 @@ canvas.addEventListener('pointerup', (e) => {
                 if (currentType === 0) window.PolygonTool.finalizeCircle(finalRadius);
                 else window.PolygonTool.finalizeDraw(finalRadius, window.tempPolygonData.rotation);
                 
-                // Çokgen çizimi bittikten sonra araçları temizle
-                if (typeof polygonPreviewLabel !== 'undefined') polygonPreviewLabel.classList.add('hidden');
+                if (typeof polygonPreviewLabel !== 'undefined' && polygonPreviewLabel) polygonPreviewLabel.classList.add('hidden');
                 window.tempPolygonData.center = null;
-                window.PolygonTool.handleDrawClick(null, currentType);
+                if (window.PolygonTool && window.PolygonTool.handleDrawClick) window.PolygonTool.handleDrawClick(null, currentType);
             }
         }
     }
@@ -1592,6 +1548,7 @@ canvas.addEventListener('pointerup', (e) => {
     redrawAllStrokes();
 
 }, { passive: false });
+
 
 // --- POINTERCANCEL (KESİNTİ DURUMUNDA SIFIRLAMA) ---
 canvas.addEventListener('pointercancel', (e) => {
