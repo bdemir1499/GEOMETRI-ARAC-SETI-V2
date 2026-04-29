@@ -1,8 +1,8 @@
-let globalScale = 1;      // Yakınlaştırma oranı
-let offsetX = 0;          // Yatay kaydırma
-let offsetY = 0;          // Dikey kaydırma
-let pointers = new Map(); // Tabletteki parmakları takip eder
-let lastDist = 0;         // İki parmak arası son mesafe
+let globalScale = 1;
+let lastDist = 0;
+let pointers = new Map();
+const MIN_SCALE = 0.5; // En fazla %50 küçülme
+const MAX_SCALE = 5.0; // En fazla %500 büyüme
 
 
 // app.js dosyasının başına ekle
@@ -1261,20 +1261,26 @@ canvas.addEventListener('pointermove', (e) => {
     // --- YENİ: PARMAK TAKİBİ VE ZOOM ---
     pointers.set(e.pointerId, e); // Her zaman parmağı kaydet
 
-    // --- A) İKİ PARMAK ZOOM MANTIĞI ---
+   // --- TABLET: İKİ PARMAK ZOOM (GÜNCEL SIFIR ZIPLAMA) ---
     if (pointers.size === 2) {
         const p = Array.from(pointers.values());
-        // İki parmak arası mesafeyi ölç
         const currentDist = Math.hypot(p[0].clientX - p[1].clientX, p[0].clientY - p[1].clientY);
 
         if (lastDist > 0) {
-            const zoomAmount = currentDist / lastDist;
-            // globalScale'i güncelle (0.5x ile 4x arası sınır)
-            globalScale = Math.min(Math.max(0.5, globalScale * zoomAmount), 4);
-            redrawAllStrokes(); 
+            // Aradaki farkı (delta) bul, çarpan olarak değil ekleyerek ilerle
+            const delta = currentDist - lastDist;
+            const zoomSpeed = 0.005; // Hassasiyeti buradan ayarla
+            
+            let newScale = globalScale + (delta * zoomSpeed);
+            
+            // Sınırları kontrol et
+            if (newScale >= MIN_SCALE && newScale <= MAX_SCALE) {
+                globalScale = newScale;
+                redrawAllStrokes();
+            }
         }
-        lastDist = currentDist;
-        return; // İKİ PARMAK VARSA ÇİZİME GEÇME, BURADA DUR!
+        lastDist = currentDist; // KRİTİK: Her karede mesafeyi güncelle
+        return; 
     }
 
     // 1. GÜVENLİK: Tek parmaklı işlemlerde sadece ana dokunuşu takip et
