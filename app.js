@@ -850,19 +850,27 @@ if (uploadButton && fileInput) {
             };
             fileReader.readAsArrayBuffer(file);
         } 
-        // --- DURUM B: RESİM DOSYASI ---
-        else if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    // Resmi kanvasa sığacak şekilde nesne olarak ekle[cite: 2]
-                    addNewImageToCanvas(img, false);
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
+
+       // --- RESİM DOSYASI YÜKLEME KISMI ---
+else if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+            // Resmi kanvasa ekle
+            addNewImageToCanvas(img, false);
+
+            // --- BURASI EKLENDİ: Kırmızı Kapat Butonunu Göster ---
+            const closePdfBtn = document.getElementById('btn-close-pdf');
+            if (closePdfBtn) {
+                closePdfBtn.classList.remove('hidden');
+                closePdfBtn.style.display = 'flex'; // Kırmızıyı uyandır!
+            }
+        };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+}
         
         e.target.value = ''; // Aynı dosyayı tekrar seçebilmek için temizle
     };
