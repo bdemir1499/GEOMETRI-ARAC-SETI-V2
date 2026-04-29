@@ -361,15 +361,26 @@ window.AciolcerTool = {
         const globalAngleRad = ((360 - localAngleDeg) + this.state.angle) * Math.PI / 180;
 
         const mainCanvas = document.getElementById('drawing-canvas');
-        const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 });
+        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0, width: 1, height: 1 };
 
+        // --- KESİN ÇÖZÜM: KANVAS ESNEME (SCALE) ÇARPANI ---
+        const scaleX = mainCanvas ? (mainCanvas.width / (rect.width || 1)) : 1;
+        const scaleY = mainCanvas ? (mainCanvas.height / (rect.height || 1)) : 1;
+
+        // Ekranda aracın bulunduğu ham DOM koordinatları
+        const p1_dom_x = cx;
+        const p1_dom_y = cy;
+        const p2_dom_x = cx + Math.cos(globalAngleRad) * 1000;
+        const p2_dom_y = cy + Math.sin(globalAngleRad) * 1000;
+
+        // Scale çarpanı ile esnemeyi hesaba katarak kanvasa aktarma
         const p1 = { 
-            x: cx - rect.left, 
-            y: cy - rect.top 
+            x: (p1_dom_x - rect.left) * scaleX, 
+            y: (p1_dom_y - rect.top) * scaleY 
         };
         const p2 = { 
-            x: p1.x + Math.cos(globalAngleRad) * 1000, 
-            y: p1.y + Math.sin(globalAngleRad) * 1000 
+            x: (p2_dom_x - rect.left) * scaleX, 
+            y: (p2_dom_y - rect.top) * scaleY 
         };
         // -------------------------------------------------------------
 

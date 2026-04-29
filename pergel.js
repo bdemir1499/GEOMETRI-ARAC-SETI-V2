@@ -369,7 +369,14 @@ window.PergelTool = {
         if (!this.state.isDrawing) return;
 
         const mainCanvas = document.getElementById('drawing-canvas');
-        const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 });
+        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0, width: 1, height: 1 };
+
+        // --- KESİN ÇÖZÜM: KANVAS ESNEME (SCALE) ÇARPANI ---
+        const scaleX = mainCanvas ? (mainCanvas.width / (rect.width || 1)) : 1;
+        const scaleY = mainCanvas ? (mainCanvas.height / (rect.height || 1)) : 1;
+        
+        // Yarıçap (radius) için x ve y esnemelerinin ortalamasını alıyoruz
+        const scaleAvg = (scaleX + scaleY) / 2;
 
         if (window.drawnStrokes && window.redrawAllStrokes) {
             const centerLabel = window.nextPointChar;
@@ -377,10 +384,10 @@ window.PergelTool = {
 
             window.drawnStrokes.push({
                 type: 'arc',
-                // Canlı rect ile iğne ucunu kanvasa tam mılıyoruz
-                cx: this.state.pivot.x - rect.left, 
-                cy: this.state.pivot.y - rect.top, 
-                radius: this.state.radius,
+                // Esneme (Scale) çarpanı ile %100 nokta atışı koordinat
+                cx: (this.state.pivot.x - rect.left) * scaleX, 
+                cy: (this.state.pivot.y - rect.top) * scaleY, 
+                radius: this.state.radius * scaleAvg,
                 startAngle: this.state.startAngle, 
                 endAngle: this.state.rotation, 
                 color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,

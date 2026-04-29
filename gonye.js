@@ -388,15 +388,19 @@ window.GonyeTool = {
         const p2_rotated_y = e_rel_center_x * sinAngle + e_rel_center_y * cosAngle;
 
        const mainCanvas = document.getElementById('drawing-canvas');
-        const rect = this.activeRect || (mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 });
+        const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0, width: 1, height: 1 };
+
+        // --- KESİN ÇÖZÜM: KANVAS ESNEME (SCALE) ÇARPANI ---
+        const scaleX = mainCanvas ? (mainCanvas.width / (rect.width || 1)) : 1;
+        const scaleY = mainCanvas ? (mainCanvas.height / (rect.height || 1)) : 1;
 
         const p1 = { 
-            x: p1_rotated_x + centerX - rect.left, 
-            y: p1_rotated_y + centerY - rect.top 
+            x: ((p1_rotated_x + centerX) - rect.left) * scaleX, 
+            y: ((p1_rotated_y + centerY) - rect.top) * scaleY 
         };
         const p2 = { 
-            x: p2_rotated_x + centerX - rect.left, 
-            y: p2_rotated_y + centerY - rect.top 
+            x: ((p2_rotated_x + centerX) - rect.left) * scaleX, 
+            y: ((p2_rotated_y + centerY) - rect.top) * scaleY 
         };
         // -------------------------------------------------------------
         
