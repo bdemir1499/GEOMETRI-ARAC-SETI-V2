@@ -1,8 +1,16 @@
+// --- 1. DEĞİŞKENLER VE BAŞLANGIÇ AYARLARI ---
 let globalScale = 1;
 let lastDist = 0;
 let pointers = new Map();
 const MIN_SCALE = 0.5; // En fazla %50 küçülme
 const MAX_SCALE = 5.0; // En fazla %500 büyüme
+
+// Sayfa açıldığında kırmızı butonun yanlışlıkla görünmesini engellemek için:
+const closePdfBtn = document.getElementById('btn-close-pdf');
+if (closePdfBtn) {
+    closePdfBtn.classList.add('hidden');
+    closePdfBtn.style.display = 'none'; // Kesin olarak gizle
+}
 
 
 // app.js dosyasının başına ekle
@@ -333,32 +341,32 @@ function redrawAllStrokes() {
         if (stroke.type === 'image') {
             let imgToDraw = null;
 
-            // 1. KAYNAK KONTROLÜ: Yüklenen PDF mi yoksa Canlandır kopyası mı?
+            // 1. KAYNAK KONTROLÜ: Özellik kaybı olmaması için mevcut mantığını koruyoruz
             if (stroke.img && stroke.img instanceof HTMLImageElement) {
-                imgToDraw = stroke.img; // Dosya/PDF yüklemesi
+                imgToDraw = stroke.img; // PDF veya Dosya yüklemesi
             } else if (stroke.imgData) {
                 if (!stroke.imgObj) {
                     stroke.imgObj = new Image();
                     stroke.imgObj.src = stroke.imgData;
                     stroke.imgObj.onload = () => redrawAllStrokes();
                 }
-                imgToDraw = stroke.imgObj; // Canlandır kopyası
+                imgToDraw = stroke.imgObj; // Canlandır (Snapshot) kopyası
             }
 
-            // 2. ÇİZİM: Tablette kaymayı engelleyen merkezleme mantığı
+            // 2. ÇİZİM: Koordinatları Zoom/Tablet uyumlu hale getiriyoruz
             if (imgToDraw && (imgToDraw.complete || imgToDraw.readyState >= 2)) {
                 ctx.save();
                 
-                // Tablet Koordinat Düzenlemesi
-                // PDF'ler (isBackground:true) merkezden, kopyalar ise bırakıldıkları yerden hesaplanır.
-                const centerX = stroke.isBackground ? stroke.x : (stroke.x + stroke.width / 2);
-                const centerY = stroke.isBackground ? stroke.y : (stroke.y + stroke.height / 2);
+                // --- KRİTİK DÜZELTME ---
+                // Arka plan resimlerinde koordinat kaymasını önlemek için merkezi hesaplıyoruz
+                // stroke.x ve y sol üst köşe kabul edilir, translate için merkeze (width/2) çekilir.
+                const centerX = stroke.x + (stroke.width / 2);
+                const centerY = stroke.y + (stroke.height / 2);
                 
                 ctx.translate(centerX, centerY);
                 ctx.rotate((stroke.rotation || 0) * Math.PI / 180);
 
-                // --- TABLET İÇİN KRİTİK: RESMİ BELİRLENEN BOYUTA HAPSET ---
-                // stroke.width ve stroke.height kullanılarak resmin kocaman olması engellenir.
+                // Resmi belirlenen boyutlarda (kocaman olmadan) çiz
                 ctx.drawImage(
                     imgToDraw, 
                     -stroke.width / 2, 
@@ -367,7 +375,7 @@ function redrawAllStrokes() {
                     stroke.height
                 );
 
-                // Taşıma modunda seçim kutusu
+                // --- ÖZELLİK KORUMA: TAŞI MODU SEÇİM KUTUSU ---
                 if (currentTool === 'move' && selectedItem === stroke) {
                     ctx.strokeStyle = '#00FFCC';
                     ctx.lineWidth = 2;
@@ -868,26 +876,25 @@ if (uploadButton && fileInput) {
         } 
 
        // --- RESİM DOSYASI YÜKLEME KISMI ---
+// Dosya yükleme içindeki resim (image) kısmı
 else if (file.type.startsWith('image/')) {
     const reader = new FileReader();
     reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
-            // Resmi kanvasa ekle
+            // 1. Resmi hafızaya al ve çizdir
             addNewImageToCanvas(img, false);
 
-            // --- BURASI EKLENDİ: Kırmızı Kapat Butonunu Göster ---
-            const closePdfBtn = document.getElementById('btn-close-pdf');
+            // 2. Kırmızı butonu SADECE ŞİMDİ göster
             if (closePdfBtn) {
                 closePdfBtn.classList.remove('hidden');
-                closePdfBtn.style.display = 'flex'; // Kırmızıyı uyandır!
+                closePdfBtn.style.display = 'flex';
             }
         };
         img.src = event.target.result;
     };
     reader.readAsDataURL(file);
-}
-        
+}        
         e.target.value = ''; // Aynı dosyayı tekrar seçebilmek için temizle
     };
 }
@@ -1262,39 +1269,32 @@ canvas.addEventListener('pointerdown', (e) => {
 }, { passive: false });
 
 
-canvas.addEventListener('pointermove', (e) => {
-    // --- YENİ: PARMAK TAKİBİ VE ZOOM ---
-    pointers.set(e.pointerId, e); // Her zaman parmağı kaydet
+// --- 1. PARMAK TAKİBİ VE ZOOM (DEĞİŞECEK KISIM) ---
+    pointers.set(e.pointerId, e); 
 
-   // --- TABLET: İKİ PARMAK ZOOM (GÜNCEL SIFIR ZIPLAMA) ---
     if (pointers.size === 2) {
         const p = Array.from(pointers.values());
         const currentDist = Math.hypot(p[0].clientX - p[1].clientX, p[0].clientY - p[1].clientY);
 
         if (lastDist > 0) {
-            // Aradaki farkı (delta) bul, çarpan olarak değil ekleyerek ilerle
             const delta = currentDist - lastDist;
-            const zoomSpeed = 0.005; // Hassasiyeti buradan ayarla
-            
+            const zoomSpeed = 0.005; 
             let newScale = globalScale + (delta * zoomSpeed);
             
-            // Sınırları kontrol et
             if (newScale >= MIN_SCALE && newScale <= MAX_SCALE) {
                 globalScale = newScale;
                 redrawAllStrokes();
             }
         }
-        lastDist = currentDist; // KRİTİK: Her karede mesafeyi güncelle
-        return; 
+        lastDist = currentDist; 
+        return; // Zoom yaparken aşağıdaki diğer işlemleri (çizim/taşıma) çalıştırmaz
     }
 
-    // 1. GÜVENLİK: Tek parmaklı işlemlerde sadece ana dokunuşu takip et
     if (!e.isPrimary) return; 
 
-    // 2. MERKEZİ KOORDİNAT HESABI (Zoom Uyumlu):
     const pos = getPointerPos(e); 
-    currentMousePos = pos; // app.js'in geri kalanı için senkronize et
-
+    currentMousePos = pos; 
+    // --- DEĞİŞİM BURADA BİTİYOR, SONRASI (MOVE MANTIĞI VS.) AYNI KALSIN ---
     // --- 1. TAŞIMA (MOVE) MANTIĞI ---
     if (currentTool === 'move' && isMoving) {
         const dx = pos.x - dragStartPos.x;
