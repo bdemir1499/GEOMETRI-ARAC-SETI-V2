@@ -1,3 +1,10 @@
+let globalScale = 1;      // Yakınlaştırma oranı
+let offsetX = 0;          // Yatay kaydırma
+let offsetY = 0;          // Dikey kaydırma
+let pointers = new Map(); // Tabletteki parmakları takip eder
+let lastDist = 0;         // İki parmak arası son mesafe
+
+
 // app.js dosyasının başına ekle
 function getGlobalCoordinates(e) {
     const rect = canvas.getBoundingClientRect();
@@ -46,12 +53,12 @@ if (odaPin) {
 
 function getPointerPos(e) {
     const rect = canvas.getBoundingClientRect();
+    // Koordinatları önce ölçeğe böl, sonra kaydırma miktarını çıkar
     return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+        x: (e.clientX - rect.left) / globalScale - offsetX,
+        y: (e.clientY - rect.top) / globalScale - offsetY
     };
 }
-
 
 // --- KANVAS AYARLARI ---
 const canvas = document.getElementById('drawing-canvas');
@@ -268,7 +275,11 @@ window.bringToolToFront = function(clickedElement) {
 // --- ÇİZİM FONKSİYONU (REDRAW) ---
 function redrawAllStrokes() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
 
+    // TÜM KANVASI ÖLÇEKLENDİR
+    ctx.scale(globalScale, globalScale);
+    ctx.translate(offsetX, offsetY);
     
     for (const stroke of drawnStrokes) {
         if (stroke.type === 'pen') {
@@ -1247,11 +1258,29 @@ canvas.addEventListener('pointerdown', (e) => {
 
 
 canvas.addEventListener('pointermove', (e) => {
-    // 1. GÜVENLİK: Sadece ana dokunuşu takip et (Zıplama önleyici)
+    // --- YENİ: PARMAK TAKİBİ VE ZOOM ---
+    pointers.set(e.pointerId, e); // Her zaman parmağı kaydet
+
+    // --- A) İKİ PARMAK ZOOM MANTIĞI ---
+    if (pointers.size === 2) {
+        const p = Array.from(pointers.values());
+        // İki parmak arası mesafeyi ölç
+        const currentDist = Math.hypot(p[0].clientX - p[1].clientX, p[0].clientY - p[1].clientY);
+
+        if (lastDist > 0) {
+            const zoomAmount = currentDist / lastDist;
+            // globalScale'i güncelle (0.5x ile 4x arası sınır)
+            globalScale = Math.min(Math.max(0.5, globalScale * zoomAmount), 4);
+            redrawAllStrokes(); 
+        }
+        lastDist = currentDist;
+        return; // İKİ PARMAK VARSA ÇİZİME GEÇME, BURADA DUR!
+    }
+
+    // 1. GÜVENLİK: Tek parmaklı işlemlerde sadece ana dokunuşu takip et
     if (!e.isPrimary) return; 
 
-    // 2. MERKEZİ KOORDİNAT HESABI: 
-    // Tüm proje bu 'pos' değişkenini "tek gerçek" kabul edecek.
+    // 2. MERKEZİ KOORDİNAT HESABI (Zoom Uyumlu):
     const pos = getPointerPos(e); 
     currentMousePos = pos; // app.js'in geri kalanı için senkronize et
 
@@ -1581,6 +1610,24 @@ canvas.addEventListener('pointerup', (e) => {
     
     redrawAllStrokes();
 
+}, { passive: false });
+
+
+// --- PC İÇİN CTRL + TEKERLEK İLE ZOOM DESTEĞİ ---
+canvas.addEventListener('wheel', (e) => {
+    if (e.ctrlKey) {
+        e.preventDefault(); // Sayfanın aşağı kaymasını engelle
+        const zoomSpeed = 0.001;
+        
+        // Tekerlek hareketine göre ölçeği güncelle
+        globalScale -= e.deltaY * zoomSpeed;
+        
+        // Sınırları koru (0.5x ile 4x arası)
+        globalScale = Math.min(Math.max(0.5, globalScale), 4);
+        
+        // Tüm tahtayı yeni ölçekle tekrar çiz
+        if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
+    }
 }, { passive: false });
 
 
