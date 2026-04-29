@@ -277,10 +277,15 @@ function redrawAllStrokes() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
 
-    // TÜM KANVASI ÖLÇEKLENDİR
+    // Yakınlaştırmayı merkeze göre yapmak için:
+    // 1. Kanvasın merkezine git
+    // 2. Ölçeklendir
+    // 3. Geri gel
+    ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.scale(globalScale, globalScale);
-    ctx.translate(offsetX, offsetY);
-    
+    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
+    // Çizim döngüsü buradan devam eder...
     for (const stroke of drawnStrokes) {
         if (stroke.type === 'pen') {
             ctx.beginPath();
@@ -1619,23 +1624,20 @@ canvas.addEventListener('pointerup', (e) => {
 }, { passive: false });
 
 
-// --- PC İÇİN CTRL + TEKERLEK İLE ZOOM DESTEĞİ ---
 canvas.addEventListener('wheel', (e) => {
     if (e.ctrlKey) {
-        e.preventDefault(); // Sayfanın aşağı kaymasını engelle
-        const zoomSpeed = 0.001;
+        e.preventDefault();
         
-        // Tekerlek hareketine göre ölçeği güncelle
-        globalScale -= e.deltaY * zoomSpeed;
-        
-        // Sınırları koru (0.5x ile 4x arası)
-        globalScale = Math.min(Math.max(0.5, globalScale), 4);
-        
-        // Tüm tahtayı yeni ölçekle tekrar çiz
-        if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
+        // Tekerleği ne kadar hızlı çevirirse çevirsin kontrollü artış sağlar
+        const zoomStep = e.deltaY > 0 ? 0.95 : 1.05; 
+        let newScale = globalScale * zoomStep;
+
+        if (newScale >= MIN_SCALE && newScale <= MAX_SCALE) {
+            globalScale = newScale;
+            redrawAllStrokes();
+        }
     }
 }, { passive: false });
-
 
 // --- POINTERCANCEL (KESİNTİ DURUMUNDA SIFIRLAMA) ---
 canvas.addEventListener('pointercancel', (e) => {
