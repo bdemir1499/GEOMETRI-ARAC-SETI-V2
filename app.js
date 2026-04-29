@@ -809,7 +809,6 @@ if (prevPageBtn && nextPageBtn) {
     });
 }
 
-// app.js içindeki yükleme kısmını bu şekilde güncelleyin
 if (uploadButton && fileInput) {
     uploadButton.onclick = () => fileInput.click();
 
@@ -823,20 +822,14 @@ if (uploadButton && fileInput) {
             fileReader.onload = async function() {
                 const typedarray = new Uint8Array(this.result);
                 try {
-                    // PDF'i yükle (pdf.min.js kütüphanesini kullanır)
                     currentPDF = await pdfjsLib.getDocument(typedarray).promise;
                     totalPDFPages = currentPDF.numPages;
-                    currentPDFPage = 1; // Her zaman 1. sayfadan başla
+                    currentPDFPage = 1; 
 
-                    // PDF kontrollerini ve kapatma butonunu göster[cite: 1, 2]
+                    // Kırmızı kapatma butonunu buradan SİLDİK. Sadece sayfaları değiştirme panelini açıyoruz:
                     if (pdfControls) pdfControls.classList.remove('hidden');
-                    const closePdfBtn = document.getElementById('btn-close-pdf');
-                    if (closePdfBtn) {
-                        closePdfBtn.classList.remove('hidden');
-                        closePdfBtn.style.display = 'flex';
-                    }
 
-                    // Sayfayı ekrana çiz
+                    // Sayfayı ekrana çiz (Buton işlem bitince addNewImageToCanvas içinde açılacak)
                     renderPDFPage(currentPDFPage);
                 } catch (error) {
                     console.error("PDF açılırken hata oluştu:", error);
@@ -844,31 +837,22 @@ if (uploadButton && fileInput) {
             };
             fileReader.readAsArrayBuffer(file);
         } 
-
-       // --- RESİM DOSYASI YÜKLEME KISMI ---
-// Dosya yükleme içindeki resim (image) kısmı
-else if (file.type.startsWith('image/')) {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-            // 1. Resmi hafızaya al ve çizdir
-            addNewImageToCanvas(img, false);
-
-            // 2. Kırmızı butonu SADECE ŞİMDİ göster
-            if (closePdfBtn) {
-                closePdfBtn.classList.remove('hidden');
-                closePdfBtn.style.display = 'flex';
-            }
-        };
-        img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
-}        
+        // --- DURUM B: RESİM DOSYASI ---
+        else if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Resim hazır olduğunda kanvasa ekle (Buton da burada açılacak)
+                    addNewImageToCanvas(img, false);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }        
         e.target.value = ''; // Aynı dosyayı tekrar seçebilmek için temizle
     };
 }
-
 
 function addToCanvasAsObject(img) {
     let startWidth = 400;
@@ -880,48 +864,47 @@ function addToCanvasAsObject(img) {
     drawnStrokes.push({
         type: 'image',
         img: img,
-        x: canvas.width / 2,
-        y: canvas.height / 2,
+        // --- TAM ORTALAMA HESABI ---
+        x: (canvas.width / 2) - (startWidth / 2),
+        y: (canvas.height / 2) - (startHeight / 2),
         width: startWidth,
         height: startHeight,
         rotation: 0,
         isBackground: true 
     });
+
+    // --- BUTONU GÖSTERME VE KAPATMA İŞLEVİ FONKSİYONUN İÇİNE ALINDI ---
+    if (closePdfBtn) {
+        // 1. Butonu SADECE resim eklendiğinde görünür yap
+        closePdfBtn.classList.remove('hidden');
+        closePdfBtn.style.display = 'flex';
+
+        // 2. Kapatma işlevini tanımla
+        closePdfBtn.onclick = () => {
+            // Kontrol panelini ve butonun kendisini gizle
+            if (typeof pdfControls !== 'undefined' && pdfControls) {
+                pdfControls.classList.add('hidden');
+            }
+            closePdfBtn.classList.add('hidden');
+            closePdfBtn.style.display = 'none';
+
+            // Arka plan olan öğeleri kaldır
+            drawnStrokes = drawnStrokes.filter(s => !s.isBackground && !s.isPDFPage);
+            window.drawnStrokes = drawnStrokes;
+
+            // Değişkenleri sıfırla
+            currentPDF = null;
+            if (typeof pdfImageStroke !== 'undefined') pdfImageStroke = null;
+
+            // Ekranı temizle ve kalan çizimleri tekrar çiz
+            redrawAllStrokes();
+        };
+    }
     
     redrawAllStrokes();
-} // <-- BU PARANTEZ EKSİKTİ, BURAYA EKLE!
+}
 
-// PDF/Resim için ortak "PDF kapat" butonunu göster ve işlevini tanımla
-        // (const ile tanımlama satırını sildik çünkü en üstte zaten var)
 
-        if (closePdfBtn) {
-            // 1. Butonu görünür yap (Dosya yüklendiği an çalışmalı)
-            closePdfBtn.classList.remove('hidden');
-            closePdfBtn.style.display = 'flex';
-
-            // 2. Kapatma işlevini tanımla
-            closePdfBtn.onclick = () => {
-                // Kontrol panelini ve butonun kendisini gizle
-                if (typeof pdfControls !== 'undefined' && pdfControls) {
-                    pdfControls.classList.add('hidden');
-                }
-                closePdfBtn.classList.add('hidden');
-                closePdfBtn.style.display = 'none';
-
-                // --- KRİTİK DÜZELTME BURASI ---
-                // Arka plan olan (isBackground veya isPDFPage) öğeleri FİLTRELE (yani kaldır)
-                // Kalanlar sadece sizin kalemle yaptığınız çizimler olacak.
-                drawnStrokes = drawnStrokes.filter(s => !s.isBackground && !s.isPDFPage);
-                window.drawnStrokes = drawnStrokes;
-
-                // PDF ve Resim değişkenlerini tamamen sıfırla
-                currentPDF = null;
-                if (typeof pdfImageStroke !== 'undefined') pdfImageStroke = null;
-
-                // Ekranı temizle ve kalan çizimleri (varsa) tekrar çiz
-                redrawAllStrokes();
-            };
-        }
 if(fillButton) fillButton.addEventListener('click', () => setActiveTool(currentTool === 'fill' ? 'none' : 'fill'));
 if(fillColorBoxes) {
     fillColorBoxes.forEach(box => {
@@ -1732,27 +1715,32 @@ function addNewImageToCanvas(img, isPDF = false) {
     const newStroke = {
         type: 'image',
         img: img, 
-        x: canvas.width / 2,
-        y: canvas.height / 2,
+        // --- 1. KRİTİK DÜZELTME: TAM ORTALAMA HESABI ---
+        x: (canvas.width / 2) - (startWidth / 2),
+        y: (canvas.height / 2) - (startHeight / 2),
         width: startWidth,
         height: startHeight,
         rotation: 0,
-        isBackground: true // <--- BU SATIR ÇOK ÖNEMLİ (SİLMEK İÇİN GEREKLİ)
+        isBackground: true 
     };
     
-    // Listeye ekle
     drawnStrokes.push(newStroke);
     
-    // Eğer bu bir PDF ise, referansını sakla
     if (isPDF) {
         pdfImageStroke = newStroke;
-        // PDF yüklendiğinde kapatma butonunu GÖSTER
-        const closeBtn = document.getElementById('btn-close-pdf');
-        if(closeBtn) closeBtn.classList.remove('hidden');
+    }
+    
+    // --- 2. KRİTİK DÜZELTME: BUTONU DOĞRU ZAMANDA GÖSTER ---
+    // Resim veya PDF ekrana "gerçekten" çizildiği an bu buton görünür olacak
+    const closeBtn = document.getElementById('btn-close-pdf');
+    if(closeBtn) {
+        closeBtn.classList.remove('hidden');
+        closeBtn.style.display = 'flex';
     }
     
     redrawAllStrokes();
 }
+
 
 // --- ARAÇ RENGİ DEĞİŞTİRME MANTIĞI (SİYAH / NEON / TOK MAVİ) ---
 const toolColorBtn = document.getElementById('btn-tool-color');
