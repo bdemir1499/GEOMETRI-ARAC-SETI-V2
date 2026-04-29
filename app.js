@@ -523,6 +523,7 @@ function clearAllStrokes() {
     if (drawnStrokes.length > 0) {
         if (window.audio_clear) window.audio_clear.play(); // Varsa ses
     }
+
     // --- DEĞİŞİKLİK BURADA: Sadece arka plan OLMAYANLARI temizle ---
     // Eğer stroke.isBackground true ise (PDF veya Resim), onu tut.
     drawnStrokes = drawnStrokes.filter(stroke => stroke.isBackground === true);
