@@ -1987,3 +1987,87 @@ window.addEventListener('touchmove', function(e) {
     }
 }, { passive: false }); // passive: false çok önemlidir, tarayıcıyı durdurmaya izin verir.
 // ==========================================
+
+// =======================================================
+// TABLET ZIPLAMA VE ESNEME ÇÖZÜCÜ (ARAÇLARA DOKUNMADAN)
+// =======================================================
+window.addEventListener('load', () => {
+    // Tüm fiziksel araçların listesi
+    const tools = ['RulerTool', 'GonyeTool', 'AciolcerTool', 'PergelTool'];
+    
+    tools.forEach(toolName => {
+        const tool = window[toolName];
+        // Eğer araç henüz yüklenmemişse atla
+        if (!tool || typeof tool.finalizeDraw !== 'function') return;
+
+        // Aracın orijinal çizim bitirme fonksiyonunu yedekle
+        const originalFinalizeDraw = tool.finalizeDraw.bind(tool);
+
+        // Orijinal fonksiyonu, araya giren (interceptor) bir fonksiyonla değiştir
+        tool.finalizeDraw = function() {
+            const mainCanvas = document.getElementById('drawing-canvas');
+            if (!mainCanvas || !window.drawnStrokes) {
+                return originalFinalizeDraw();
+            }
+
+            const rect = mainCanvas.getBoundingClientRect();
+            
+            // KESİN ÇÖZÜM: Tablet tarayıcılarındaki gizli zoom ve adres çubuğu esnemesi (Scale)
+            // Kanvasın gerçek pikselleri ile ekrandaki CSS boyutu arasındaki farkı bulur
+            const scaleX = mainCanvas.width / (rect.width || 1);
+            const scaleY = mainCanvas.height / (rect.height || 1);
+
+            // Araçların ana diziye çizgi ekleme (push) işlemini gizlice dinlemeye al
+            const originalPush = window.drawnStrokes.push;
+            
+            window.drawnStrokes.push = function(stroke) {
+                if (stroke) {
+                    const scaleAvg = (scaleX + scaleY) / 2;
+
+                    if (stroke.type === 'arc' && stroke.cx !== undefined) {
+                        // Pergelin zıplamasını havada düzelt
+                        stroke.cx = (tool.state.pivot.x - rect.left) * scaleX;
+                        stroke.cy = (tool.state.pivot.y - rect.top) * scaleY;
+                        stroke.radius = tool.state.radius * scaleAvg;
+                    } 
+                    else if (stroke.p1 && stroke.p2) {
+                        // Cetvel, Gönye ve Açıölçer zıplamasını havada düzelt
+                        // 1. Koordinatları aracın ekrandaki ham DOM pozisyonuna geri çevir
+                        let activeL = tool.activeRect ? tool.activeRect.left : rect.left;
+                        let activeT = tool.activeRect ? tool.activeRect.top : rect.top;
+                        
+                        let p1_dom_x = stroke.p1.x + activeL;
+                        let p1_dom_y = stroke.p1.y + activeT;
+                        let p2_dom_x = stroke.p2.x + activeL;
+                        let p2_dom_y = stroke.p2.y + activeT;
+
+                        // 2. Canlı rect ve Esneme (Scale) çarpanı ile kanvasın doğru pikseline oturt
+                        stroke.p1.x = (p1_dom_x - rect.left) * scaleX;
+                        stroke.p1.y = (p1_dom_y - rect.top) * scaleY;
+                        stroke.p2.x = (p2_dom_x - rect.left) * scaleX;
+                        stroke.p2.y = (p2_dom_y - rect.top) * scaleY;
+
+                        // Uzunluk yazısını (örn: 5,2 cm) düzeltilen çizginin tam ortasına hizala
+                        if (stroke.lengthLabelPos) {
+                            stroke.lengthLabelPos.x = (stroke.p1.x + stroke.p2.x) / 2;
+                            stroke.lengthLabelPos.y = (stroke.p1.y + stroke.p2.y) / 2;
+                        }
+                    }
+                }
+                // Düzeltilmiş objeyi asıl diziye kaydet
+                return originalPush.call(window.drawnStrokes, stroke);
+            };
+
+            try {
+                // Orijinal fonksiyonu çalıştır 
+                // (Araç habersizce bizim modifiye ettiğimiz push komutunu kullanacak)
+                originalFinalizeDraw();
+            } finally {
+                // Çizim bitince push'u orijinal haline geri döndür ki sistemin geri kalanı bozulmasın
+                window.drawnStrokes.push = originalPush;
+            }
+        };
+    });
+});
+
+
