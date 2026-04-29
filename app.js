@@ -2202,22 +2202,27 @@ function olusturYuzenKopya(imgSrc, startX, startY, width, height) {
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp); // Tarayıcı hatasında da bırak
 
-    // --- BOŞLUĞA TIKLAYINCA ANA KANVASA MÜHÜRLE ---
+    // --- BOŞLUĞA TIKLAYINCA ANA KANVASA MÜHÜRLE (GÜNCEL TABLET UYUMLU) ---
     setTimeout(() => {
         const disariTiklama = (e) => {
             if (!container.contains(e.target)) {
-                const rect = document.getElementById('drawing-canvas').getBoundingClientRect();
+                // Kanvasın ekrandaki güncel pozisyonunu al
+                const rect = canvas.getBoundingClientRect();
+                
                 if (window.drawnStrokes) {
                     window.drawnStrokes.push({
                         type: 'image',
-                        imgData: imgSrc,
-                        x: container.offsetLeft - rect.left,
-                        y: container.offsetTop - rect.top,
+                        imgData: imgSrc, // Snapshot verisi
+                        // Tablette koordinat sapmasını önlemek için getBoundingClientRect kullanıyoruz
+                        x: container.getBoundingClientRect().left - rect.left,
+                        y: container.getBoundingClientRect().top - rect.top,
                         width: container.offsetWidth,
                         height: container.offsetHeight,
-                        rotation: parseFloat(container.dataset.rotation) || 0
+                        rotation: parseFloat(container.dataset.rotation) || 0,
+                        isBackground: false 
                     });
-                    if (window.redrawAllStrokes) window.redrawAllStrokes();
+                    // Çizimleri güncelle
+                    if (window.redrawAllStrokes) window.redrawAllStrokes(); 
                 }
                 
                 // Olay izleyicileri ve yüzen kutuyu temizle
