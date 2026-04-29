@@ -317,32 +317,32 @@ function redrawAllStrokes() {
         if (stroke.type === 'image') {
             let imgToDraw = null;
 
-            // --- 1. RESİM KAYNAĞINI BELİRLE ---
+            // 1. KAYNAK KONTROLÜ: Yüklenen PDF mi yoksa Canlandır kopyası mı?
             if (stroke.img && stroke.img instanceof HTMLImageElement) {
-                // Eğer doğrudan yüklenen bir resimse (PDF veya Dosya Yükle)
-                imgToDraw = stroke.img;
+                imgToDraw = stroke.img; // Dosya/PDF yüklemesi
             } else if (stroke.imgData) {
-                // Eğer Canlandır (snapshot) verisiyse (Metin formatında gelir)
                 if (!stroke.imgObj) {
                     stroke.imgObj = new Image();
                     stroke.imgObj.src = stroke.imgData;
                     stroke.imgObj.onload = () => redrawAllStrokes();
                 }
-                imgToDraw = stroke.imgObj;
+                imgToDraw = stroke.imgObj; // Canlandır kopyası
             }
 
-            // --- 2. ÇİZİM AŞAMASI ---
+            // 2. ÇİZİM: Tablette kaymayı engelleyen merkezleme mantığı
             if (imgToDraw && (imgToDraw.complete || imgToDraw.readyState >= 2)) {
                 ctx.save();
                 
-                // Koordinat Düzenlemesi: Arka planlar merkezden, kopyalar sol-üstten hesaplanır
+                // Tablet Koordinat Düzenlemesi
+                // PDF'ler (isBackground:true) merkezden, kopyalar ise bırakıldıkları yerden hesaplanır.
                 const centerX = stroke.isBackground ? stroke.x : (stroke.x + stroke.width / 2);
                 const centerY = stroke.isBackground ? stroke.y : (stroke.y + stroke.height / 2);
                 
                 ctx.translate(centerX, centerY);
                 ctx.rotate((stroke.rotation || 0) * Math.PI / 180);
 
-                // Resmi tam olarak belirlenen boyutlarda çiz (Kocaman olmasını engeller)
+                // --- TABLET İÇİN KRİTİK: RESMİ BELİRLENEN BOYUTA HAPSET ---
+                // stroke.width ve stroke.height kullanılarak resmin kocaman olması engellenir.
                 ctx.drawImage(
                     imgToDraw, 
                     -stroke.width / 2, 
@@ -351,7 +351,7 @@ function redrawAllStrokes() {
                     stroke.height
                 );
 
-                // Taşıma modunda çerçeveyi göster
+                // Taşıma modunda seçim kutusu
                 if (currentTool === 'move' && selectedItem === stroke) {
                     ctx.strokeStyle = '#00FFCC';
                     ctx.lineWidth = 2;
