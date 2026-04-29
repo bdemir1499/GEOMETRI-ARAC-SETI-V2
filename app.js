@@ -319,15 +319,31 @@ function redrawAllStrokes() {
             ctx.stroke();
         }
 
-        // --- RESİM / PDF ---
+       // --- RESİM / PDF VE CANLANDIR (SNAPSHOT) KOPYASI ---
         else if (stroke.type === 'image') {
-            let imgToDraw = stroke.imgObj || stroke.img;
+            let imgToDraw = null;
+
+            // 1. KAYNAK KONTROLÜ (Kayıp olan Canlandır kodunu geri ekledik)
+            if (stroke.img && stroke.img instanceof HTMLImageElement) {
+                imgToDraw = stroke.img; // PDF veya Dosya yüklemesi
+            } else if (stroke.imgData) {
+                if (!stroke.imgObj) {
+                    stroke.imgObj = new Image();
+                    stroke.imgObj.src = stroke.imgData;
+                    // Resim yüklendiğinde ekranı tazele
+                    stroke.imgObj.onload = () => { if (window.redrawAllStrokes) window.redrawAllStrokes(); };
+                }
+                imgToDraw = stroke.imgObj; // Canlandır kopyası
+            }
+
+            // 2. ÇİZİM MANTIĞI
             if (imgToDraw && (imgToDraw.complete || imgToDraw.readyState >= 2)) {
                 ctx.save();
                 const centerX = stroke.x + (stroke.width / 2);
                 const centerY = stroke.y + (stroke.height / 2);
                 ctx.translate(centerX, centerY);
                 ctx.rotate((stroke.rotation || 0) * Math.PI / 180);
+                
                 ctx.drawImage(imgToDraw, -stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
                 
                 if (typeof currentTool !== 'undefined' && currentTool === 'move' && selectedItem === stroke) {
@@ -1088,6 +1104,10 @@ canvas.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'touch') e.preventDefault();
     canvas.setPointerCapture(e.pointerId);
 
+// --- BUNU EKLE: Parmağı ekrana değdiği an kaydet ---
+    pointers.set(e.pointerId, e); 
+    // ------------------------------------------------
+
     // 2. Koordinatları tek seferde al (Zıplamayı bitiren temiz veri)
     const pos = getPointerPos(e); 
     const snapPos = snapTarget || pos;
@@ -1463,6 +1483,11 @@ canvas.addEventListener('pointerup', (e) => {
     canvas.releasePointerCapture(e.pointerId);
     if (e.pointerType === 'touch' && e.cancelable) e.preventDefault();
 
+// --- BUNLARI EKLE: Kalkan parmağı sil ve zoom'u sıfırla ---
+    pointers.delete(e.pointerId); 
+    if (pointers.size < 2) lastDist = 0; 
+    // -----------------------------------------------------------
+
     // -----------------------------------------------------------------
     // KRİTİK: Zıplamayı bitiren altın kural!
     // Parmağını kaldırdığın an etkinlikten (e) gelen hatalı koordinatı OKUMUYORUZ.
@@ -1598,6 +1623,11 @@ canvas.addEventListener('wheel', (e) => {
 
 // --- POINTERCANCEL (KESİNTİ DURUMUNDA SIFIRLAMA) ---
 canvas.addEventListener('pointercancel', (e) => {
+// --- BUNLARI EKLE ---
+    pointers.delete(e.pointerId);
+    lastDist = 0;
+    // --------------------
+
     // İşlemi iptal et ve tüm bayrakları (flag) indir
     isDrawing = false;
     isMoving = false;
