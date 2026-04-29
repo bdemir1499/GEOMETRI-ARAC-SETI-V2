@@ -2202,38 +2202,45 @@ function olusturYuzenKopya(imgSrc, startX, startY, width, height) {
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp); // Tarayıcı hatasında da bırak
 
-    // --- BOŞLUĞA TIKLAYINCA ANA KANVASA MÜHÜRLE (GÜNCEL TABLET UYUMLU) ---
+    // --- BOŞLUĞA TIKLAYINCA ANA KANVASA MÜHÜRLE (TABLET ÇOKLU KOPYA ÖNLEYİCİ) ---
     setTimeout(() => {
+        let isStamped = false; // Çoklu kopyayı engelleyen kilit
+
         const disariTiklama = (e) => {
-            if (!container.contains(e.target)) {
-                // Kanvasın ekrandaki güncel pozisyonunu al
-                const rect = canvas.getBoundingClientRect();
-                
-                if (window.drawnStrokes) {
-                    window.drawnStrokes.push({
-                        type: 'image',
-                        imgData: imgSrc, // Snapshot verisi
-                        // Tablette koordinat sapmasını önlemek için getBoundingClientRect kullanıyoruz
-                        x: container.getBoundingClientRect().left - rect.left,
-                        y: container.getBoundingClientRect().top - rect.top,
-                        width: container.offsetWidth,
-                        height: container.offsetHeight,
-                        rotation: parseFloat(container.dataset.rotation) || 0,
-                        isBackground: false 
-                    });
-                    // Çizimleri güncelle
-                    if (window.redrawAllStrokes) window.redrawAllStrokes(); 
-                }
-                
-                // Olay izleyicileri ve yüzen kutuyu temizle
-                container.remove();
-                window.removeEventListener('pointerdown', disariTiklama, true);
-                window.removeEventListener('pointermove', onMove);
-                window.removeEventListener('pointerup', onUp);
-                window.removeEventListener('pointercancel', onUp);
+            // 1. Eğer zaten mühürlendiyse veya tıklanan yer kutunun içindeyse işlem yapma
+            if (isStamped || container.contains(e.target)) return;
+
+            // 2. Kilidi hemen kapat (Birden fazla kopya oluşmasını engeller)
+            isStamped = true;
+            window.removeEventListener('pointerdown', disariTiklama, true);
+
+            const rect = canvas.getBoundingClientRect();
+            
+            if (window.drawnStrokes) {
+                // Sadece dikdörtgen içindeki alanı kanvasa mühürle
+                window.drawnStrokes.push({
+                    type: 'image',
+                    imgData: imgSrc, 
+                    x: container.getBoundingClientRect().left - rect.left,
+                    y: container.getBoundingClientRect().top - rect.top,
+                    width: container.offsetWidth,
+                    height: container.offsetHeight,
+                    rotation: parseFloat(container.dataset.rotation) || 0,
+                    isBackground: false 
+                });
+
+                // Ekranı güncelle ve kopyayı kalıcı hale getir
+                if (window.redrawAllStrokes) window.redrawAllStrokes(); 
             }
+            
+            // 3. Yüzen kutuyu ve diğer izleyicileri temizle
+            container.remove();
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            window.removeEventListener('pointercancel', onUp);
         };
-        // True: Capture modunda dinler, böylece ekranın neresine tıklarsa tıklasın ilk bunu çalıştırır
+
+        // 'true' parametresi ile olay yakalama (capture) modunda dinliyoruz
         window.addEventListener('pointerdown', disariTiklama, true); 
     }, 200);
 }
