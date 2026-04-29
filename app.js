@@ -875,6 +875,8 @@ else if (file.type.startsWith('image/')) {
         e.target.value = ''; // Aynı dosyayı tekrar seçebilmek için temizle
     };
 }
+
+
 // Resmi veya PDF Sayfasını Hafızaya Ekleyen Ortak Fonksiyon
 function addToCanvasAsObject(img) {
     let startWidth = 400;
@@ -895,40 +897,39 @@ function addToCanvasAsObject(img) {
     });
     
     redrawAllStrokes();
-// PDF/Resim için ortak "PDF kapat" butonunu göster ve handler ekle
+
+
+// PDF/Resim için ortak "PDF kapat" butonunu göster ve işlevini tanımla
 const closePdfBtn = document.getElementById('btn-close-pdf');
+
 if (closePdfBtn) {
-  // Önce gizli sınıfı kaldır ve mobilde görünür yap
-  closePdfBtn.classList.remove('hidden');
-  closePdfBtn.style.display = 'flex';
+    // 1. Butonu görünür yap (Dosya yüklendiği an çalışmalı)
+    closePdfBtn.classList.remove('hidden');
+    closePdfBtn.style.display = 'flex';
 
-  // Önceki handler varsa kaldır (çift eklenmeyi önlemek için)
-  closePdfBtn.onclick = null;
-  closePdfBtn.removeEventListener && closePdfBtn.removeEventListener('click', () => {});
+    // 2. Kapatma işlevini tanımla
+    closePdfBtn.onclick = () => {
+        // Kontrol panelini ve butonun kendisini gizle
+        if (typeof pdfControls !== 'undefined' && pdfControls) {
+            pdfControls.classList.add('hidden');
+        }
+        closePdfBtn.classList.add('hidden');
+        closePdfBtn.style.display = 'none';
 
-  // Yeni kapatma işlevi
-  closePdfBtn.onclick = () => {
-    // Paneli gizle
-    if (pdfControls) pdfControls.classList.add('hidden');
-    // Butonu gizle
-    closePdfBtn.classList.add('hidden');
-    closePdfBtn.style.display = '';
+        // --- KRİTİK DÜZELTME BURASI ---
+        // Arka plan olan (isBackground veya isPDFPage) öğeleri FİLTRELE (yani kaldır)
+        // Kalanlar sadece sizin kalemle yaptığınız çizimler olacak.
+        drawnStrokes = drawnStrokes.filter(s => !s.isBackground && !s.isPDFPage);
+        window.drawnStrokes = drawnStrokes;
 
-    // Eğer resmi arka plan olarak tutuyorsan onu kaldır veya sıfırla
-    // Burada isBackground true olanları tutuyoruz; ihtiyacına göre değiştir
-    drawnStrokes = drawnStrokes.filter(s => s.isBackground === true);
-    window.drawnStrokes = drawnStrokes;
+        // PDF ve Resim değişkenlerini tamamen sıfırla
+        currentPDF = null;
+        if (typeof pdfImageStroke !== 'undefined') pdfImageStroke = null;
 
-    // PDF/Resim değişkenlerini sıfırla
-    currentPDF = null;
-    pdfImageStroke = null;
-
-    // Kanvası temizle ve yeniden çiz
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    redrawAllStrokes();
-  };
+        // Ekranı temizle ve kalan çizimleri (varsa) tekrar çiz
+        redrawAllStrokes();
+    };
 }
-
 }
 
 if(fillButton) fillButton.addEventListener('click', () => setActiveTool(currentTool === 'fill' ? 'none' : 'fill'));
