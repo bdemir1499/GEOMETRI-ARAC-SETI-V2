@@ -70,6 +70,7 @@ function getPointerPos(e) {
     };
 }
 
+
 // --- KANVAS AYARLARI ---
 const canvas = document.getElementById('drawing-canvas');
 const ctx = canvas.getContext('2d');
