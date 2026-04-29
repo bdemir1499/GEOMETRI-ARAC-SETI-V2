@@ -315,57 +315,54 @@ function redrawAllStrokes() {
         }
 
         if (stroke.type === 'image') {
-            ctx.save(); // Ayarları kaydet
-            
-            // Resmin merkezine git ve gerekirse döndür
-            ctx.translate(stroke.x, stroke.y); 
-            ctx.rotate(stroke.rotation * Math.PI / 180);
+            let imgToDraw = null;
 
-            // Resmi Çiz (Merkezi ortalayarak)
-            ctx.drawImage(stroke.img, -stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
-            
-            // Eğer "Taşı" aracı seçiliyse etrafına kutu ve kulpları çiz
-            if (currentTool === 'move' && selectedItem === stroke) {
-                // 1. Kesikli Çerçeve
-                ctx.strokeStyle = '#00FFCC';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
-                ctx.strokeRect(-stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
-                ctx.setLineDash([]);
-
-                // 2. Sağ Alt Köşe: Boyutlandırma Kulpu (Pembe)
-                ctx.beginPath();
-                ctx.arc(stroke.width / 2, stroke.height / 2, 10, 0, 2 * Math.PI);
-                ctx.fillStyle = '#FF00FF';
-                ctx.fill();
-                ctx.stroke();
-
-                // 3. YENİ: Üst Orta: Döndürme Kulpu (Altın Sarısı)
-                // Çerçevenin 30 piksel üzerine bir çubuk uzatıyoruz
-                const handleDist = stroke.height / 2 + 30; 
-                
-                ctx.beginPath();
-                ctx.moveTo(0, -stroke.height / 2); // Çerçeveden başla
-                ctx.lineTo(0, -handleDist); // Yukarı çık
-                ctx.strokeStyle = '#00FFCC';
-                ctx.stroke();
-
-                // Altın Topuz
-                ctx.beginPath();
-                ctx.arc(0, -handleDist, 12, 0, 2 * Math.PI); 
-                ctx.fillStyle = '#FFD700'; // Altın Rengi
-                ctx.fill();
-                ctx.stroke();
-                
-                // İçine Dönüş Sembolü (↻)
-                ctx.fillStyle = '#000';
-                ctx.font = 'bold 16px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('↻', 0, -handleDist + 1);
+            // --- 1. RESİM KAYNAĞINI BELİRLE ---
+            if (stroke.img && stroke.img instanceof HTMLImageElement) {
+                // Eğer doğrudan yüklenen bir resimse (PDF veya Dosya Yükle)
+                imgToDraw = stroke.img;
+            } else if (stroke.imgData) {
+                // Eğer Canlandır (snapshot) verisiyse (Metin formatında gelir)
+                if (!stroke.imgObj) {
+                    stroke.imgObj = new Image();
+                    stroke.imgObj.src = stroke.imgData;
+                    stroke.imgObj.onload = () => redrawAllStrokes();
+                }
+                imgToDraw = stroke.imgObj;
             }
-            ctx.restore(); // Ayarları geri yükle
-        }        
+
+            // --- 2. ÇİZİM AŞAMASI ---
+            if (imgToDraw && (imgToDraw.complete || imgToDraw.readyState >= 2)) {
+                ctx.save();
+                
+                // Koordinat Düzenlemesi: Arka planlar merkezden, kopyalar sol-üstten hesaplanır
+                const centerX = stroke.isBackground ? stroke.x : (stroke.x + stroke.width / 2);
+                const centerY = stroke.isBackground ? stroke.y : (stroke.y + stroke.height / 2);
+                
+                ctx.translate(centerX, centerY);
+                ctx.rotate((stroke.rotation || 0) * Math.PI / 180);
+
+                // Resmi tam olarak belirlenen boyutlarda çiz (Kocaman olmasını engeller)
+                ctx.drawImage(
+                    imgToDraw, 
+                    -stroke.width / 2, 
+                    -stroke.height / 2, 
+                    stroke.width, 
+                    stroke.height
+                );
+
+                // Taşıma modunda çerçeveyi göster
+                if (currentTool === 'move' && selectedItem === stroke) {
+                    ctx.strokeStyle = '#00FFCC';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(-stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
+                    ctx.setLineDash([]);
+                }
+                
+                ctx.restore();
+            }
+        }
 
         else if (stroke.type === 'point') {
             drawDot(stroke);
@@ -818,83 +815,58 @@ if (prevPageBtn && nextPageBtn) {
     });
 }
 
+// app.js içindeki yükleme kısmını bu şekilde güncelleyin
 if (uploadButton && fileInput) {
-    uploadButton.addEventListener('click', () => {
-        fileInput.click();
-    });
+    uploadButton.onclick = () => fileInput.click();
 
-    fileInput.addEventListener('change', async (e) => {
+    fileInput.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        // --- DURUM A: PDF YÜKLEME ---
+        // --- DURUM A: PDF DOSYASI ---
         if (file.type === 'application/pdf') {
             const fileReader = new FileReader();
             fileReader.onload = async function() {
                 const typedarray = new Uint8Array(this.result);
                 try {
-                    // 1. PDF'i Yükle
+                    // PDF'i yükle (pdf.min.js kütüphanesini kullanır)
                     currentPDF = await pdfjsLib.getDocument(typedarray).promise;
                     totalPDFPages = currentPDF.numPages;
-                    
-                    // 2. KULLANICIYA BAŞLANGIÇ SAYFASINI SOR
-                    let startPage = prompt(`Bu kitap ${totalPDFPages} sayfa. Hangi sayfadan başlamak istersiniz?`, "1");
-                    
-                    // Girdi kontrolü (Geçersizse veya İptal ise 1'den başla)
-                    currentPDFPage = parseInt(startPage);
-                    if (!currentPDFPage || currentPDFPage < 1 || currentPDFPage > totalPDFPages) {
-                        currentPDFPage = 1;
+                    currentPDFPage = 1; // Her zaman 1. sayfadan başla
+
+                    // PDF kontrollerini ve kapatma butonunu göster[cite: 1, 2]
+                    if (pdfControls) pdfControls.classList.remove('hidden');
+                    const closePdfBtn = document.getElementById('btn-close-pdf');
+                    if (closePdfBtn) {
+                        closePdfBtn.classList.remove('hidden');
+                        closePdfBtn.style.display = 'flex';
                     }
 
-                    // 3. Paneli Göster
-                    pdfControls.classList.remove('hidden');
-                    // PDF kapatma butonunu da göster
-const closePdfBtn = document.getElementById('btn-close-pdf');
-if (closePdfBtn) {
-  closePdfBtn.classList.remove('hidden');
-  closePdfBtn.style.display = 'flex';
-
-  // Kapatma işlevi
-  closePdfBtn.onclick = () => {
-    pdfControls.classList.add('hidden');
-    closePdfBtn.classList.add('hidden');
-    currentPDF = null; // PDF’i sıfırla
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // PDF görüntüsünü temizle
-    redrawAllStrokes(); // Çizimleri yeniden çiz
-  };
-}
-
-                    pdfControls.style.display = 'flex';
-
-
-                    
-                    // 4. Seçilen Sayfayı Çiz
+                    // Sayfayı ekrana çiz
                     renderPDFPage(currentPDFPage);
-
                 } catch (error) {
-                    console.error("PDF hatası:", error);
-                    alert("PDF okunurken bir hata oluştu.");
+                    console.error("PDF açılırken hata oluştu:", error);
                 }
             };
             fileReader.readAsArrayBuffer(file);
         } 
-        // --- DURUM B: EĞER DOSYA RESİM İSE (JPG, PNG) ---
-        else {
+        // --- DURUM B: RESİM DOSYASI ---
+        else if (file.type.startsWith('image/')) {
             const reader = new FileReader();
             reader.onload = (event) => {
                 const img = new Image();
                 img.onload = () => {
-                    addToCanvasAsObject(img); // Ortak fonksiyonu çağır
+                    // Resmi kanvasa sığacak şekilde nesne olarak ekle[cite: 2]
+                    addNewImageToCanvas(img, false);
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         }
         
-        e.target.value = ''; 
-    });
+        e.target.value = ''; // Aynı dosyayı tekrar seçebilmek için temizle
+    };
 }
-
 // Resmi veya PDF Sayfasını Hafızaya Ekleyen Ortak Fonksiyon
 function addToCanvasAsObject(img) {
     let startWidth = 400;
@@ -1427,6 +1399,26 @@ canvas.addEventListener('pointermove', (e) => {
         previewActive = true; 
     }
 
+
+// F. CANLANDIR (SNAPSHOT) ÖNİZLEMESİ
+    else if (currentTool === 'snapshot' && typeof snapshotStart !== 'undefined' && snapshotStart) {
+        redrawAllStrokes(); // Ekranı temizle ve alttaki çizimleri geri getir
+        ctx.globalAlpha = 1.0;
+        ctx.setLineDash([6, 6]); // Kesikli çizgi efekti
+        ctx.strokeStyle = '#00ffcc'; // Turkuaz renk
+        ctx.lineWidth = 2;
+        
+        // Seçim dikdörtgenini çiz
+        ctx.strokeRect(
+            snapshotStart.x, 
+            snapshotStart.y, 
+            pos.x - snapshotStart.x, 
+            pos.y - snapshotStart.y
+        );
+        ctx.setLineDash([]); // Çizgiyi normale döndür
+        previewActive = true; 
+    }
+
     if (previewActive) return; 
 
     // --- 5. AKTİF ÇİZİM (KALEM / SİLGİ) ---
@@ -1533,47 +1525,43 @@ canvas.addEventListener('pointerup', (e) => {
     }
 
 
-// --- E) CANLANDIR (SNAPSHOT) VE PDF/RESİM KATMANLARINI BİRLEŞTİRME ---
-    if (currentTool === 'snapshot' && typeof snapshotStart !== 'undefined' && snapshotStart && finalPos) {
-        const x = Math.min(snapshotStart.x, finalPos.x);
-        const y = Math.min(snapshotStart.y, finalPos.y);
-        const w = Math.abs(finalPos.x - snapshotStart.x);
-        const h = Math.abs(finalPos.y - snapshotStart.y);
+// --- E) CANLANDIR (SNAPSHOT) BÖLÜMÜ (GÜNCEL NOKTA ATIŞI KESİM) ---
+    if (currentTool === 'snapshot' && snapshotStart && currentMousePos) {
+        const x = Math.min(snapshotStart.x, currentMousePos.x);
+        const y = Math.min(snapshotStart.y, currentMousePos.y);
+        const w = Math.abs(currentMousePos.x - snapshotStart.x);
+        const h = Math.abs(currentMousePos.y - snapshotStart.y);
 
-        if (w > 15 && h > 15) { // Çok küçük yanlış tıklamaları es geç
-            
-            // 1. İki katmanı da üst üste basacağımız hayalet kanvas
+        if (w > 10 && h > 10) {
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = w;
             tempCanvas.height = h;
             const tempCtx = tempCanvas.getContext('2d');
 
-            // 2. ÖNCE ARKA PLANI (PDF veya RESMİ) AL
+            // --- 1. ARKA PLANI (PDF/RESİM) KES ---
             const bgLayer = document.getElementById('pdf-canvas') || document.querySelector('.pdf-page-canvas');
             if (bgLayer) {
-                try {
-                    // PDF'in çözünürlük farkını hesaplayıp nokta atışı kesiyoruz
-                    const scaleX = bgLayer.width / bgLayer.offsetWidth;
-                    const scaleY = bgLayer.height / bgLayer.offsetHeight;
-                    tempCtx.drawImage(bgLayer, x * scaleX, y * scaleY, w * scaleX, h * scaleY, 0, 0, w, h);
-                } catch(err) { console.log("PDF kopyalanamadı", err); }
+                // Tablet/PC Çözünürlük farkını hesapla
+                const sX = bgLayer.width / bgLayer.offsetWidth;
+                const sY = bgLayer.height / bgLayer.offsetHeight;
+                // Kaynak kanvasta (x,y) noktasından kes, hedefte (0,0) noktasına tam boyutta bas
+                tempCtx.drawImage(bgLayer, x * sX, y * sY, w * sX, h * sY, 0, 0, w, h);
             }
 
-            // 3. SONRA ÜSTÜNE ÇİZİMLERİNİ AL
+            // --- 2. ÇİZİMLERİ KES ---
             tempCtx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
 
-            // 4. İki katman birleşti. Veriye dönüştür.
             const finalImage = tempCanvas.toDataURL('image/png');
-
-            // 5. YÜZEN KOPYA KUTUSUNU OLUŞTUR (Yeşil ve Pembe butonlu o harika özellik!)
-            // DOM üzerindeki fiziksel yerini belirlemek için rect.left'i ekliyoruz
             const rect = canvas.getBoundingClientRect();
+            
+            // Yüzen kutuyu oluştur (Yeşil ve pembe butonlu araç)
             olusturYuzenKopya(finalImage, x + rect.left, y + rect.top, w, h);
             
-            // İşlem bittikten sonra "Taşı (Move)" aracına geri dön
-            setActiveTool('move');
+            snapshotStart = null; // Seçimi sıfırla (Burası kritik: İkinci kez yapınca karışmasın)
+            setActiveTool('move'); // İşlem bitince taşıma moduna geç
         }
     }
+
 
     // --- GENEL SIFIRLAMA ---
     isDrawing = false;
@@ -1668,15 +1656,11 @@ function updatePageLabel() {
     if(pageCountLabel) pageCountLabel.innerText = `Sayfa: ${currentPDFPage} / ${totalPDFPages}`;
 }
 
-// Belirli bir sayfayı render et ve ekrandaki nesneyi güncelle
 async function renderPDFPage(num) {
     if (!currentPDF) return;
     
-    updatePageLabel();
-    
     const page = await currentPDF.getPage(num);
-    // Kalite Ayarı (4.0 = Yüksek Kalite)
-    const viewport = page.getViewport({ scale: 4.0 }); 
+    const viewport = page.getViewport({ scale: 2.0 }); // Netlik için 2x kalite
 
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
@@ -1690,17 +1674,13 @@ async function renderPDFPage(num) {
 
     const img = new Image();
     img.onload = () => {
-        // EĞER ekranda zaten bir PDF sayfası varsa, onun RESMİNİ değiştir (Konumunu koru)
-        if (pdfImageStroke && drawnStrokes.includes(pdfImageStroke)) {
-            pdfImageStroke.img = img; // Sadece resmi güncelle
-            redrawAllStrokes();
-        } else {
-            // Ekranda yoksa (ilk kez veya silinmişse) yeni ekle
-            addNewImageToCanvas(img, true);
-        }
+        addNewImageToCanvas(img, true);
     };
     img.src = tempCanvas.toDataURL();
+    
+    if(pageCountLabel) pageCountLabel.innerText = `Sayfa: ${num} / ${totalPDFPages}`;
 }
+
 
 // --- app.js İÇİNDEKİ addNewImageToCanvas FONKSİYONU ---
 
