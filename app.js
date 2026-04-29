@@ -1532,6 +1532,49 @@ canvas.addEventListener('pointerup', (e) => {
         }
     }
 
+
+// --- E) CANLANDIR (SNAPSHOT) VE PDF/RESİM KATMANLARINI BİRLEŞTİRME ---
+    if (currentTool === 'snapshot' && typeof snapshotStart !== 'undefined' && snapshotStart && finalPos) {
+        const x = Math.min(snapshotStart.x, finalPos.x);
+        const y = Math.min(snapshotStart.y, finalPos.y);
+        const w = Math.abs(finalPos.x - snapshotStart.x);
+        const h = Math.abs(finalPos.y - snapshotStart.y);
+
+        if (w > 15 && h > 15) { // Çok küçük yanlış tıklamaları es geç
+            
+            // 1. İki katmanı da üst üste basacağımız hayalet kanvas
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = w;
+            tempCanvas.height = h;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            // 2. ÖNCE ARKA PLANI (PDF veya RESMİ) AL
+            const bgLayer = document.getElementById('pdf-canvas') || document.querySelector('.pdf-page-canvas');
+            if (bgLayer) {
+                try {
+                    // PDF'in çözünürlük farkını hesaplayıp nokta atışı kesiyoruz
+                    const scaleX = bgLayer.width / bgLayer.offsetWidth;
+                    const scaleY = bgLayer.height / bgLayer.offsetHeight;
+                    tempCtx.drawImage(bgLayer, x * scaleX, y * scaleY, w * scaleX, h * scaleY, 0, 0, w, h);
+                } catch(err) { console.log("PDF kopyalanamadı", err); }
+            }
+
+            // 3. SONRA ÜSTÜNE ÇİZİMLERİNİ AL
+            tempCtx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
+
+            // 4. İki katman birleşti. Veriye dönüştür.
+            const finalImage = tempCanvas.toDataURL('image/png');
+
+            // 5. YÜZEN KOPYA KUTUSUNU OLUŞTUR (Yeşil ve Pembe butonlu o harika özellik!)
+            // DOM üzerindeki fiziksel yerini belirlemek için rect.left'i ekliyoruz
+            const rect = canvas.getBoundingClientRect();
+            olusturYuzenKopya(finalImage, x + rect.left, y + rect.top, w, h);
+            
+            // İşlem bittikten sonra "Taşı (Move)" aracına geri dön
+            setActiveTool('move');
+        }
+    }
+
     // --- GENEL SIFIRLAMA ---
     isDrawing = false;
     isDrawingLine = isDrawingInfinityLine = isDrawingSegment = isDrawingRay = false;
@@ -2022,4 +2065,164 @@ window.addEventListener('orientationchange', () => {
 
 // KRİTİK NOKTA: 'resize' eventini (adres çubuğu hareketlerini) DİNLEMİYORUZ!
 // Böylece adres çubuğu kaybolsa/çıksa bile sayfa esnemez, çizgiler zıplamaz.
+
+// =======================================================
+// CANLANDIR (SNAPSHOT) - YÜZEN KOPYA VE KONTROLLERİ
+// =======================================================
+function olusturYuzenKopya(imgSrc, startX, startY, width, height) {
+    // 1. Ana Kapsayıcı Kutu (Dashed Frame)
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = startX + 'px';
+    container.style.top = startY + 'px';
+    container.style.width = width + 'px';
+    container.style.height = height + 'px';
+    container.style.border = '2px dashed #00ffcc';
+    container.style.cursor = 'grab';
+    container.style.zIndex = '9999';
+    container.style.boxSizing = 'border-box';
+    container.style.transformOrigin = 'center center';
+    container.dataset.rotation = '0'; // Açı hafızası
+
+    // 2. Kopyalanan Resim
+    const img = document.createElement('img');
+    img.src = imgSrc;
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.display = 'block';
+    img.style.pointerEvents = 'none'; // Sürüklemeyi engellememesi için
+    container.appendChild(img);
+
+    // 3. Döndürme (Yeşil) Butonu ve Sapı
+    const rotateLine = document.createElement('div');
+    rotateLine.style.position = 'absolute';
+    rotateLine.style.top = '-20px';
+    rotateLine.style.left = '50%';
+    rotateLine.style.width = '2px';
+    rotateLine.style.height = '20px';
+    rotateLine.style.backgroundColor = '#00ff00';
+    rotateLine.style.transform = 'translateX(-50%)';
+    container.appendChild(rotateLine);
+
+    const rotateBtn = document.createElement('div');
+    rotateBtn.style.position = 'absolute';
+    rotateBtn.style.top = '-40px';
+    rotateBtn.style.left = '50%';
+    rotateBtn.style.transform = 'translateX(-50%)';
+    rotateBtn.style.width = '30px';
+    rotateBtn.style.height = '30px';
+    rotateBtn.style.backgroundColor = '#00ff00'; // Yeşil Döndürme
+    rotateBtn.style.borderRadius = '50%';
+    rotateBtn.style.cursor = 'grab';
+    rotateBtn.style.border = '2px solid white';
+    rotateBtn.style.boxShadow = '0px 2px 5px rgba(0,0,0,0.5)';
+    rotateBtn.style.touchAction = 'none'; // Tarayıcı kaymasını engelle
+    container.appendChild(rotateBtn);
+
+    // 4. Yeniden Boyutlandırma (Pembe) Butonu
+    const resizeBtn = document.createElement('div');
+    resizeBtn.style.position = 'absolute';
+    resizeBtn.style.bottom = '-15px';
+    resizeBtn.style.right = '-15px';
+    resizeBtn.style.width = '30px';
+    resizeBtn.style.height = '30px';
+    resizeBtn.style.backgroundColor = '#ff00ff'; // Pembe Boyutlandırma
+    resizeBtn.style.borderRadius = '50%';
+    resizeBtn.style.cursor = 'nwse-resize';
+    resizeBtn.style.border = '2px solid white';
+    resizeBtn.style.boxShadow = '0px 2px 5px rgba(0,0,0,0.5)';
+    resizeBtn.style.touchAction = 'none';
+    container.appendChild(resizeBtn);
+
+    document.body.appendChild(container);
+
+    // --- ETKİLEŞİM MANTIĞI (Sürükleme, Döndürme, Boyutlandırma) ---
+    let mode = 'none'; 
+    let startEvtX, startEvtY, initialLeft, initialTop, initialWidth, initialHeight, initialRotation, centerX, centerY;
+
+    function getPointer(e) { return e.touches ? e.touches[0] : e; }
+
+    // Döndürmeye Başla
+    rotateBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation(); e.preventDefault();
+        mode = 'rotate';
+        const rect = container.getBoundingClientRect();
+        centerX = rect.left + rect.width / 2;
+        centerY = rect.top + rect.height / 2;
+        initialRotation = parseFloat(container.dataset.rotation) || 0;
+        container.dataset.startAngle = Math.atan2(getPointer(e).clientY - centerY, getPointer(e).clientX - centerX) * 180 / Math.PI;
+    });
+
+    // Boyutlandırmaya Başla
+    resizeBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation(); e.preventDefault();
+        mode = 'resize';
+        startEvtX = getPointer(e).clientX; startEvtY = getPointer(e).clientY;
+        initialWidth = container.offsetWidth; initialHeight = container.offsetHeight;
+    });
+
+    // Sürüklemeye Başla
+    container.addEventListener('pointerdown', (e) => {
+        if (e.target === rotateBtn || e.target === resizeBtn) return;
+        e.stopPropagation(); e.preventDefault();
+        mode = 'drag'; container.style.cursor = 'grabbing';
+        startEvtX = getPointer(e).clientX; startEvtY = getPointer(e).clientY;
+        initialLeft = container.offsetLeft; initialTop = container.offsetTop;
+    });
+
+    // Genel Hareket İzleyici (Akıllı Tahta / Tablet Uyumlu)
+    const onMove = (e) => {
+        if (mode === 'none') return;
+        e.preventDefault();
+        const ptr = getPointer(e);
+
+        if (mode === 'drag') {
+            container.style.left = (initialLeft + (ptr.clientX - startEvtX)) + 'px';
+            container.style.top = (initialTop + (ptr.clientY - startEvtY)) + 'px';
+        } else if (mode === 'resize') {
+            const newWidth = Math.max(30, initialWidth + (ptr.clientX - startEvtX));
+            container.style.width = newWidth + 'px';
+            container.style.height = initialHeight * (newWidth / initialWidth) + 'px'; // Orantıyı koru
+        } else if (mode === 'rotate') {
+            const currentAngle = Math.atan2(ptr.clientY - centerY, ptr.clientX - centerX) * 180 / Math.PI;
+            const finalRotation = initialRotation + (currentAngle - parseFloat(container.dataset.startAngle));
+            container.style.transform = `rotate(${finalRotation}deg)`;
+            container.dataset.rotation = finalRotation;
+        }
+    };
+
+    const onUp = () => { if (mode === 'drag') container.style.cursor = 'grab'; mode = 'none'; };
+
+    window.addEventListener('pointermove', onMove, { passive: false });
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+
+    // --- BOŞLUĞA TIKLAYINCA (BİTİRİNCE) ANA KANVASA MÜHÜRLE ---
+    setTimeout(() => {
+        const disariTiklama = (e) => {
+            if (!container.contains(e.target)) {
+                // Kanvas pozisyonuna dönüştür
+                const rect = document.getElementById('drawing-canvas').getBoundingClientRect();
+                if (window.drawnStrokes) {
+                    window.drawnStrokes.push({
+                        type: 'image',
+                        imgData: imgSrc,
+                        x: container.offsetLeft - rect.left,
+                        y: container.offsetTop - rect.top,
+                        width: container.offsetWidth,
+                        height: container.offsetHeight,
+                        rotation: parseFloat(container.dataset.rotation) || 0
+                    });
+                    if (window.redrawAllStrokes) window.redrawAllStrokes();
+                }
+                // Olay izleyicileri ve yüzen kutuyu temizle
+                container.remove();
+                window.removeEventListener('pointerdown', disariTiklama, true);
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', onUp);
+            }
+        };
+        window.addEventListener('pointerdown', disariTiklama, true); // True: Tüm tıklamaları herkesten önce yakalar
+    }, 200);
+}
 
