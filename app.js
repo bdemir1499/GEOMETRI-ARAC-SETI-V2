@@ -2067,11 +2067,12 @@ window.addEventListener('orientationchange', () => {
 // Böylece adres çubuğu kaybolsa/çıksa bile sayfa esnemez, çizgiler zıplamaz.
 
 // =======================================================
-// CANLANDIR (SNAPSHOT) - YÜZEN KOPYA VE KONTROLLERİ
+// CANLANDIR (SNAPSHOT) - TABLET/PC UYUMLU YÜZEN KOPYA
 // =======================================================
 function olusturYuzenKopya(imgSrc, startX, startY, width, height) {
-    // 1. Ana Kapsayıcı Kutu (Dashed Frame)
+    // 1. Ana Kapsayıcı Kutu
     const container = document.createElement('div');
+    container.className = 'yuzen-kopya-container'; // Global dokunma engelleri için sınıf
     container.style.position = 'absolute';
     container.style.left = startX + 'px';
     container.style.top = startY + 'px';
@@ -2082,7 +2083,8 @@ function olusturYuzenKopya(imgSrc, startX, startY, width, height) {
     container.style.zIndex = '9999';
     container.style.boxSizing = 'border-box';
     container.style.transformOrigin = 'center center';
-    container.dataset.rotation = '0'; // Açı hafızası
+    container.style.touchAction = 'none'; // KRİTİK: Tablette sayfa kaymasını yasaklar
+    container.dataset.rotation = '0'; 
 
     // 2. Kopyalanan Resim
     const img = document.createElement('img');
@@ -2090,7 +2092,7 @@ function olusturYuzenKopya(imgSrc, startX, startY, width, height) {
     img.style.width = '100%';
     img.style.height = '100%';
     img.style.display = 'block';
-    img.style.pointerEvents = 'none'; // Sürüklemeyi engellememesi için
+    img.style.pointerEvents = 'none'; 
     container.appendChild(img);
 
     // 3. Döndürme (Yeşil) Butonu ve Sapı
@@ -2105,59 +2107,66 @@ function olusturYuzenKopya(imgSrc, startX, startY, width, height) {
     container.appendChild(rotateLine);
 
     const rotateBtn = document.createElement('div');
+    rotateBtn.className = 'rotate-handle'; // Tablette kaymayı durduran mevcut sınıfınız
     rotateBtn.style.position = 'absolute';
     rotateBtn.style.top = '-40px';
     rotateBtn.style.left = '50%';
     rotateBtn.style.transform = 'translateX(-50%)';
     rotateBtn.style.width = '30px';
     rotateBtn.style.height = '30px';
-    rotateBtn.style.backgroundColor = '#00ff00'; // Yeşil Döndürme
+    rotateBtn.style.backgroundColor = '#00ff00'; 
     rotateBtn.style.borderRadius = '50%';
     rotateBtn.style.cursor = 'grab';
     rotateBtn.style.border = '2px solid white';
     rotateBtn.style.boxShadow = '0px 2px 5px rgba(0,0,0,0.5)';
-    rotateBtn.style.touchAction = 'none'; // Tarayıcı kaymasını engelle
+    rotateBtn.style.touchAction = 'none'; // KRİTİK
     container.appendChild(rotateBtn);
 
     // 4. Yeniden Boyutlandırma (Pembe) Butonu
     const resizeBtn = document.createElement('div');
+    resizeBtn.className = 'resize-handle'; // Tablette kaymayı durduran mevcut sınıfınız
     resizeBtn.style.position = 'absolute';
     resizeBtn.style.bottom = '-15px';
     resizeBtn.style.right = '-15px';
     resizeBtn.style.width = '30px';
     resizeBtn.style.height = '30px';
-    resizeBtn.style.backgroundColor = '#ff00ff'; // Pembe Boyutlandırma
+    resizeBtn.style.backgroundColor = '#ff00ff'; 
     resizeBtn.style.borderRadius = '50%';
     resizeBtn.style.cursor = 'nwse-resize';
     resizeBtn.style.border = '2px solid white';
     resizeBtn.style.boxShadow = '0px 2px 5px rgba(0,0,0,0.5)';
-    resizeBtn.style.touchAction = 'none';
+    resizeBtn.style.touchAction = 'none'; // KRİTİK
     container.appendChild(resizeBtn);
 
     document.body.appendChild(container);
 
-    // --- ETKİLEŞİM MANTIĞI (Sürükleme, Döndürme, Boyutlandırma) ---
+    // --- TABLET UYUMLU ETKİLEŞİM MANTIĞI ---
     let mode = 'none'; 
     let startEvtX, startEvtY, initialLeft, initialTop, initialWidth, initialHeight, initialRotation, centerX, centerY;
-
-    function getPointer(e) { return e.touches ? e.touches[0] : e; }
+    let activePointerId = null; // Parmağı takip etmek için kilit ID'si
 
     // Döndürmeye Başla
     rotateBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation(); e.preventDefault();
         mode = 'rotate';
+        activePointerId = e.pointerId;
+        rotateBtn.setPointerCapture(activePointerId); // KRİTİK: Parmağı yeşil butona kilitle!
+
         const rect = container.getBoundingClientRect();
         centerX = rect.left + rect.width / 2;
         centerY = rect.top + rect.height / 2;
         initialRotation = parseFloat(container.dataset.rotation) || 0;
-        container.dataset.startAngle = Math.atan2(getPointer(e).clientY - centerY, getPointer(e).clientX - centerX) * 180 / Math.PI;
+        container.dataset.startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * 180 / Math.PI;
     });
 
     // Boyutlandırmaya Başla
     resizeBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation(); e.preventDefault();
         mode = 'resize';
-        startEvtX = getPointer(e).clientX; startEvtY = getPointer(e).clientY;
+        activePointerId = e.pointerId;
+        resizeBtn.setPointerCapture(activePointerId); // KRİTİK: Parmağı pembe butona kilitle!
+
+        startEvtX = e.clientX; startEvtY = e.clientY;
         initialWidth = container.offsetWidth; initialHeight = container.offsetHeight;
     });
 
@@ -2165,43 +2174,58 @@ function olusturYuzenKopya(imgSrc, startX, startY, width, height) {
     container.addEventListener('pointerdown', (e) => {
         if (e.target === rotateBtn || e.target === resizeBtn) return;
         e.stopPropagation(); e.preventDefault();
-        mode = 'drag'; container.style.cursor = 'grabbing';
-        startEvtX = getPointer(e).clientX; startEvtY = getPointer(e).clientY;
+        mode = 'drag';
+        activePointerId = e.pointerId;
+        container.setPointerCapture(activePointerId); // KRİTİK: Parmağı resme kilitle!
+
+        container.style.cursor = 'grabbing';
+        startEvtX = e.clientX; startEvtY = e.clientY;
         initialLeft = container.offsetLeft; initialTop = container.offsetTop;
     });
 
-    // Genel Hareket İzleyici (Akıllı Tahta / Tablet Uyumlu)
+    // Hareket Etme (Move)
     const onMove = (e) => {
         if (mode === 'none') return;
+        if (e.pointerId !== activePointerId) return; // İkinci parmakla yapılan müdahaleleri engeller
         e.preventDefault();
-        const ptr = getPointer(e);
 
         if (mode === 'drag') {
-            container.style.left = (initialLeft + (ptr.clientX - startEvtX)) + 'px';
-            container.style.top = (initialTop + (ptr.clientY - startEvtY)) + 'px';
+            container.style.left = (initialLeft + (e.clientX - startEvtX)) + 'px';
+            container.style.top = (initialTop + (e.clientY - startEvtY)) + 'px';
         } else if (mode === 'resize') {
-            const newWidth = Math.max(30, initialWidth + (ptr.clientX - startEvtX));
+            const newWidth = Math.max(30, initialWidth + (e.clientX - startEvtX));
             container.style.width = newWidth + 'px';
-            container.style.height = initialHeight * (newWidth / initialWidth) + 'px'; // Orantıyı koru
+            container.style.height = initialHeight * (newWidth / initialWidth) + 'px'; 
         } else if (mode === 'rotate') {
-            const currentAngle = Math.atan2(ptr.clientY - centerY, ptr.clientX - centerX) * 180 / Math.PI;
+            const currentAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * 180 / Math.PI;
             const finalRotation = initialRotation + (currentAngle - parseFloat(container.dataset.startAngle));
             container.style.transform = `rotate(${finalRotation}deg)`;
             container.dataset.rotation = finalRotation;
         }
     };
 
-    const onUp = () => { if (mode === 'drag') container.style.cursor = 'grab'; mode = 'none'; };
+    // Parmağı Kaldırma (Bırakma)
+    const onUp = (e) => {
+        if (mode === 'none') return;
+        
+        // Kilidi serbest bırak
+        if (e.target.hasPointerCapture && e.target.hasPointerCapture(e.pointerId)) {
+            e.target.releasePointerCapture(e.pointerId);
+        }
+        
+        if (mode === 'drag') container.style.cursor = 'grab'; 
+        mode = 'none'; 
+        activePointerId = null;
+    };
 
     window.addEventListener('pointermove', onMove, { passive: false });
     window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('pointercancel', onUp); // Tarayıcı hatasında da bırak
 
-    // --- BOŞLUĞA TIKLAYINCA (BİTİRİNCE) ANA KANVASA MÜHÜRLE ---
+    // --- BOŞLUĞA TIKLAYINCA ANA KANVASA MÜHÜRLE ---
     setTimeout(() => {
         const disariTiklama = (e) => {
             if (!container.contains(e.target)) {
-                // Kanvas pozisyonuna dönüştür
                 const rect = document.getElementById('drawing-canvas').getBoundingClientRect();
                 if (window.drawnStrokes) {
                     window.drawnStrokes.push({
@@ -2215,14 +2239,16 @@ function olusturYuzenKopya(imgSrc, startX, startY, width, height) {
                     });
                     if (window.redrawAllStrokes) window.redrawAllStrokes();
                 }
+                
                 // Olay izleyicileri ve yüzen kutuyu temizle
                 container.remove();
                 window.removeEventListener('pointerdown', disariTiklama, true);
                 window.removeEventListener('pointermove', onMove);
                 window.removeEventListener('pointerup', onUp);
+                window.removeEventListener('pointercancel', onUp);
             }
         };
-        window.addEventListener('pointerdown', disariTiklama, true); // True: Tüm tıklamaları herkesten önce yakalar
+        // True: Capture modunda dinler, böylece ekranın neresine tıklarsa tıklasın ilk bunu çalıştırır
+        window.addEventListener('pointerdown', disariTiklama, true); 
     }, 200);
 }
-
