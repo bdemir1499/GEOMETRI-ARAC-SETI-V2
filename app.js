@@ -1,9 +1,11 @@
-// --- 1. DEĞİŞKENLER VE BAŞLANGIÇ AYARLARI ---
 let globalScale = 1;
 let lastDist = 0;
 let pointers = new Map();
-const MIN_SCALE = 0.5; // En fazla %50 küçülme
-const MAX_SCALE = 5.0; // En fazla %500 büyüme
+let offsetX = 0; // BUNU EKLE
+let offsetY = 0; // BUNU EKLE
+const MIN_SCALE = 0.5; 
+const MAX_SCALE = 5.0;
+
 
 // Sayfa açıldığında kırmızı butonun yanlışlıkla görünmesini engellemek için:
 const closePdfBtn = document.getElementById('btn-close-pdf');
@@ -61,10 +63,10 @@ if (odaPin) {
 
 function getPointerPos(e) {
     const rect = canvas.getBoundingClientRect();
-    // Koordinatları önce ölçeğe böl, sonra kaydırma miktarını çıkar
     return {
-        x: (e.clientX - rect.left) / globalScale - offsetX,
-        y: (e.clientY - rect.top) / globalScale - offsetY
+        // Önce ekran koordinatını al, sonra ölçeğe böl
+        x: (e.clientX - rect.left) / globalScale,
+        y: (e.clientY - rect.top) / globalScale
     };
 }
 
@@ -280,118 +282,70 @@ window.bringToolToFront = function(clickedElement) {
     if (clickedElement) clickedElement.style.zIndex = 6;
 }
 
-// --- ÇİZİM FONKSİYONU (REDRAW) ---
 function redrawAllStrokes() {
+    // 1. ÖNCE KOORDİNATLARI SIFIRLA VE TÜM EKRANI SİL (Ghosting/Merdiven çözümüdür)
+    ctx.setTransform(1, 0, 0, 1, 0, 0); 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
     ctx.save();
 
-    // Yakınlaştırmayı merkeze göre yapmak için:
-    // 1. Kanvasın merkezine git
-    // 2. Ölçeklendir
-    // 3. Geri gel
+    // 2. ZOOM MERKEZLEME MANTIĞI
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.scale(globalScale, globalScale);
     ctx.translate(-canvas.width / 2, -canvas.height / 2);
 
-    // Çizim döngüsü buradan devam eder...
+    // 3. NESNELERİ ÇİZ (For döngüsü başlıyor)
     for (const stroke of drawnStrokes) {
+        
+        // --- KALEM (PEN) ---
         if (stroke.type === 'pen') {
             ctx.beginPath();
-            
             const points = stroke.path;
-            
-            // Eğer nokta sayısı azsa (1 veya 2), düz çizgi yeterlidir
             if (points.length < 3) {
                 ctx.moveTo(points[0].x, points[0].y);
-                for (let i = 1; i < points.length; i++) {
-                    ctx.lineTo(points[i].x, points[i].y);
-                }
+                for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
             } else {
-                // --- YUMUŞATMA ALGORİTMASI (Quadratic Curve) ---
-                
-                // İlk noktaya git
                 ctx.moveTo(points[0].x, points[0].y);
-                
-                // Noktalar arasında döngü kur (Son 2 nokta hariç)
                 for (let i = 1; i < points.length - 2; i++) {
-                    const xc = (points[i].x + points[i + 1].x) / 2; // İki noktanın ortası (Kontrol Noktası)
+                    const xc = (points[i].x + points[i + 1].x) / 2;
                     const yc = (points[i].y + points[i + 1].y) / 2;
-                    
-                    // Eğriyi çiz: Mevcut noktayı (points[i]) "bükme noktası" olarak kullan,
-                    // orta noktaya (xc, yc) kadar çiz.
                     ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
                 }
-                
-                // Son kalan 2 noktayı kavisli olarak birleştir
-                ctx.quadraticCurveTo(
-                    points[points.length - 2].x,
-                    points[points.length - 2].y,
-                    points[points.length - 1].x,
-                    points[points.length - 1].y
-                );
+                ctx.quadraticCurveTo(points[points.length-2].x, points[points.length-2].y, points[points.length-1].x, points[points.length-1].y);
             }
-
             ctx.strokeStyle = stroke.color;
             ctx.lineWidth = stroke.width;
-            ctx.lineCap = 'round'; 
-            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
             ctx.stroke();
         }
 
-        if (stroke.type === 'image') {
-            let imgToDraw = null;
-
-            // 1. KAYNAK KONTROLÜ: Özellik kaybı olmaması için mevcut mantığını koruyoruz
-            if (stroke.img && stroke.img instanceof HTMLImageElement) {
-                imgToDraw = stroke.img; // PDF veya Dosya yüklemesi
-            } else if (stroke.imgData) {
-                if (!stroke.imgObj) {
-                    stroke.imgObj = new Image();
-                    stroke.imgObj.src = stroke.imgData;
-                    stroke.imgObj.onload = () => redrawAllStrokes();
-                }
-                imgToDraw = stroke.imgObj; // Canlandır (Snapshot) kopyası
-            }
-
-            // 2. ÇİZİM: Koordinatları Zoom/Tablet uyumlu hale getiriyoruz
+        // --- RESİM / PDF ---
+        else if (stroke.type === 'image') {
+            let imgToDraw = stroke.imgObj || stroke.img;
             if (imgToDraw && (imgToDraw.complete || imgToDraw.readyState >= 2)) {
                 ctx.save();
-                
-                // --- KRİTİK DÜZELTME ---
-                // Arka plan resimlerinde koordinat kaymasını önlemek için merkezi hesaplıyoruz
-                // stroke.x ve y sol üst köşe kabul edilir, translate için merkeze (width/2) çekilir.
                 const centerX = stroke.x + (stroke.width / 2);
                 const centerY = stroke.y + (stroke.height / 2);
-                
                 ctx.translate(centerX, centerY);
                 ctx.rotate((stroke.rotation || 0) * Math.PI / 180);
-
-                // Resmi belirlenen boyutlarda (kocaman olmadan) çiz
-                ctx.drawImage(
-                    imgToDraw, 
-                    -stroke.width / 2, 
-                    -stroke.height / 2, 
-                    stroke.width, 
-                    stroke.height
-                );
-
-                // --- ÖZELLİK KORUMA: TAŞI MODU SEÇİM KUTUSU ---
-                if (currentTool === 'move' && selectedItem === stroke) {
-                    ctx.strokeStyle = '#00FFCC';
-                    ctx.lineWidth = 2;
-                    ctx.setLineDash([5, 5]);
+                ctx.drawImage(imgToDraw, -stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
+                
+                if (typeof currentTool !== 'undefined' && currentTool === 'move' && selectedItem === stroke) {
+                    ctx.strokeStyle = '#00FFCC'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
                     ctx.strokeRect(-stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
                     ctx.setLineDash([]);
                 }
-                
                 ctx.restore();
             }
         }
 
+        // --- NOKTA ---
         else if (stroke.type === 'point') {
             drawDot(stroke);
             drawLabel(stroke.label, stroke);
         }
+
+        // --- DÜZ ÇİZGİ ---
         else if (stroke.type === 'straightLine') { 
             ctx.beginPath();
             ctx.moveTo(stroke.p1.x, stroke.p1.y);
@@ -402,14 +356,19 @@ function redrawAllStrokes() {
             ctx.stroke();
             if (stroke.lengthLabel) drawLabel(stroke.lengthLabel, stroke.lengthLabelPos, '#FFFF00');
         }
+
+        // --- DOĞRU ---
         else if (stroke.type === 'line') { 
             const { ux, uy } = drawInfinityLine(stroke.p1, stroke.p2, stroke.color, stroke.width, false);
-            if (ux === 0 && uy === 0) continue;
-            drawDot(stroke.p1, stroke.color);
-            drawDot(stroke.p2, stroke.color);
-            drawLabel(stroke.label1, stroke.p1, '#FF69B4');
-            drawLabel(stroke.label2, stroke.p2, '#FF69B4');
+            if (ux !== 0 || uy !== 0) {
+                drawDot(stroke.p1, stroke.color);
+                drawDot(stroke.p2, stroke.color);
+                drawLabel(stroke.label1, stroke.p1, '#FF69B4');
+                drawLabel(stroke.label2, stroke.p2, '#FF69B4');
+            }
         }
+
+        // --- DOĞRU PARÇASI ---
         else if (stroke.type === 'segment') { 
             ctx.beginPath();
             ctx.moveTo(stroke.p1.x, stroke.p1.y);
@@ -422,73 +381,81 @@ function redrawAllStrokes() {
             drawLabel(stroke.label2, stroke.p2, '#FF69B4');
             if (stroke.lengthLabel) drawLabel(stroke.lengthLabel, stroke.lengthLabelPos, '#FFFF00'); 
         }
+
+        // --- IŞIN ---
         else if (stroke.type === 'ray') { 
             const { ux, uy } = drawInfinityLine(stroke.p1, stroke.p2, stroke.color, stroke.width, true); 
-            if (ux === 0 && uy === 0) continue;
-            drawDot(stroke.p1, stroke.color);
-            drawDot(stroke.p2, stroke.color);
-            drawLabel(stroke.label1, stroke.p1, '#FF69B4');
-            drawLabel(stroke.label2, stroke.p2, '#FF69B4');
+            if (ux !== 0 || uy !== 0) {
+                drawDot(stroke.p1, stroke.color);
+                drawDot(stroke.p2, stroke.color);
+                drawLabel(stroke.label1, stroke.p1, '#FF69B4');
+                drawLabel(stroke.label2, stroke.p2, '#FF69B4');
+            }
         }
+
+        // --- ÇOKGENLER ---
         else if (stroke.type === 'polygon') {
-            if (!window.PolygonTool || typeof window.PolygonTool.calculateVertices !== 'function') continue;
-            const vertices = window.PolygonTool.calculateVertices(stroke.center, stroke.radius, stroke.sideCount, stroke.rotation);
-            stroke.vertices = vertices; 
+            if (window.PolygonTool && typeof window.PolygonTool.calculateVertices === 'function') {
+                const vertices = window.PolygonTool.calculateVertices(stroke.center, stroke.radius, stroke.sideCount, stroke.rotation);
+                stroke.vertices = vertices; 
 
-            if (vertices.length > 0) {
-                ctx.beginPath();
-                ctx.moveTo(vertices[0].x, vertices[0].y);
-                for (let i = 1; i < vertices.length; i++) ctx.lineTo(vertices[i].x, vertices[i].y);
-                ctx.closePath();
-            }
-            
-            ctx.fillStyle = stroke.fillColor || 'rgba(0, 0, 0, 0.2)'; 
-            ctx.fill();
-            ctx.strokeStyle = stroke.color;
-            ctx.lineWidth = stroke.width || 3; 
-            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-            ctx.stroke();
-
-            drawDot(stroke.center, stroke.color);
-            drawLabel(stroke.label, stroke.center, '#FF69B4');
-            vertices.forEach(v => drawDot(v, stroke.color));
-            
-            if (stroke.showEdgeLabels) {
-                for (let j = 0; j < vertices.length; j++) {
-                    const v1 = vertices[j];
-                    const v2 = vertices[(j + 1) % vertices.length];
-                    const midPoint = { x: (v1.x + v2.x) / 2, y: (v1.y + v2.y) / 2 };
-                    const edgeLabel = window.PolygonTool.getEdgeLength(v1, v2);
-                    drawLabel(edgeLabel, midPoint, '#FF69B4');
-                }
-            }
-            if (stroke.showAngleLabels) {
-                const angleLabel = window.PolygonTool.getInternalAngle(stroke.sideCount);
-                const arcRadius = 25; 
-                for (let j = 0; j < vertices.length; j++) {
-                    const v_current = vertices[j];
-                    const v_prev = vertices[j === 0 ? vertices.length - 1 : j - 1];
-                    const v_next = vertices[(j + 1) % vertices.length];
-                    const startAngle = Math.atan2(v_prev.y - v_current.y, v_prev.x - v_current.x);
-                    const endAngle = Math.atan2(v_next.y - v_current.y, v_next.x - v_current.x);
+                if (vertices.length > 0) {
                     ctx.beginPath();
-                    ctx.arc(v_current.x, v_current.y, arcRadius, endAngle, startAngle);
-                    ctx.strokeStyle = '#FFFF00'; ctx.lineWidth = 2; ctx.stroke();
-                    const angle_label_x = (v_current.x * 0.8) + (stroke.center.x * 0.2); 
-                    const angle_label_y = (v_current.y * 0.8) + (stroke.center.y * 0.2); 
-                    drawLabel(angleLabel, {x: angle_label_x, y: angle_label_y}, '#FFFF00');
+                    ctx.moveTo(vertices[0].x, vertices[0].y);
+                    for (let i = 1; i < vertices.length; i++) ctx.lineTo(vertices[i].x, vertices[i].y);
+                    ctx.closePath();
                 }
-            }
-            if (currentTool === 'move' && selectedItem === stroke) {
-                const rotateHandlePos = window.PolygonTool.getRotateHandlePosition(stroke);
-                ctx.beginPath(); ctx.arc(rotateHandlePos.x, rotateHandlePos.y, 10, 0, 2 * Math.PI);
-                ctx.fillStyle = 'rgba(0, 255, 0, 0.8)'; ctx.fill(); ctx.strokeStyle = '#0F0'; ctx.lineWidth = 2; ctx.stroke();
-                const resizeHandlePos = vertices.length > 0 ? vertices[0] : stroke.center; 
-                ctx.beginPath(); ctx.arc(resizeHandlePos.x, resizeHandlePos.y, 8, 0, 2 * Math.PI);
-                ctx.fillStyle = 'rgba(255, 0, 255, 0.8)'; ctx.fill(); ctx.strokeStyle = '#F0F'; ctx.lineWidth = 2; ctx.stroke();
+                
+                ctx.fillStyle = stroke.fillColor || 'rgba(0, 0, 0, 0.2)'; 
+                ctx.fill();
+                ctx.strokeStyle = stroke.color;
+                ctx.lineWidth = stroke.width || 3; 
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                ctx.stroke();
+
+                drawDot(stroke.center, stroke.color);
+                drawLabel(stroke.label, stroke.center, '#FF69B4');
+                vertices.forEach(v => drawDot(v, stroke.color));
+                
+                if (stroke.showEdgeLabels) {
+                    for (let j = 0; j < vertices.length; j++) {
+                        const v1 = vertices[j];
+                        const v2 = vertices[(j + 1) % vertices.length];
+                        const midPoint = { x: (v1.x + v2.x) / 2, y: (v1.y + v2.y) / 2 };
+                        const edgeLabel = window.PolygonTool.getEdgeLength(v1, v2);
+                        drawLabel(edgeLabel, midPoint, '#FF69B4');
+                    }
+                }
+                if (stroke.showAngleLabels) {
+                    const angleLabel = window.PolygonTool.getInternalAngle(stroke.sideCount);
+                    const arcRadius = 25; 
+                    for (let j = 0; j < vertices.length; j++) {
+                        const v_current = vertices[j];
+                        const v_prev = vertices[j === 0 ? vertices.length - 1 : j - 1];
+                        const v_next = vertices[(j + 1) % vertices.length];
+                        const startAngle = Math.atan2(v_prev.y - v_current.y, v_prev.x - v_current.x);
+                        const endAngle = Math.atan2(v_next.y - v_current.y, v_next.x - v_current.x);
+                        ctx.beginPath();
+                        ctx.arc(v_current.x, v_current.y, arcRadius, endAngle, startAngle);
+                        ctx.strokeStyle = '#FFFF00'; ctx.lineWidth = 2; ctx.stroke();
+                        const angle_label_x = (v_current.x * 0.8) + (stroke.center.x * 0.2); 
+                        const angle_label_y = (v_current.y * 0.8) + (stroke.center.y * 0.2); 
+                        drawLabel(angleLabel, {x: angle_label_x, y: angle_label_y}, '#FFFF00');
+                    }
+                }
+                if (typeof currentTool !== 'undefined' && currentTool === 'move' && selectedItem === stroke) {
+                    const rotateHandlePos = window.PolygonTool.getRotateHandlePosition(stroke);
+                    ctx.beginPath(); ctx.arc(rotateHandlePos.x, rotateHandlePos.y, 10, 0, 2 * Math.PI);
+                    ctx.fillStyle = 'rgba(0, 255, 0, 0.8)'; ctx.fill(); ctx.strokeStyle = '#0F0'; ctx.lineWidth = 2; ctx.stroke();
+                    const resizeHandlePos = vertices.length > 0 ? vertices[0] : stroke.center; 
+                    ctx.beginPath(); ctx.arc(resizeHandlePos.x, resizeHandlePos.y, 8, 0, 2 * Math.PI);
+                    ctx.fillStyle = 'rgba(255, 0, 255, 0.8)'; ctx.fill(); ctx.strokeStyle = '#F0F'; ctx.lineWidth = 2; ctx.stroke();
+                }
             }
         }
-        else if (stroke.type === 'arc') { // ÇEMBER / PERGEL
+
+        // --- ÇEMBER / PERGEL ---
+        else if (stroke.type === 'arc') { 
             const PI_RAD = Math.PI / 180;
             let startRad = stroke.startAngle * PI_RAD;
             let endRad = stroke.endAngle * PI_RAD;
@@ -539,8 +506,10 @@ function redrawAllStrokes() {
                 drawLabel(`(π = ${PI} alındı)`, {x: labelX, y: labelY}, '#AAAAAA'); 
             }
         }
-    } 
-}
+    } // <-- FOR DÖNGÜSÜ BURADA KAPANIYOR
+
+    ctx.restore();
+} // <-- FONKSİYON BURADA KAPANIYOR
 
 function undoLastStroke() {
     if (drawnStrokes.length > 0) {
@@ -900,7 +869,6 @@ else if (file.type.startsWith('image/')) {
 }
 
 
-// Resmi veya PDF Sayfasını Hafızaya Ekleyen Ortak Fonksiyon
 function addToCanvasAsObject(img) {
     let startWidth = 400;
     if (img.width < 400) startWidth = img.width;
@@ -916,45 +884,43 @@ function addToCanvasAsObject(img) {
         width: startWidth,
         height: startHeight,
         rotation: 0,
-        isBackground: true // <--- İŞTE BU ETİKET EKSİKTİ!
+        isBackground: true 
     });
     
     redrawAllStrokes();
-
+} // <-- BU PARANTEZ EKSİKTİ, BURAYA EKLE!
 
 // PDF/Resim için ortak "PDF kapat" butonunu göster ve işlevini tanımla
-const closePdfBtn = document.getElementById('btn-close-pdf');
+        // (const ile tanımlama satırını sildik çünkü en üstte zaten var)
 
-if (closePdfBtn) {
-    // 1. Butonu görünür yap (Dosya yüklendiği an çalışmalı)
-    closePdfBtn.classList.remove('hidden');
-    closePdfBtn.style.display = 'flex';
+        if (closePdfBtn) {
+            // 1. Butonu görünür yap (Dosya yüklendiği an çalışmalı)
+            closePdfBtn.classList.remove('hidden');
+            closePdfBtn.style.display = 'flex';
 
-    // 2. Kapatma işlevini tanımla
-    closePdfBtn.onclick = () => {
-        // Kontrol panelini ve butonun kendisini gizle
-        if (typeof pdfControls !== 'undefined' && pdfControls) {
-            pdfControls.classList.add('hidden');
+            // 2. Kapatma işlevini tanımla
+            closePdfBtn.onclick = () => {
+                // Kontrol panelini ve butonun kendisini gizle
+                if (typeof pdfControls !== 'undefined' && pdfControls) {
+                    pdfControls.classList.add('hidden');
+                }
+                closePdfBtn.classList.add('hidden');
+                closePdfBtn.style.display = 'none';
+
+                // --- KRİTİK DÜZELTME BURASI ---
+                // Arka plan olan (isBackground veya isPDFPage) öğeleri FİLTRELE (yani kaldır)
+                // Kalanlar sadece sizin kalemle yaptığınız çizimler olacak.
+                drawnStrokes = drawnStrokes.filter(s => !s.isBackground && !s.isPDFPage);
+                window.drawnStrokes = drawnStrokes;
+
+                // PDF ve Resim değişkenlerini tamamen sıfırla
+                currentPDF = null;
+                if (typeof pdfImageStroke !== 'undefined') pdfImageStroke = null;
+
+                // Ekranı temizle ve kalan çizimleri (varsa) tekrar çiz
+                redrawAllStrokes();
+            };
         }
-        closePdfBtn.classList.add('hidden');
-        closePdfBtn.style.display = 'none';
-
-        // --- KRİTİK DÜZELTME BURASI ---
-        // Arka plan olan (isBackground veya isPDFPage) öğeleri FİLTRELE (yani kaldır)
-        // Kalanlar sadece sizin kalemle yaptığınız çizimler olacak.
-        drawnStrokes = drawnStrokes.filter(s => !s.isBackground && !s.isPDFPage);
-        window.drawnStrokes = drawnStrokes;
-
-        // PDF ve Resim değişkenlerini tamamen sıfırla
-        currentPDF = null;
-        if (typeof pdfImageStroke !== 'undefined') pdfImageStroke = null;
-
-        // Ekranı temizle ve kalan çizimleri (varsa) tekrar çiz
-        redrawAllStrokes();
-    };
-}
-}
-
 if(fillButton) fillButton.addEventListener('click', () => setActiveTool(currentTool === 'fill' ? 'none' : 'fill'));
 if(fillColorBoxes) {
     fillColorBoxes.forEach(box => {
@@ -1269,32 +1235,39 @@ canvas.addEventListener('pointerdown', (e) => {
 }, { passive: false });
 
 
-// --- 1. PARMAK TAKİBİ VE ZOOM (DEĞİŞECEK KISIM) ---
-    pointers.set(e.pointerId, e); 
+canvas.addEventListener('pointermove', (e) => {
+    // --- YENİ: PARMAK TAKİBİ VE ZOOM ---
+    pointers.set(e.pointerId, e); // Her zaman parmağı kaydet
 
+   // --- TABLET: İKİ PARMAK ZOOM (GÜNCEL SIFIR ZIPLAMA) ---
     if (pointers.size === 2) {
         const p = Array.from(pointers.values());
         const currentDist = Math.hypot(p[0].clientX - p[1].clientX, p[0].clientY - p[1].clientY);
 
         if (lastDist > 0) {
+            // Aradaki farkı (delta) bul, çarpan olarak değil ekleyerek ilerle
             const delta = currentDist - lastDist;
-            const zoomSpeed = 0.005; 
+            const zoomSpeed = 0.005; // Hassasiyeti buradan ayarla
+            
             let newScale = globalScale + (delta * zoomSpeed);
             
+            // Sınırları kontrol et
             if (newScale >= MIN_SCALE && newScale <= MAX_SCALE) {
                 globalScale = newScale;
                 redrawAllStrokes();
             }
         }
-        lastDist = currentDist; 
-        return; // Zoom yaparken aşağıdaki diğer işlemleri (çizim/taşıma) çalıştırmaz
+        lastDist = currentDist; // KRİTİK: Her karede mesafeyi güncelle
+        return; 
     }
 
+    // 1. GÜVENLİK: Tek parmaklı işlemlerde sadece ana dokunuşu takip et
     if (!e.isPrimary) return; 
 
+    // 2. MERKEZİ KOORDİNAT HESABI (Zoom Uyumlu):
     const pos = getPointerPos(e); 
-    currentMousePos = pos; 
-    // --- DEĞİŞİM BURADA BİTİYOR, SONRASI (MOVE MANTIĞI VS.) AYNI KALSIN ---
+    currentMousePos = pos; // app.js'in geri kalanı için senkronize et
+
     // --- 1. TAŞIMA (MOVE) MANTIĞI ---
     if (currentTool === 'move' && isMoving) {
         const dx = pos.x - dragStartPos.x;
