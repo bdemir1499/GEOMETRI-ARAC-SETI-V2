@@ -33,6 +33,30 @@ window.GonyeTool = {
     init: function() {
         if (this.gonyeElement) return;
 
+        // --- TABLET DOKUNMATİK ALAN GENİŞLETİCİ ---
+        if (!document.getElementById('gonye-tablet-fix')) {
+            document.head.insertAdjacentHTML('beforeend', `
+            <style id="gonye-tablet-fix">
+                /* 1. Tutamacın görünmez dokunma alanını 4 kat büyütür */
+                .gonye-draw-handle::after {
+                    content: ''; position: absolute;
+                    top: -35px; bottom: -35px; left: -45px; right: -45px;
+                    background: transparent; z-index: 10;
+                }
+                /* 2. Döndürme kulpunun da dokunma alanını devasa yapar */
+                .gonye-rotate-handle::after, .gonye-resize-handle::after {
+                    content: ''; position: absolute;
+                    top: -30px; bottom: -30px; left: -30px; right: -30px;
+                    background: transparent; z-index: 10;
+                }
+                /* 3. Etiketlerin ve yazıların senin dokunuşunu çalmasını engeller */
+                .gonye-draw-label, .gonye-corner-label, .gonye-label, .gonye-tick, .gonye-markings {
+                    pointer-events: none !important; 
+                }
+            </style>`);
+        }
+        // ------------------------------------------
+
         this.gonyeElement = document.createElement('div');
         this.gonyeElement.className = 'gonye-container';
         
