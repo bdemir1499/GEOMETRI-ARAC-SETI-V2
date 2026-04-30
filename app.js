@@ -554,45 +554,41 @@ function findHit(pos) {
 if (stroke.type === 'image') {
             const halfW = stroke.width / 2;
             const halfH = stroke.height / 2;
-            const angleRad = stroke.rotation * (Math.PI / 180);
+            const angleRad = (stroke.rotation || 0) * (Math.PI / 180);
+
+            // --- KRİTİK DÜZELTME: Resmin gerçek merkezini hesapla ---
+            const centerX = stroke.x + halfW;
+            const centerY = stroke.y + halfH;
 
             // --- A. DÖNDÜRME KULPU (Rotate Handle) ALGILAMA ---
-            // Kulp, merkezin "yukarısında" (local Y = -handleDist)
             const handleDist = halfH + 30;
-            
-            // Kulpun dünya üzerindeki gerçek yerini hesapla (Trigonometri)
-            const rotX = stroke.x + Math.sin(angleRad) * handleDist;
-            const rotY = stroke.y - Math.cos(angleRad) * handleDist;
+            const rotX = centerX + Math.sin(angleRad) * handleDist;
+            const rotY = centerY - Math.cos(angleRad) * handleDist;
 
-            // Eğer bu noktaya yakın tıklanırsa:
             if (distance(pos, {x: rotX, y: rotY}) < 25) {
-                return { item: stroke, pointKey: 'image_rotate' }; // Yeni Anahtar
+                return { item: stroke, pointKey: 'image_rotate' }; 
             }
 
             // --- B. BOYUTLANDIRMA KULPU (Resize Handle) ---
-            // Sağ alt köşe (Local: halfW, halfH) döndürülmüş hali
             const resLocalX = halfW * Math.cos(angleRad) - halfH * Math.sin(angleRad);
             const resLocalY = halfW * Math.sin(angleRad) + halfH * Math.cos(angleRad);
-            const resX = stroke.x + resLocalX;
-            const resY = stroke.y + resLocalY;
+            const resX = centerX + resLocalX;
+            const resY = centerY + resLocalY;
 
             if (distance(pos, {x: resX, y: resY}) < 25) {
                 return { item: stroke, pointKey: 'image_resize' };
             }
 
             // --- C. RESİM GÖVDESİ (Taşıma) ---
-            // Tıklanan noktanın, resmin dönüş açısına göre "içerde" olup olmadığına bak
-            const dx = pos.x - stroke.x;
-            const dy = pos.y - stroke.y;
-            // Ters açı ile döndürerek kontrol et
+            const dx = pos.x - centerX;
+            const dy = pos.y - centerY;
             const localClickX = dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad);
             const localClickY = dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad);
 
             if (localClickX > -halfW && localClickX < halfW && localClickY > -halfH && localClickY < halfH) {
                 return { item: stroke, pointKey: 'self' };
             }
-        }
-        if (currentTool === 'move' && selectedItem === stroke) {
+        }        if (currentTool === 'move' && selectedItem === stroke) {
             if (stroke.type === 'polygon') {
                 const rotateHandlePos = 
 window.PolygonTool.getRotateHandlePosition(stroke);
@@ -1281,20 +1277,27 @@ canvas.addEventListener('pointermove', (e) => {
         const dx = pos.x - dragStartPos.x;
         const dy = pos.y - dragStartPos.y;
         
-        // A. Resim Boyutlandırma (Resize)
+       // A. Resim Boyutlandırma (Resize)
         if (selectedPointKey === 'image_resize') {
-            const distFromCenterX = Math.abs(pos.x - selectedItem.x);
-            const distFromCenterY = Math.abs(pos.y - selectedItem.y);
-            selectedItem.width = Math.max(20, distFromCenterX * 2);
-            selectedItem.height = Math.max(20, distFromCenterY * 2);
+            const centerX = selectedItem.x + (selectedItem.width / 2);
+            const centerY = selectedItem.y + (selectedItem.height / 2);
+            const newW = Math.max(20, Math.abs(pos.x - centerX) * 2);
+            const newH = Math.max(20, Math.abs(pos.y - centerY) * 2);
+            
+            // Merkez noktası sabit kalarak büyüme/küçülme yapar
+            selectedItem.x = centerX - (newW / 2);
+            selectedItem.y = centerY - (newH / 2);
+            selectedItem.width = newW;
+            selectedItem.height = newH;
         }
         // B. Resim Döndürme (Rotate)
         else if (selectedPointKey === 'image_rotate') {
-             const r_dx = pos.x - selectedItem.x;
-             const r_dy = pos.y - selectedItem.y;
-             const angleRad = Math.atan2(r_dy, r_dx);
-             selectedItem.rotation = angleRad * (180 / Math.PI) + 90;
-        }        
+             const centerX = selectedItem.x + (selectedItem.width / 2);
+             const centerY = selectedItem.y + (selectedItem.height / 2);
+             const r_dx = pos.x - centerX;
+             const r_dy = pos.y - centerY;
+             selectedItem.rotation = Math.atan2(r_dy, r_dx) * (180 / Math.PI) + 90;
+        }   
         // C. Çokgen Döndürme
         else if (selectedPointKey === 'rotate') {
             const center = selectedItem.center;
