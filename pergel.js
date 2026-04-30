@@ -297,9 +297,7 @@ window.PergelTool = {
     onFlip: function(e) {
         if (e) { e.preventDefault(); e.stopPropagation(); }
 
-        // --- 2. KESİN ÇÖZÜM: 500ms KORUMA KALKANI (COOLDOWN) ---
-        // Tablet veya bilgisayardan aynı anda kaç sinyal gelirse gelsin, 
-        // pergel yarım saniye içinde sadece 1 kez yön değiştirir! Fazlalıkları yutar.
+// --- 2. KESİN ÇÖZÜM: 500ms KORUMA KALKANI (COOLDOWN) ---
         const now = new Date().getTime();
         if (this.lastFlipTime && now - this.lastFlipTime < 500) return; 
         this.lastFlipTime = now;
@@ -307,8 +305,6 @@ window.PergelTool = {
 
         this.state.isDrawing = false;
         this.interactionMode = 'none';
-
-
         if (window.audio_draw) { window.audio_draw.pause(); window.audio_draw.currentTime = 0; }
         if (this.previewCtx) this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
         this.state.isFlipped = !this.state.isFlipped;
