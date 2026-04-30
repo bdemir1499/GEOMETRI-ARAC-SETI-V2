@@ -15,18 +15,6 @@ if (closePdfBtn) {
 }
 
 
-// app.js dosyasının başına ekle
-function getGlobalCoordinates(e) {
-    const rect = canvas.getBoundingClientRect();
-    const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-    const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
-
-    return {
-        x: clientX - rect.left,
-        y: clientY - rect.top
-    };
-}
-
 
 // --- 3. ADIM: TAHTA (KISA LİNK) GİRİŞ KONTROLÜ ---
 const urlParams = new URLSearchParams(window.location.search);
@@ -61,17 +49,27 @@ if (odaPin) {
 }
 // ----------------------------------------------
 
-function getPointerPos(e) {
+function getGlobalCoordinates(e) {
     const rect = canvas.getBoundingClientRect();
+    const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+    const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+
     return {
-        // Önce ekran koordinatını al, sonra ölçeğe böl
-        x: (e.clientX - rect.left) / globalScale,
-        y: (e.clientY - rect.top) / globalScale
+        x: clientX - rect.left,
+        y: clientY - rect.top
     };
 }
 
+function getPointerPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+    };
+}
 
 // --- KANVAS AYARLARI ---
+
 const canvas = document.getElementById('drawing-canvas');
 const ctx = canvas.getContext('2d');
 // --- RESİM YÜKLEME DEĞİŞKENLERİ ---
@@ -284,20 +282,15 @@ window.bringToolToFront = function(clickedElement) {
 }
 
 function redrawAllStrokes() {
-    // 1. ÖNCE KOORDİNATLARI SIFIRLA VE TÜM EKRANI SİL (Ghosting/Merdiven çözümüdür)
+    // 1. ÖNCE KOORDİNATLARI SIFIRLA VE TÜM EKRANI SİL
     ctx.setTransform(1, 0, 0, 1, 0, 0); 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     ctx.save();
-
-    // 2. ZOOM MERKEZLEME MANTIĞI
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.scale(globalScale, globalScale);
-    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+    // (Buradaki translate ve scale satırlarını tamamen sildik. Zemin artık sabit!)
 
     // 3. NESNELERİ ÇİZ (For döngüsü başlıyor)
-    for (const stroke of drawnStrokes) {
-        
+    for (const stroke of drawnStrokes) {        
         // --- KALEM (PEN) ---
         if (stroke.type === 'pen') {
             ctx.beginPath();
@@ -1244,35 +1237,45 @@ canvas.addEventListener('pointermove', (e) => {
     // --- YENİ: PARMAK TAKİBİ VE ZOOM ---
     pointers.set(e.pointerId, e); // Her zaman parmağı kaydet
 
-   // --- TABLET: İKİ PARMAK ZOOM (GÜNCEL SIFIR ZIPLAMA) ---
+   // --- TABLET: İKİ PARMAK ZOOM (SADECE RESİM/PDF BÜYÜR) ---
     if (pointers.size === 2) {
         const p = Array.from(pointers.values());
         const currentDist = Math.hypot(p[0].clientX - p[1].clientX, p[0].clientY - p[1].clientY);
 
         if (lastDist > 0) {
-            // Aradaki farkı (delta) bul, çarpan olarak değil ekleyerek ilerle
             const delta = currentDist - lastDist;
-            const zoomSpeed = 0.005; // Hassasiyeti buradan ayarla
-            
-            let newScale = globalScale + (delta * zoomSpeed);
-            
-            // Sınırları kontrol et
-            if (newScale >= MIN_SCALE && newScale <= MAX_SCALE) {
-                globalScale = newScale;
+            const zoomSpeed = 0.003; 
+            const zoomStep = 1 + (delta * zoomSpeed);
+
+            // SADECE ARKA PLANI (PDF/RESİM) BUL VE BÜYÜT/KÜÇÜLT
+            const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
+            if (bgStrokes.length > 0) {
+                bgStrokes.forEach(bg => {
+                    const newW = bg.width * zoomStep;
+                    const newH = bg.height * zoomStep;
+                    // Merkezden büyütmek için x ve y koordinatlarını da kaydır
+                    bg.x = bg.x - (newW - bg.width) / 2;
+                    bg.y = bg.y - (newH - bg.height) / 2;
+                    bg.width = newW;
+                    bg.height = newH;
+                });
                 redrawAllStrokes();
             }
         }
-        lastDist = currentDist; // KRİTİK: Her karede mesafeyi güncelle
+        lastDist = currentDist; 
         return; 
     }
 
-    // 1. GÜVENLİK: Tek parmaklı işlemlerde sadece ana dokunuşu takip et
+   // 1. GÜVENLİK: Tek parmaklı işlemlerde sadece ana dokunuşu takip et
     if (!e.isPrimary) return; 
 
-    // 2. MERKEZİ KOORDİNAT HESABI (Zoom Uyumlu):
+    // KOORDİNATLARI AL VE SİSTEME KAYDET (Canlandır ve diğer araçlar için şart)
     const pos = getPointerPos(e); 
-    currentMousePos = pos; // app.js'in geri kalanı için senkronize et
+    currentMousePos = pos;
 
+    
+
+    
     // --- 1. TAŞIMA (MOVE) MANTIĞI ---
     if (currentTool === 'move' && isMoving) {
         const dx = pos.x - dragStartPos.x;
@@ -1611,17 +1614,24 @@ canvas.addEventListener('wheel', (e) => {
     if (e.ctrlKey) {
         e.preventDefault();
         
-        // Tekerleği ne kadar hızlı çevirirse çevirsin kontrollü artış sağlar
         const zoomStep = e.deltaY > 0 ? 0.95 : 1.05; 
-        let newScale = globalScale * zoomStep;
 
-        if (newScale >= MIN_SCALE && newScale <= MAX_SCALE) {
-            globalScale = newScale;
+        // SADECE ARKA PLANI (PDF/RESİM) BUL VE BÜYÜT/KÜÇÜLT
+        const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
+        if (bgStrokes.length > 0) {
+            bgStrokes.forEach(bg => {
+                const newW = bg.width * zoomStep;
+                const newH = bg.height * zoomStep;
+                // Merkezden büyütmek için x ve y koordinatlarını da kaydır
+                bg.x = bg.x - (newW - bg.width) / 2;
+                bg.y = bg.y - (newH - bg.height) / 2;
+                bg.width = newW;
+                bg.height = newH;
+            });
             redrawAllStrokes();
         }
     }
 }, { passive: false });
-
 // --- POINTERCANCEL (KESİNTİ DURUMUNDA SIFIRLAMA) ---
 canvas.addEventListener('pointercancel', (e) => {
 // --- BUNLARI EKLE ---
