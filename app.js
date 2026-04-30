@@ -1094,6 +1094,14 @@ canvas.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'touch') e.preventDefault();
     canvas.setPointerCapture(e.pointerId);
 
+// --- KRİTİK EKLENTİ: HAYALET PARMAK SIFIRLAYICI ---
+    // Eğer dokunmatik ekrandaysak ve ekrana sadece 1 parmak değiyorsa,
+    // hafızada kalmış eski görünmez parmakları tamamen temizle!
+    if (e.pointerType === 'touch' && e.touches && e.touches.length === 1) {
+        pointers.clear();
+        lastDist = 0;
+    }
+
 // --- BUNU EKLE: Parmağı ekrana değdiği an kaydet ---
     pointers.set(e.pointerId, e); 
     // ------------------------------------------------
@@ -1713,6 +1721,11 @@ canvas.addEventListener('pointercancel', (e) => {
     
     console.log("Pointer işlemi bir sistem kesintisi nedeniyle iptal edildi.");
 });
+
+
+// --- BUNLARI EKLE: Tablet ekranından dışarı taşan parmakları zorla sil ---
+canvas.addEventListener('pointerout', (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) lastDist = 0; });
+canvas.addEventListener('pointerleave', (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) lastDist = 0; });
 
 
 // --- YAPIŞTIRMA (PASTE) DESTEĞİ (CTRL+V) ---
