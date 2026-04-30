@@ -1458,25 +1458,75 @@ canvas.addEventListener('pointermove', (e) => {
         drawnStrokes[drawnStrokes.length - 1].path.push(pos);
         redrawAllStrokes();
     } 
-    else if (currentTool === 'eraser') {
+   else if (currentTool === 'eraser') {
         let strokesToKeep = [];
         let needsRedraw = false;
+        
         for (const stroke of drawnStrokes) {
             let touched = false;
+            
+            // 1. Kalem ve Nokta
             if (stroke.type === 'pen') {
-                for (const point of stroke.path) { if (distance(point, pos) < 10) { touched = true; break; } }
+                for (const point of stroke.path) { if (distance(point, pos) < 15) { touched = true; break; } }
             } else if (stroke.type === 'point') {
-                if (distance(stroke, pos) < 10) touched = true;
-            } else if (['straightLine', 'line', 'segment', 'ray'].includes(stroke.type)) {
+                if (distance(stroke, pos) < 15) touched = true;
+            } 
+            // 2. Çizgiler ve Işınlar
+            else if (['straightLine', 'line', 'segment', 'ray'].includes(stroke.type)) {
                 const steps = Math.max(1, Math.floor(distance(stroke.p1, stroke.p2) / 5)); 
                 for (let i = 0; i <= steps; i++) {
                     const t = i / steps;
-                    if (distance({x: stroke.p1.x + (stroke.p2.x - stroke.p1.x) * t, y: stroke.p1.y + (stroke.p2.y - stroke.p1.y) * t}, pos) < 10) { touched = true; break; }
+                    if (distance({x: stroke.p1.x + (stroke.p2.x - stroke.p1.x) * t, y: stroke.p1.y + (stroke.p2.y - stroke.p1.y) * t}, pos) < 15) { touched = true; break; }
                 }
             }
-            if (touched) needsRedraw = true; else strokesToKeep.push(stroke);
+            // 3. Çember ve Pergel Çizimleri
+            else if (stroke.type === 'arc') {
+                const distToCenter = distance(pos, {x: stroke.cx, y: stroke.cy});
+                // Çizginin üstüne veya tam merkeze değerse siler
+                if (distToCenter < 15 || Math.abs(distToCenter - stroke.radius) < 15) touched = true;
+            }
+            // 4. Çokgenler
+            else if (stroke.type === 'polygon' && stroke.vertices) {
+                // Çokgenin merkezine dokunursa siler
+                if (stroke.center && distance(pos, stroke.center) < 15) touched = true;
+                else {
+                    // Çokgenin kenar çizgilerine dokunursa siler
+                    for (let j = 0; j < stroke.vertices.length; j++) {
+                        const v1 = stroke.vertices[j];
+                        const v2 = stroke.vertices[(j + 1) % stroke.vertices.length];
+                        const steps = Math.max(1, Math.floor(distance(v1, v2) / 5)); 
+                        for (let step = 0; step <= steps; step++) { 
+                            const t = step / steps;
+                            if (distance({x: v1.x + (v2.x - v1.x) * t, y: v1.y + (v2.y - v1.y) * t}, pos) < 15) { touched = true; break; }
+                        }
+                        if (touched) break;
+                    }
+                }
+            }
+            // 5. Canlandır Kopyaları (PDF ARKA PLANI HARİÇ)
+            else if (stroke.type === 'image' && !stroke.isBackground) {
+                // Döndürülmüş olsa bile kopyanın sınırlarını hesaplar ve siler
+                const dx = pos.x - stroke.x;
+                const dy = pos.y - stroke.y;
+                const angleRad = (stroke.rotation || 0) * (Math.PI / 180);
+                const localX = dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad);
+                const localY = dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad);
+                const halfW = stroke.width / 2;
+                const halfH = stroke.height / 2;
+                if (localX > -halfW && localX < halfW && localY > -halfH && localY < halfH) {
+                    touched = true;
+                }
+            }
+
+            if (touched) needsRedraw = true; 
+            else strokesToKeep.push(stroke);
         }
-        if (needsRedraw) { drawnStrokes = strokesToKeep; window.drawnStrokes = strokesToKeep; redrawAllStrokes(); }
+        
+        if (needsRedraw) { 
+            drawnStrokes = strokesToKeep; 
+            window.drawnStrokes = strokesToKeep; 
+            redrawAllStrokes(); 
+        }
     }
 }, { passive: false });
 
