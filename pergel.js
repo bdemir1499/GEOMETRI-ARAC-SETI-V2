@@ -140,20 +140,9 @@ window.PergelTool = {
         
         const target = e.target;
 
-        
         if (target.setPointerCapture) target.setPointerCapture(e.pointerId);
 
-        if (target === this.handleTop) {
-            const currentTime = new Date().getTime();
-            const tapLength = currentTime - this.state.lastTapTime;
-            if (tapLength < 400 && tapLength > 0) {
-                this.onFlip(e); 
-                this.state.lastTapTime = 0; 
-                return; 
-            }
-            this.state.lastTapTime = currentTime;
-        }
-
+        // Zamanlama krizleri silindi. Sadece silgi kontrolünden devam ediyoruz.
         if (window.currentTool === 'eraser') {
             window.isDrawing = false; 
             if (window.setActiveTool) window.setActiveTool('none'); 
@@ -367,6 +356,14 @@ window.PergelTool = {
    // --- 3. FİNAL ÇİZİM (CANLI REFERANS KULLANAN KISIM) ---
     finalizeDraw: function() {
         if (!this.state.isDrawing) return;
+
+        // --- HARF YIĞILMASI / ÇİFT TIKLAMA HATASI ÇÖZÜMÜ ---
+        // Eğer pergelin tepesine sadece tıklandıysa (hiç döndürülüp çizim yapılmadıysa)
+        // boşuna harf atamasını ve görünmez çember çizmesini tamamen engeller!
+        if (Math.abs(this.state.rotation - this.state.startAngle) < 0.5) {
+            this.state.isDrawing = false;
+            return;
+        }
 
         const mainCanvas = document.getElementById('drawing-canvas');
         const rect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0, width: 1, height: 1 };

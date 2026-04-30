@@ -519,6 +519,25 @@ function redrawAllStrokes() {
     } // <-- FOR DÖNGÜSÜ BURADA KAPANIYOR
 
     ctx.restore();
+
+    // --- YENİ EKLENEN KISIM: OTOMATİK HARF SENKRONİZASYONU ---
+    // Ekranda o an var olan en yüksek harfi bulur
+    let maxCode = 64; 
+    drawnStrokes.forEach(s => {
+        if (s.label && s.label.charCodeAt(0) > maxCode) maxCode = s.label.charCodeAt(0);
+        if (s.label1 && s.label1.charCodeAt(0) > maxCode) maxCode = s.label1.charCodeAt(0);
+        if (s.label2 && s.label2.charCodeAt(0) > maxCode) maxCode = s.label2.charCodeAt(0);
+    });
+    
+    // Sıradaki harfe geçer (Z'yi geçerse A'ya döner)
+    let nextCode = maxCode + 1;
+    if (nextCode > 90) nextCode = 65; 
+    
+    // Tüm sistemi (Pergel, Çokgenler ve Kalem) tek bir harfe senkronize eder
+    nextPointChar = String.fromCharCode(nextCode);
+    window.nextPointChar = nextPointChar;
+    // ---------------------------------------------------------
+
 } // <-- FONKSİYON BURADA KAPANIYOR
 
 function undoLastStroke() {
@@ -2420,3 +2439,4 @@ function olusturYuzenKopya(imgSrc, startX, startY, width, height) {
         window.addEventListener('pointerdown', disariTiklama, true); 
     }, 200);
 }
+
