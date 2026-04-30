@@ -815,6 +815,25 @@ if (prevPageBtn && nextPageBtn) {
     });
 }
 
+// --- YENİ: Sayfa numarasına tıklayınca hızlı gitme kutusunu aç ---
+if (pageCountLabel) {
+    pageCountLabel.style.cursor = 'pointer'; // Fareyle üzerine gelince tıklanabilir el işareti çıksın
+    pageCountLabel.addEventListener('click', () => {
+        if (!currentPDF) return;
+        
+        const gitSayfa = prompt(`${totalPDFPages} sayfa arasından gitmek istediğiniz numarayı yazın:`, currentPDFPage);
+        if (gitSayfa !== null) {
+            const num = parseInt(gitSayfa);
+            if (num > 0 && num <= totalPDFPages) {
+                currentPDFPage = num;
+                renderPDFPage(currentPDFPage);
+            } else {
+                alert("Geçersiz sayfa numarası girdiniz!");
+            }
+        }
+    });
+}
+
 if (uploadButton && fileInput) {
     uploadButton.onclick = () => fileInput.click();
 
@@ -837,12 +856,27 @@ if (uploadButton && fileInput) {
 
                     // Sayfayı ekrana çiz (Buton işlem bitince addNewImageToCanvas içinde açılacak)
                     renderPDFPage(currentPDFPage);
+
+                    // --- YENİ: SAYFA SEÇİM PENCERESİNİ AÇ ---
+                    setTimeout(() => {
+                        const sayfaGrisi = prompt(`Bu PDF toplam ${totalPDFPages} sayfadır.\nKaçıncı sayfadan devam etmek istersiniz?`, "1");
+                        if (sayfaGrisi !== null) {
+                            const hedefSayfa = parseInt(sayfaGrisi);
+                            if (hedefSayfa > 0 && hedefSayfa <= totalPDFPages) {
+                                currentPDFPage = hedefSayfa;
+                                renderPDFPage(currentPDFPage);
+                            }
+                        }
+                    }, 500);
+
                 } catch (error) {
                     console.error("PDF açılırken hata oluştu:", error);
                 }
             };
             fileReader.readAsArrayBuffer(file);
-        } 
+        }
+
+
         // --- DURUM B: RESİM DOSYASI ---
         else if (file.type.startsWith('image/')) {
             const reader = new FileReader();
@@ -1831,10 +1865,19 @@ function addNewImageToCanvas(img, isPDF = false) {
         isBackground: true 
     };
     
+    // --- KRİTİK EKLENTİ: ESKİ SAYFAYI TEMİZLE ---
+    // Eğer eklenen şey bir PDF sayfasıysa ve daha önce eklenmiş bir sayfa varsa,
+    // eskisini hafızadan tamamen sil (Böylece üst üste binmezler)
+    if (isPDF && typeof pdfImageStroke !== 'undefined' && pdfImageStroke !== null) {
+        drawnStrokes = drawnStrokes.filter(stroke => stroke !== pdfImageStroke);
+        window.drawnStrokes = drawnStrokes;
+    }
+    // --------------------------------------------
+
     drawnStrokes.push(newStroke);
     
     if (isPDF) {
-        pdfImageStroke = newStroke;
+        pdfImageStroke = newStroke; // Yeni sayfayı sisteme tanıt
     }
     
     // --- 2. KRİTİK DÜZELTME: BUTONU DOĞRU ZAMANDA GÖSTER ---
@@ -1847,7 +1890,6 @@ function addNewImageToCanvas(img, isPDF = false) {
     
     redrawAllStrokes();
 }
-
 
 // --- ARAÇ RENGİ DEĞİŞTİRME MANTIĞI (SİYAH / NEON / TOK MAVİ) ---
 const toolColorBtn = document.getElementById('btn-tool-color');
