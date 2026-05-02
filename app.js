@@ -16,6 +16,7 @@ if (closePdfBtn) {
 
 
 
+
 function getGlobalCoordinates(e) {
     const rect = canvas.getBoundingClientRect();
     const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
