@@ -27,6 +27,7 @@ function getGlobalCoordinates(e) {
     };
 }
 
+
 function getPointerPos(e) {
     const rect = canvas.getBoundingClientRect();
     return {
