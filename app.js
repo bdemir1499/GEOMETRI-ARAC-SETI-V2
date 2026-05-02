@@ -16,39 +16,6 @@ if (closePdfBtn) {
 
 
 
-// --- 3. ADIM: TAHTA (KISA LİNK) GİRİŞ KONTROLÜ ---
-const urlParams = new URLSearchParams(window.location.search);
-const odaPin = urlParams.get('oda');
-
-if (odaPin) {
-    console.log("Tahta Modu Aktif! Oda PIN:", odaPin);
-    
-    // Tahta tarafında arayüzü sadeleştir (İsteğe bağlı CSS için)
-    document.body.classList.add('tahta-modu');
-    
-    // Sayfa yüklendiğinde Firebase'den kontrol et
-    window.addEventListener('load', () => {
-        // Firebase kütüphanesinin yüklenmesini bekle
-        const checkFirebase = setInterval(() => {
-            if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
-                clearInterval(checkFirebase);
-                const database = firebase.database();
-                
-                database.ref('odalar/' + odaPin).once('value', (snapshot) => {
-                    if (!snapshot.exists()) {
-                        alert("Bu kodun süresi dolmuş veya hatalı! Lütfen tekrar kod alın.");
-                        window.location.href = "index.html"; 
-                    } else {
-                        // Oda varsa, başlangıç sayfasını hafızaya al
-                        window.bekleyenSayfa = snapshot.val().sayfaNo || 1;
-                    }
-                });
-            }
-        }, 500);
-    });
-}
-// ----------------------------------------------
-
 function getGlobalCoordinates(e) {
     const rect = canvas.getBoundingClientRect();
     const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
