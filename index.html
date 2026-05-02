@@ -125,11 +125,7 @@
         <input type="file" id="file-input" accept="image/*, application/pdf" style="display: none;">
         <button id="btn-animate" class="tool-button">Canlandır</button>
 
-        <button id="btn-pin-al" class="tool-button" style="background-color: #f39c12; color: white; margin-top: 10px;">Tahta İçin Kod Al</button>
-        <div id="pin-alani" class="hidden" style="display: none !important; text-align: center; margin-top: 5px; padding: 10px; background: none !important; border: 1px dashed #f39c12 !important; border-radius: 8px; width: 100%; box-sizing: border-box;">
-            <div id="display-pin" style="font-size: 32px !important; color: #f39c12 !important; font-weight: bold !important; letter-spacing: 6px !important; background: transparent !important;">----</div>
-        </div>
-
+        
         <div id="pdf-controls" class="tool-options-right hidden" style="flex-direction: column; align-items: center; margin-top: 10px; padding: 5px; width: 100%;">
             <div id="page-count-label" style="color: #00ffcc; font-size: 12px; margin-bottom: 5px; font-weight: bold;">Sayfa: 0 / 0</div>
             <div style="display: flex; gap: 5px;">
@@ -182,51 +178,7 @@
     </div>
 
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyCLo-Ka0v3LLdjWkCgq5wE9Sr5y5LZXDiY",
-            authDomain: "gbek-pin.firebaseapp.com",
-            databaseURL: "https://gbek-pin-default-rtdb.firebaseio.com",
-            projectId: "gbek-pin",
-            storageBucket: "gbek-pin.firebasestorage.app",
-            messagingSenderId: "1083559415810",
-            appId: "1:1083559415810:web:63b2e7ed737e6eacffd71b"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        console.log("Sistem bulutlara bağlandı! PIN sistemi aktif.");
-
-        window.addEventListener('DOMContentLoaded', () => {
-            const btnPinAl = document.getElementById('btn-pin-al');
-            const pinAlani = document.getElementById('pin-alani');
-            const displayPin = document.getElementById('display-pin');
-
-            if (btnPinAl) {
-                btnPinAl.onclick = () => {
-                    const yeniPin = Math.floor(1000 + Math.random() * 9000).toString();
-                    
-                    if (displayPin) displayPin.innerText = yeniPin;
-                    
-                    // Görünürlüğü zorla açıyoruz
-                    if (pinAlani) {
-                        pinAlani.classList.remove('hidden');
-                        pinAlani.style.setProperty('display', 'block', 'important');
-                    }
-                    
-                    database.ref('odalar/' + yeniPin).set({
-                        durum: "aktif",
-                        olusturma: Date.now(),
-                        sayfaNo: 1 
-                    });
-                };
-            }
-        });
-    </script>
-    
+       
     <script src="pdf.min.js"></script>
     <script src="ruler.js"></script>
     <script src="gonye.js"></script>
