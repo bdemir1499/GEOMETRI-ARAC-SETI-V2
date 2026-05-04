@@ -1,3 +1,5 @@
+let isDrawingRectangle = false;
+let rectStartPoint = null;
 let globalScale = 1;
 let lastDist = 0;
 let pointers = new Map();
@@ -5,6 +7,10 @@ let offsetX = 0; // BUNU EKLE
 let offsetY = 0; // BUNU EKLE
 const MIN_SCALE = 0.5; 
 const MAX_SCALE = 5.0;
+let initialWidth = 0;
+let initialHeight = 0;
+let isPenActive = false; // Avuç içi reddi için
+let penActiveTimer = null;
 
 
 // Sayfa açıldığında kırmızı butonun yanlışlıkla görünmesini engellemek için:
@@ -28,19 +34,67 @@ function getGlobalCoordinates(e) {
     };
 }
 
-
 function getPointerPos(e) {
     const rect = canvas.getBoundingClientRect();
+    let cX = e.clientX;
+    let cY = e.clientY;
+
+    // Eğer koordinat bozuk (NaN) veya tanımsız (undefined) gelirse Touch verilerinden zorla çek
+    if (cX === undefined || cX === null || isNaN(cX)) {
+        if (e.targetTouches && e.targetTouches.length > 0) {
+            cX = e.targetTouches[0].clientX;
+            cY = e.targetTouches[0].clientY;
+        } else if (e.touches && e.touches.length > 0) {
+            cX = e.touches[0].clientX;
+            cY = e.touches[0].clientY;
+        } else if (e.changedTouches && e.changedTouches.length > 0) {
+            cX = e.changedTouches[0].clientX;
+            cY = e.changedTouches[0].clientY;
+        } else {
+            cX = 0; // Sistemin çökmesini engellemek için son çare
+            cY = 0;
+        }
+    }
+
     return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+        // Hata durumunda NaN üretmesini engelleyen ekstra güvenlik (|| 0)
+        x: (cX || 0) - rect.left,
+        y: (cY || 0) - rect.top
     };
 }
+
+
+// --- GRAFİK TABLET SİMÜLATÖRÜ ---
+function getPointerInfo(e) {
+    // BURAYI false YAPTIK!
+    const testModuAcik = false; 
+
+    // Eğer test modu açıksa ve fare kullanılıyorsa, onu "Kalem" gibi kandır
+    if (testModuAcik && e.pointerType === 'mouse') {
+        return {
+            type: 'pen',
+            pressure: Math.random() * 0.8 + 0.2
+        };
+    }
+    
+    return {
+        type: e.pointerType,
+        pressure: e.pressure || 1 
+    };
+}
+
 
 // --- KANVAS AYARLARI ---
 
 const canvas = document.getElementById('drawing-canvas');
 const ctx = canvas.getContext('2d');
+
+// PARDUS KESİN ÇÖZÜM: Tarayıcının kaydırma ve yakınlaştırma yapmasını yasakla
+canvas.style.touchAction = 'none';
+canvas.style.userSelect = 'none';
+document.body.style.overscrollBehavior = 'none';
+
+
 // --- RESİM YÜKLEME DEĞİŞKENLERİ ---
 let backgroundImage = null; // Yüklenen resmi tutacak değişken
 const uploadButton = document.getElementById('btn-upload');
@@ -121,6 +175,19 @@ const aciolcerButton = document.getElementById('btn-aciolcer');
 const pergelButton = document.getElementById('btn-pergel');
 const polygonButton = document.getElementById('btn-cokgenler');
 const oyunlarButton = document.getElementById('btn-oyunlar');
+// --- DİKDÖRTGEN BUTONU TANIMLAMASI ---
+const dikdortgenButton = document.getElementById('btn-dikdortgen');
+
+if (dikdortgenButton) {
+    dikdortgenButton.addEventListener('click', () => {
+        if (typeof window.setActiveTool === 'function') {
+            window.setActiveTool('draw_rectangle');
+        } else {
+            window.currentTool = 'draw_rectangle';
+        }
+    });
+}
+// --------------------------------------
 
 // 2. Alt Menü Butonları ve Seçenekler
 const penOptions = document.getElementById('pen-options');
@@ -259,28 +326,41 @@ function redrawAllStrokes() {
     // (Buradaki translate ve scale satırlarını tamamen sildik. Zemin artık sabit!)
 
     // 3. NESNELERİ ÇİZ (For döngüsü başlıyor)
-    for (const stroke of drawnStrokes) {        
-        // --- KALEM (PEN) ---
+    for (const stroke of drawnStrokes) {
+
+        
+               // --- KALEM (PEN) GRAFİK TABLET DESTEKLİ ---
         if (stroke.type === 'pen') {
-            ctx.beginPath();
             const points = stroke.path;
-            if (points.length < 3) {
-                ctx.moveTo(points[0].x, points[0].y);
-                for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+            
+            if (points.length < 2) {
+                // Sadece tıklandıysa tek bir nokta koy
+                ctx.beginPath();
+                ctx.arc(points[0].x, points[0].y, (stroke.baseWidth * (points[0].p || 1)) / 2, 0, Math.PI * 2);
+                ctx.fillStyle = stroke.color;
+                ctx.fill();
             } else {
-                ctx.moveTo(points[0].x, points[0].y);
-                for (let i = 1; i < points.length - 2; i++) {
-                    const xc = (points[i].x + points[i + 1].x) / 2;
-                    const yc = (points[i].y + points[i + 1].y) / 2;
-                    ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+                // Çizgiyi basınç hassasiyetiyle çiz
+                for (let i = 1; i < points.length; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(points[i - 1].x, points[i - 1].y);
+                    ctx.lineTo(points[i].x, points[i].y);
+                    ctx.strokeStyle = stroke.color;
+                    
+                    // Basıncı genişliğe uygula (En az %20 kalınlık olsun ki çizgi kopmasın)
+                    let currentPressure = points[i].p !== undefined ? points[i].p : 1;
+                    
+                    // Tabletler bazen çok düşük basınç gönderir, alt sınır koyuyoruz
+                    let dynamicWidth = stroke.baseWidth * Math.max(0.2, currentPressure);
+                    
+                    ctx.lineWidth = dynamicWidth;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.stroke();
                 }
-                ctx.quadraticCurveTo(points[points.length-2].x, points[points.length-2].y, points[points.length-1].x, points[points.length-1].y);
             }
-            ctx.strokeStyle = stroke.color;
-            ctx.lineWidth = stroke.width;
-            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-            ctx.stroke();
         }
+
 
        // --- RESİM / PDF VE CANLANDIR (SNAPSHOT) KOPYASI ---
         else if (stroke.type === 'image') {
@@ -432,6 +512,69 @@ function redrawAllStrokes() {
                 }
             }
         }
+
+
+else if (stroke.type === 'rectangle') {
+            ctx.save();
+            const centerX = stroke.x + stroke.width / 2;
+            const centerY = stroke.y + stroke.height / 2;
+            ctx.translate(centerX, centerY);
+            ctx.rotate((stroke.rotation || 0) * Math.PI / 180);
+
+            // 1. Dikdörtgeni Çiz
+            ctx.beginPath();
+            ctx.rect(-stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
+            ctx.strokeStyle = stroke.color;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // 2. Kenar Uzunluklarını Yazdır (Önizlemedeki gibi kalıcı olur)
+            if (stroke.showEdgeLabels) {
+                ctx.font = "14px Arial";
+                ctx.fillStyle = stroke.color;
+                ctx.textAlign = "center";
+                
+                const wCm = (stroke.width / 30).toFixed(1).replace('.', ',');
+                const hCm = (stroke.height / 30).toFixed(1).replace('.', ',');
+
+                // Üst Kenar CM
+                ctx.fillText(`${wCm} cm`, 0, -stroke.height / 2 - 10);
+                
+                // Sol Kenar CM (Dikey yazdırmak için döndürüyoruz)
+                ctx.save();
+                ctx.translate(-stroke.width / 2 - 25, 0);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillText(`${hCm} cm`, 0, 0);
+                ctx.restore();
+            }
+
+            // 3. Köşe Harflerini Yazdır (A, B, C, D)
+            if (stroke.labels) {
+                ctx.font = "bold 16px Arial";
+                ctx.fillStyle = "#FF69B4"; // Pembe harfler
+                ctx.fillText(stroke.labels[0], -stroke.width/2 - 15, -stroke.height/2 - 5); // Sol Üst
+                ctx.fillText(stroke.labels[1], stroke.width/2 + 10, -stroke.height/2 - 5);  // Sağ Üst
+                ctx.fillText(stroke.labels[2], stroke.width/2 + 10, stroke.height/2 + 15);  // Sağ Alt
+                ctx.fillText(stroke.labels[3], -stroke.width/2 - 15, stroke.height/2 + 15); // Sol Alt
+            }
+
+            // 4. "Taşı" Modu Aktifse Butonları Çiz
+            if (currentTool === 'move' && selectedItem === stroke) {
+                // Döndürme (Yeşil)
+                ctx.fillStyle = '#0F0'; ctx.beginPath(); ctx.arc(0, -stroke.height/2 - 30, 12, 0, 7); ctx.fill();
+                // Boyutlandırma (Pembe)
+                ctx.fillStyle = '#F0F'; ctx.beginPath(); ctx.arc(stroke.width/2, stroke.height/2, 12, 0, 7); ctx.fill();
+            }
+            
+            // 5. Açı Tıklandıysa 90 Derece Sembolünü Çiz
+            if (stroke.showAngleLabels) {
+                ctx.font = "bold 14px Arial"; ctx.fillStyle = "yellow";
+                ctx.fillText("90°", -stroke.width/2 + 15, -stroke.height/2 + 20);
+            }
+            ctx.restore();
+        }
+
+
 
         // --- ÇEMBER / PERGEL ---
         else if (stroke.type === 'arc') { 
@@ -587,6 +730,43 @@ window.PolygonTool.getRotateHandlePosition(stroke);
                 }
             }
         }
+
+// --- DİKDÖRTGEN YAKALAMA (TABLET UYUMLU) ---
+        if (stroke.type === 'rectangle') {
+            const centerX = stroke.x + stroke.width / 2;
+            const centerY = stroke.y + stroke.height / 2;
+            const angleRad = (stroke.rotation || 0) * (Math.PI / 180);
+
+            // A. Döndürme Butonu (Yeşil - Üstte)
+            const rotX = centerX + Math.sin(angleRad) * (stroke.height / 2 + 35);
+            const rotY = centerY - Math.cos(angleRad) * (stroke.height / 2 + 35);
+            if (distance(pos, {x: rotX, y: rotY}) < 30) return { item: stroke, pointKey: 'image_rotate' };
+
+            // B. Boyutlandırma Butonu (Pembe - Sağ Alt)
+            const resX = centerX + (stroke.width / 2 * Math.cos(angleRad) - stroke.height / 2 * Math.sin(angleRad));
+            const resY = centerY + (stroke.width / 2 * Math.sin(angleRad) + stroke.height / 2 * Math.cos(angleRad));
+            if (distance(pos, {x: resX, y: resY}) < 30) return { item: stroke, pointKey: 'image_resize' };
+
+            // C. Köşeler (90 Derece Açı Gösterme - 30px hassasiyet)
+            const corners = [
+                {x: -stroke.width/2, y: -stroke.height/2}, {x: stroke.width/2, y: -stroke.height/2},
+                {x: stroke.width/2, y: stroke.height/2}, {x: -stroke.width/2, y: stroke.height/2}
+            ];
+            for (let c of corners) {
+                const cornerX = centerX + (c.x * Math.cos(angleRad) - c.y * Math.sin(angleRad));
+                const cornerY = centerY + (c.x * Math.sin(angleRad) + c.y * Math.cos(angleRad));
+                if (distance(pos, {x: cornerX, y: cornerY}) < 30) return { item: stroke, pointKey: 'toggle_angles' };
+            }
+
+            // D. Gövde (Merkezden Taşıma)
+            const dx = pos.x - centerX;
+            const dy = pos.y - centerY;
+            const localX = dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad);
+            const localY = dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad);
+            if (Math.abs(localX) < stroke.width / 2 && Math.abs(localY) < stroke.height / 2) {
+                return { item: stroke, pointKey: 'self' };
+            }
+        }
         
         if (currentTool === 'move' || currentTool === 'fill') { // Fill için de hit gerekli
             if (stroke.type === 'polygon' && stroke.vertices) {
@@ -608,7 +788,33 @@ window.PolygonTool.getRotateHandlePosition(stroke);
                     if (hitEdge) return { item: stroke, pointKey: 'toggle_edges' };
                 }
             }
-            if (stroke.type === 'arc' && stroke.cx) {
+
+if (stroke.type === 'rectangle') {
+            const centerX = stroke.x + stroke.width / 2;
+            const centerY = stroke.y + stroke.height / 2;
+            const angleRad = (stroke.rotation || 0) * (Math.PI / 180);
+
+            // A. Döndürme Butonu (Yeşil)
+            const rotX = centerX + Math.sin(angleRad) * (stroke.height / 2 + 30);
+            const rotY = centerY - Math.cos(angleRad) * (stroke.height / 2 + 30);
+            if (distance(pos, {x: rotX, y: rotY}) < 20) return { item: stroke, pointKey: 'image_rotate' };
+
+            // B. Boyutlandırma Butonu (Pembe)
+            const resX = centerX + (stroke.width / 2 * Math.cos(angleRad) - stroke.height / 2 * Math.sin(angleRad));
+            const resY = centerY + (stroke.width / 2 * Math.sin(angleRad) + stroke.height / 2 * Math.cos(angleRad));
+            if (distance(pos, {x: resX, y: resY}) < 20) return { item: stroke, pointKey: 'image_resize' };
+
+            // C. Köşeye Tıklama (Açı Gösterme)
+            if (distance(pos, {x: stroke.x, y: stroke.y}) < 20) return { item: stroke, pointKey: 'toggle_angles' };
+
+            // D. Gövdeden Tutma (Merkezden Taşıma)
+            const dx = pos.x - centerX; const dy = pos.y - centerY;
+            const localX = dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad);
+            const localY = dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad);
+            if (Math.abs(localX) < stroke.width / 2 && Math.abs(localY) < stroke.height / 2) {
+                return { item: stroke, pointKey: 'self' };
+            }
+        }            if (stroke.type === 'arc' && stroke.cx) {
                 const distToCenter = distance(pos, {x: stroke.cx, y: stroke.cy});
                 if (Math.abs(distToCenter - stroke.radius) < SNAP_THRESHOLD) return { item: stroke, pointKey: 'toggle_circle_info' };
             }
@@ -682,6 +888,10 @@ function setActiveTool(tool) {
     isDrawingInfinityLine = false; 
     isDrawingSegment = false; 
     isDrawingRay = false; 
+
+// --- BURAYA DİKDÖRTGEN SIFIRLAMASINI EKLEYİN ---
+    isDrawingRectangle = false;
+    rectStartPoint = null;
     
     window.tempPolygonData = null; 
     polygonPreviewLabel.classList.add('hidden'); 
@@ -1112,11 +1322,12 @@ if (animateButton) {
 // --- MOUSE OLAYLARI ---
 
 canvas.addEventListener('pointerdown', (e) => {
-    // 1. Tarayıcıyı sabitle
-    if (e.pointerType === 'touch') e.preventDefault();
-    canvas.setPointerCapture(e.pointerId);
 
-// --- KRİTİK EKLENTİ: HAYALET PARMAK SIFIRLAYICI ---
+    // 1. Tarayıcıyı sabitle
+    if (e.cancelable) e.preventDefault();
+    // NOT: setPointerCapture komutu Vestel tahtaları kilitlediği için tamamen kaldırıldı.
+
+    // --- KRİTİK EKLENTİ: HAYALET PARMAK SIFIRLAYICI ---
     // Eğer dokunmatik ekrandaysak ve ekrana sadece 1 parmak değiyorsa,
     // hafızada kalmış eski görünmez parmakları tamamen temizle!
     if (e.pointerType === 'touch' && e.touches && e.touches.length === 1) {
@@ -1124,7 +1335,23 @@ canvas.addEventListener('pointerdown', (e) => {
         lastDist = 0;
     }
 
-// --- BUNU EKLE: Parmağı ekrana değdiği an kaydet ---
+    // --- PARDUS ÇİFT SİNYAL (HAYALET FARE) ENGELLEYİCİ ---
+    if (e.pointerType === 'touch') {
+        // Gerçek parmak değdiyse, sistemdeki sahte fareleri sil
+        for (let key of pointers.keys()) {
+            if (pointers.get(key).pointerType === 'mouse') pointers.delete(key);
+        }
+    } else if (e.pointerType === 'mouse') {
+        // Fare sinyali geldiyse ama ekranda parmak varsa, fareyi reddet!
+        let hasTouch = false;
+        for (let p of pointers.values()) {
+            if (p.pointerType === 'touch' || p.pointerType === 'pen') hasTouch = true;
+        }
+        if (hasTouch) return; // İşlemi iptal et, hayalet fareyi içeri alma
+    }
+    // ----------------------------------------------------
+
+    // --- BUNU EKLE: Parmağı ekrana değdiği an kaydet ---
     pointers.set(e.pointerId, e); 
     // ------------------------------------------------
 
@@ -1132,6 +1359,22 @@ canvas.addEventListener('pointerdown', (e) => {
     const pos = getPointerPos(e); 
     const snapPos = snapTarget || pos;
     currentMousePos = pos; // Mobil için konum bilgisini güncelle
+
+    // --- AVUÇ İÇİ REDDİ (PALM REJECTION) KONTROLÜ ---
+    const currentPointer = getPointerInfo(e);
+    
+    if (currentPointer.type === 'pen') {
+        isPenActive = true;
+        clearTimeout(penActiveTimer);
+        // Kalem kalktıktan sonra 1 saniye daha elleri reddetmeye devam et
+        penActiveTimer = setTimeout(() => { isPenActive = false; }, 1000); 
+    } else if (currentPointer.type === 'touch' && isPenActive) {
+        // Kalem kullanılıyorken ekrana el/avuç içi değerse işlemi İPTAL ET
+        console.log("Avuç içi reddedildi.");
+        return; 
+    }
+    // -----------------------------------------------
+
 
     // --- 1. FİZİKSEL ARAÇ KONTROLÜ ---
     const isToolElementClicked = e.target.closest('.ruler-container, .gonye-container, .aciolcer-container, #compass-container');
@@ -1149,6 +1392,13 @@ canvas.addEventListener('pointerdown', (e) => {
         const hit = findHit(pos); 
         
         if (hit) {
+
+        // Seçilen nesneyi en üste taşı (Z-Index mantığı)
+        drawnStrokes = drawnStrokes.filter(s => s !== hit.item);
+        drawnStrokes.push(hit.item);
+        window.drawnStrokes = drawnStrokes;
+
+
             // Etiket Aç/Kapat Mantığı (Burası aynı kalıyor)
             if (hit.pointKey === 'toggle_edges') { hit.item.showEdgeLabels = !hit.item.showEdgeLabels; redrawAllStrokes(); return; }
             if (hit.pointKey === 'toggle_angles') { hit.item.showAngleLabels = !hit.item.showAngleLabels; redrawAllStrokes(); return; }
@@ -1169,8 +1419,22 @@ canvas.addEventListener('pointerdown', (e) => {
                 originalStartPos = { x: hit.item.p2.x, y: hit.item.p2.y };
             } else if (hit.pointKey === 'center') {
                 originalStartPos = { x: (hit.item.cx || hit.item.center.x), y: (hit.item.cy || hit.item.center.y) };
-            } else if (hit.pointKey === 'rotate' || hit.pointKey === 'resize') {
+            } else if (hit.pointKey === 'rotate' || hit.pointKey === 'resize' || hit.pointKey === 'image_resize') {
                 originalStartPos = { radius: hit.item.radius, rotation: hit.item.rotation };
+
+                // --- TABLET İÇİN KRİTİK EKLEME ---
+                if (selectedItem.type === 'rectangle') {
+                    initialWidth = selectedItem.width;
+                    initialHeight = selectedItem.height;
+                }
+                // --------------------------------
+                
+                // --- KRİTİK EKLEME: Dikdörtgen boyutlarını kaydet ---
+                if (hit.item.type === 'rectangle') {
+                    initialWidth = hit.item.width;
+                    initialHeight = hit.item.height;
+                }
+                // --------------------------------------------------
             }
             
             const itemType = hit.item.type;
@@ -1211,8 +1475,19 @@ canvas.addEventListener('pointerdown', (e) => {
     switch (currentTool) {
         case 'pen':
             isDrawing = true; 
-            drawnStrokes.push({ type: 'pen', path: [snapPos], color: currentPenColor, width: currentPenWidth });
+            // YENİ: Kalemin basıncını al
+            const pInfoDown = getPointerInfo(e);
+            const pressureDown = pInfoDown.type === 'pen' ? pInfoDown.pressure : 1;
+            
+            // YENİ: Basınç değerini (p) koordinatla birlikte kaydet
+            drawnStrokes.push({ 
+                type: 'pen', 
+                path: [{x: snapPos.x, y: snapPos.y, p: pressureDown}], 
+                color: currentPenColor, 
+                baseWidth: currentPenWidth 
+            });
             break;
+
         case 'point':
             isDrawing = false; 
             drawnStrokes.push({ type: 'point', x: snapPos.x, y: snapPos.y, label: nextPointChar });
@@ -1234,6 +1509,13 @@ canvas.addEventListener('pointerdown', (e) => {
         case 'ray':
             if (!isDrawingRay) { isDrawingRay = true; lineStartPoint = pos; }
             break;
+
+        case 'draw_rectangle':
+            // Şartı (!isDrawingRectangle) kaldırıyoruz; direkt başlatıyoruz.
+            isDrawingRectangle = true; 
+            rectStartPoint = pos; 
+            break;
+
         case 'draw_polygon_circle':
         case 'draw_polygon_3_sides':
         case 'draw_polygon_4_sides':
@@ -1258,28 +1540,72 @@ canvas.addEventListener('pointerdown', (e) => {
     }
 }, { passive: false });
 
-
 canvas.addEventListener('pointermove', (e) => {
+
+// PARDUS KORUMASI: Sürükleme sırasında tarayıcının araya girmesini kesin engelle
+    if (e.cancelable) e.preventDefault();
+
+// --- AVUÇ İÇİ REDDİ (SÜREKLİ GÜNCELLEME) ---
+    const currentPointerMove = getPointerInfo(e);
+    
+    // Eğer kalem ekrana değiyorsa VEYA havadan ekranın üzerinde geziniyorsa (hover)
+    if (currentPointerMove.type === 'pen') {
+        isPenActive = true;
+        clearTimeout(penActiveTimer); // Eski sayacı iptal et
+        
+        // Kalem tamamen uzaklaşana kadar bu 1 saniye ASLA bitmez
+        penActiveTimer = setTimeout(() => { isPenActive = false; }, 1000); 
+    } 
+    // Kalem aktifken (veya uzaklaşalı henüz 1 saniye olmamışken) bir el/parmak değerse REDDET
+    else if (currentPointerMove.type === 'touch' && isPenActive) {
+        return; // İşlemi anında iptal et, aşağıdaki kodları hiç okuma!
+    }
+
+    // -------------------------------------------
+
+// --- PARDUS ÇİFT SİNYAL ENGELLEYİCİ ---
+    if (e.pointerType === 'mouse') {
+        let hasTouch = false;
+        for (let p of pointers.values()) {
+            if (p.pointerType === 'touch' || p.pointerType === 'pen') hasTouch = true;
+        }
+        if (hasTouch) return; // Hayalet farenin hareket etmesini engelle!
+    }
+
+    // --------------------------------------
+
+
     // --- YENİ: PARMAK TAKİBİ VE ZOOM ---
     pointers.set(e.pointerId, e); // Her zaman parmağı kaydet
 
    // --- TABLET: İKİ PARMAK ZOOM (SADECE RESİM/PDF BÜYÜR) ---
-    if (pointers.size === 2) {
-        const p = Array.from(pointers.values());
-        const currentDist = Math.hypot(p[0].clientX - p[1].clientX, p[0].clientY - p[1].clientY);
+    // --- PARDUS VE TABLET: İKİ PARMAK ZOOM (SADECE RESİM/PDF BÜYÜR) ---
+    if (pointers.size === 2 || (e.touches && e.touches.length === 2)) {
+        let p1x, p1y, p2x, p2y;
+        
+        // Pardus gibi parmakları e.touches içine paketleyen sistemler için
+        if (e.touches && e.touches.length === 2) {
+            p1x = e.touches[0].clientX; p1y = e.touches[0].clientY;
+            p2x = e.touches[1].clientX; p2y = e.touches[1].clientY;
+        } else {
+            // Standart modern tablet ve PC'ler için
+            const p = Array.from(pointers.values());
+            p1x = p[0].clientX; p1y = p[0].clientY;
+            p2x = p[1].clientX; p2y = p[1].clientY;
+        }
+
+        const currentDist = Math.hypot(p1x - p2x, p1y - p2y);
 
         if (lastDist > 0) {
             const delta = currentDist - lastDist;
             const zoomSpeed = 0.003; 
             const zoomStep = 1 + (delta * zoomSpeed);
 
-            // SADECE ARKA PLANI (PDF/RESİM) BUL VE BÜYÜT/KÜÇÜLT
             const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
             if (bgStrokes.length > 0) {
                 bgStrokes.forEach(bg => {
                     const newW = bg.width * zoomStep;
                     const newH = bg.height * zoomStep;
-                    // Merkezden büyütmek için x ve y koordinatlarını da kaydır
                     bg.x = bg.x - (newW - bg.width) / 2;
                     bg.y = bg.y - (newH - bg.height) / 2;
                     bg.width = newW;
@@ -1293,7 +1619,9 @@ canvas.addEventListener('pointermove', (e) => {
     }
 
    // 1. GÜVENLİK: Tek parmaklı işlemlerde sadece ana dokunuşu takip et
-    if (!e.isPrimary) return; 
+    // 1. GÜVENLİK (Pardus Yaması): Pardus isPrimary değerini tanımsız (undefined) gönderebilir.
+    // 1. GÜVENLİK (Pardus Yaması 2.0): Sadece ekranda birden fazla parmak varsa ana parmağı dikkate al.
+    if (pointers.size > 1 && e.isPrimary === false) return; 
 
     // KOORDİNATLARI AL VE SİSTEME KAYDET (Canlandır ve diğer araçlar için şart)
     const pos = getPointerPos(e); 
@@ -1306,6 +1634,44 @@ canvas.addEventListener('pointermove', (e) => {
     if (currentTool === 'move' && isMoving) {
         const dx = pos.x - dragStartPos.x;
         const dy = pos.y - dragStartPos.y;
+
+// --- DİKDÖRTGEN HAREKET MANTIĞI ---
+        if (selectedItem.type === 'rectangle') {
+            if (selectedPointKey === 'self') {
+                selectedItem.x = originalStartPos.x + dx;
+                selectedItem.y = originalStartPos.y + dy;
+            } 
+            else if (selectedPointKey === 'image_rotate') {
+                const centerX = selectedItem.x + selectedItem.width / 2;
+                const centerY = selectedItem.y + selectedItem.height / 2;
+                selectedItem.rotation = Math.atan2(pos.y - centerY, pos.x - centerX) * (180 / Math.PI) + 90;
+            } 
+            else if (selectedPointKey === 'image_resize') {
+                const centerX = selectedItem.x + selectedItem.width / 2;
+                const centerY = selectedItem.y + selectedItem.height / 2;
+                const angleRad = (selectedItem.rotation || 0) * (Math.PI / 180);
+
+                // Farenin merkeze göre olan uzaklığını bul
+                const dx_real = pos.x - centerX;
+                const dy_real = pos.y - centerY;
+
+                // Bu uzaklığı dikdörtgenin açısına göre döndür (Yerel X ve Y)
+                const localX = dx_real * Math.cos(-angleRad) - dy_real * Math.sin(-angleRad);
+                const localY = dx_real * Math.sin(-angleRad) + dy_real * Math.cos(-angleRad);
+
+                // Yeni genişlik ve yüksekliği, farenin merkezden uzaklığının tam 2 katı yap
+                // Böylece pembe buton tam mouse ucunda kalır
+                const newW = Math.max(40, Math.abs(localX) * 2);
+                const newH = Math.max(40, Math.abs(localY) * 2);
+
+                // Sol üst köşeyi (x, y) merkez sabit kalacak şekilde güncelle
+                selectedItem.x = centerX - (newW / 2);
+                selectedItem.y = centerY - (newH / 2);
+                selectedItem.width = newW;
+                selectedItem.height = newH;
+            }
+        }
+
         
        // A. Resim Boyutlandırma (Resize)
         if (selectedPointKey === 'image_resize') {
@@ -1427,6 +1793,47 @@ canvas.addEventListener('pointermove', (e) => {
         ctx.globalAlpha = 1.0; ctx.setLineDash([]);
         previewActive = true;
     }
+
+
+// --- DİKDÖRTGEN CANLI ÇİZİM VE ANLIK CM ÖNİZLEMESİ ---
+    else if (isDrawingRectangle && rectStartPoint) {
+        redrawAllStrokes(); // Eski çizimleri koru
+
+        // Mıknatıs (snap) uyumlu canlı koordinatlar
+        const widthPx = Math.abs(endPos.x - rectStartPoint.x);
+        const heightPx = Math.abs(endPos.y - rectStartPoint.y);
+
+        const widthCm = (widthPx / 30).toFixed(1).replace('.', ',');
+        const heightCm = (heightPx / 30).toFixed(1).replace('.', ',');
+
+        const startX = Math.min(rectStartPoint.x, endPos.x);
+        const startY = Math.min(rectStartPoint.y, endPos.y);
+
+        // Kesikli ve şeffaf önizleme çizgisi (Şov kısmı)
+        ctx.globalAlpha = 0.6; 
+        ctx.setLineDash([8, 4]);
+
+        ctx.beginPath();
+        ctx.rect(startX, startY, widthPx, heightPx);
+        ctx.strokeStyle = window.currentLineColor || '#000000';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Çizgileri normale döndür
+        ctx.globalAlpha = 1.0; 
+        ctx.setLineDash([]);
+
+        // Anlık CM Etiketlerini Yazdır
+        ctx.font = "16px Arial";
+        ctx.fillStyle = window.currentLineColor || '#000000';
+        ctx.textAlign = "center";
+        ctx.fillText(`${widthCm} cm`, startX + (widthPx / 2), startY - 10); 
+        ctx.textAlign = "right";
+        ctx.fillText(`${heightCm} cm`, startX - 10, startY + (heightPx / 2) + 5); 
+
+        previewActive = true; // SİHRİ GERİ GETİREN KİLİT BURASI!
+    }
+
     // E. Çokgen ve Çember Önizleme
     else if (window.tempPolygonData && window.tempPolygonData.center) {
         const center = window.tempPolygonData.center;
@@ -1488,7 +1895,12 @@ canvas.addEventListener('pointermove', (e) => {
     if (!isDrawing) return;
 
     if (currentTool === 'pen') {
-        drawnStrokes[drawnStrokes.length - 1].path.push(pos);
+        // YENİ: Hareket halindeki basıncı al
+        const pInfoMove = getPointerInfo(e);
+        const pressureMove = pInfoMove.type === 'pen' ? pInfoMove.pressure : 1;
+
+        // YENİ: Yeni noktayı ve o anki basıncı (p) yola ekle
+        drawnStrokes[drawnStrokes.length - 1].path.push({x: pos.x, y: pos.y, p: pressureMove});
         redrawAllStrokes();
     } 
    else if (currentTool === 'eraser') {
@@ -1512,6 +1924,9 @@ canvas.addEventListener('pointermove', (e) => {
                     if (distance({x: stroke.p1.x + (stroke.p2.x - stroke.p1.x) * t, y: stroke.p1.y + (stroke.p2.y - stroke.p1.y) * t}, pos) < 15) { touched = true; break; }
                 }
             }
+
+
+
             // 3. Çember ve Pergel Çizimleri
             else if (stroke.type === 'arc') {
                 const distToCenter = distance(pos, {x: stroke.cx, y: stroke.cy});
@@ -1551,6 +1966,31 @@ canvas.addEventListener('pointermove', (e) => {
                 }
             }
 
+
+// 6. Dikdörtgenleri Sil
+            else if (stroke.type === 'rectangle') {
+                const centerX = stroke.x + stroke.width / 2;
+                const centerY = stroke.y + stroke.height / 2;
+                const dx = pos.x - centerX;
+                const dy = pos.y - centerY;
+                const angleRad = (stroke.rotation || 0) * (Math.PI / 180);
+                
+                // Fare konumunu dikdörtgenin açısına göre yerelleştir (Döndürülmüş dikdörtgeni de siler)
+                const localX = dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad);
+                const localY = dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad);
+                
+                const halfW = stroke.width / 2;
+                const halfH = stroke.height / 2;
+
+                // Silgi kenarlara veya merkeze 15 piksel yaklaştıysa sil
+                const nearEdge = (Math.abs(Math.abs(localX) - halfW) < 15 && Math.abs(localY) < halfH + 15) ||
+                                 (Math.abs(Math.abs(localY) - halfH) < 15 && Math.abs(localX) < halfW + 15);
+                const nearCenter = Math.abs(localX) < 20 && Math.abs(localY) < 20;
+
+                if (nearEdge || nearCenter) touched = true;
+            }
+
+
             if (touched) needsRedraw = true; 
             else strokesToKeep.push(stroke);
         }
@@ -1563,12 +2003,22 @@ canvas.addEventListener('pointermove', (e) => {
     }
 }, { passive: false });
 
-// --- app.js içindeki 'pointerup' olayının nihai ve zıplamayan hali ---
-// --- app.js içindeki 'pointerup' olayının nihai ve zıplamayan tam hali ---
+
 canvas.addEventListener('pointerup', (e) => {
-    // 1. Tarayıcı kilitlerini kaldır ve standart hareketleri engelle
-    canvas.releasePointerCapture(e.pointerId);
+    // 1. Tarayıcı kilitlerini kaldır (Pardus Korumalı)
+   
     if (e.pointerType === 'touch' && e.cancelable) e.preventDefault();
+
+// --- PARDUS ÇİFT SİNYAL ENGELLEYİCİ ---
+    if (e.pointerType === 'mouse') {
+        let hasTouch = false;
+        for (let p of pointers.values()) {
+            if (p.pointerType === 'touch' || p.pointerType === 'pen') hasTouch = true;
+        }
+        if (hasTouch) return; // Hayalet fare kalkış yapmasın
+    }
+    // --------------------------------------
+
 
 // --- BUNLARI EKLE: Kalkan parmağı sil ve zoom'u sıfırla ---
     pointers.delete(e.pointerId); 
@@ -1612,6 +2062,9 @@ canvas.addEventListener('pointerup', (e) => {
         if (isDrawingLine) {
             drawnStrokes.push({ type: 'straightLine', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3 });
         }
+
+
+
         else if (isDrawingInfinityLine) {
             const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
             drawnStrokes.push({ type: 'line', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 });
@@ -1681,13 +2134,63 @@ canvas.addEventListener('pointerup', (e) => {
     }
 
 
+    // --- DİKDÖRTGENİ TAMAMLAMA VE SİSTEME KAYDETME (TEK NESNE MODU) ---
+if (isDrawingRectangle && rectStartPoint && finalPos) {
+    const widthPx = Math.abs(finalPos.x - rectStartPoint.x);
+    const heightPx = Math.abs(finalPos.y - rectStartPoint.y);
+
+    if (widthPx > 10 && heightPx > 10) {
+        const startX = Math.min(rectStartPoint.x, finalPos.x);
+        const startY = Math.min(rectStartPoint.y, finalPos.y);
+        const color = window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#000000');
+
+        // 4 köşe harfini bir diziye alıyoruz
+        const rectLabels = [nextPointChar];
+        for (let i = 0; i < 3; i++) {
+            nextPointChar = advanceChar(nextPointChar);
+            rectLabels.push(nextPointChar);
+        }
+        nextPointChar = advanceChar(nextPointChar); // Bir sonraki çizim için harfi hazırla
+
+        // ARTIK 4 AYRI SEGMENT DEĞİL, TEK BİR RECTANGLE KAYDEDİYORUZ
+        drawnStrokes.push({ 
+            type: 'rectangle', 
+            x: startX, 
+            y: startY, 
+            width: widthPx, 
+            height: heightPx, 
+            rotation: 0, 
+            color: color, 
+            labels: rectLabels,
+            showEdgeLabels: true, // CM değerlerini otomatik gösterir
+            showAngleLabels: false // Tıklayınca açılması için başlangıçta kapalı
+        });
+
+        window.nextPointChar = nextPointChar; 
+    }
+}
+
+// --- AKILLI TAHTA NOKTA KOYMA YAMASI ---
+    if (currentTool === 'pen' && isDrawing) {
+        const lastStroke = drawnStrokes[drawnStrokes.length - 1];
+        // Eğer kalemle sadece tek bir noktaya dokunulup çekildiyse (hareket yoksa)
+        if (lastStroke && lastStroke.type === 'pen' && lastStroke.path.length === 1) {
+            // Görünür olması için yanına hayali bir nokta daha ekle
+            const p = lastStroke.path[0];
+            lastStroke.path.push({ x: p.x + 0.1, y: p.y + 0.1 });
+        }
+    }
+
     // --- GENEL SIFIRLAMA ---
     isDrawing = false;
     isDrawingLine = isDrawingInfinityLine = isDrawingSegment = isDrawingRay = false;
+    isDrawingRectangle = false; // Takılı kalmayı kökten çözen kilit!
     lineStartPoint = null;
+    rectStartPoint = null;      // Hafızayı temizle
     snapTarget = null;
-    if (typeof snapIndicator !== 'undefined' && snapIndicator) snapIndicator.style.display = 'none';
     
+    if (typeof snapIndicator !== 'undefined' && snapIndicator) snapIndicator.style.display = 'none';
+
     redrawAllStrokes();
 
 }, { passive: false });
@@ -1726,6 +2229,8 @@ canvas.addEventListener('pointercancel', (e) => {
     isDrawing = false;
     isMoving = false;
     isPinching = false; // Varsa zoom işlemini de durdur
+isDrawingRectangle = false; 
+    rectStartPoint = null;
     
     // Geçici verileri temizle
     snapshotStart = null;
