@@ -1,4 +1,8 @@
+let drawnStrokes = [];
+window.drawnStrokes = drawnStrokes;
+let isDrawing = false;
 let isDrawingRectangle = false;
+let isDrawingPolygon = false;
 let rectStartPoint = null;
 let globalScale = 1;
 let lastDist = 0;
@@ -39,7 +43,7 @@ function getPointerPos(e) {
     let cX = e.clientX;
     let cY = e.clientY;
 
-    // Eğer koordinat bozuk (NaN) veya tanımsız (undefined) gelirse Touch verilerinden zorla çek
+    // --- SENİN MEVCUT HATA KORUMA MANTIĞIN (DOKUNULMADI) ---
     if (cX === undefined || cX === null || isNaN(cX)) {
         if (e.targetTouches && e.targetTouches.length > 0) {
             cX = e.targetTouches[0].clientX;
@@ -51,18 +55,19 @@ function getPointerPos(e) {
             cX = e.changedTouches[0].clientX;
             cY = e.changedTouches[0].clientY;
         } else {
-            cX = 0; // Sistemin çökmesini engellemek için son çare
+            cX = 0; 
             cY = 0;
         }
     }
 
+    // --- YENİ DÜZELTİLMİŞ HESAPLAMA (ÖZELLİK KAYBI YOK) ---
     return {
-        // Hata durumunda NaN üretmesini engelleyen ekstra güvenlik (|| 0)
-        x: (cX || 0) - rect.left,
-        y: (cY || 0) - rect.top
+        // (cX - rect.left) ile ham koordinatı bulup, 
+        // kanvasın iç çözünürlüğü ile ekrandaki boyutu arasındaki orana (canvas.width / rect.width) çarpıyoruz.
+        x: ((cX || 0) - rect.left) * (canvas.width / rect.width),
+        y: ((cY || 0) - rect.top) * (canvas.height / rect.height)
     };
 }
-
 
 // --- GRAFİK TABLET SİMÜLATÖRÜ ---
 function getPointerInfo(e) {
@@ -88,6 +93,25 @@ function getPointerInfo(e) {
 
 const canvas = document.getElementById('drawing-canvas');
 const ctx = canvas.getContext('2d');
+
+function setupCanvasResolution() {
+    const rect = canvas.getBoundingClientRect();
+    
+    // Kanvasın iç piksel sayısını, ekrandaki gerçek boyutuyla birebir eşitle
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    
+    // Eğer çizimlerin varsa, çözünürlük değişince silinmemesi için yeniden çizdir
+    if (typeof redrawAllStrokes === 'function') {
+        redrawAllStrokes();
+    }
+}
+
+// 1. Uygulama ilk açıldığında çalıştır
+setupCanvasResolution();
+
+// 2. Ekran boyutu her değiştiğinde (yükle butonu sonrası veya yan çevirince) çalıştır
+window.addEventListener('resize', setupCanvasResolution);
 
 // PARDUS KESİN ÇÖZÜM: Tarayıcının kaydırma ve yakınlaştırma yapmasını yasakla
 canvas.style.touchAction = 'none';
@@ -121,7 +145,7 @@ window.audio_eraser = silentAudio;
 
 
 // --- DEĞİŞKENLER ---
-let isDrawing = false; 
+ 
 let snapshotStart = null; 
 const animateButton = document.getElementById('btn-animate');
 let currentTool = 'none'; 
@@ -135,8 +159,8 @@ window.currentLineColor = '#FFFFFF'; // Varsayılan Renk: BEYAZ
 const SNAP_THRESHOLD = 10;
 let returnToSnapshot = false; // İşlem bitince geri dönülecek mi? 
 
-let drawnStrokes = []; 
-window.drawnStrokes = drawnStrokes;
+ 
+
 let nextPointChar = 'A'; 
 window.nextPointChar = nextPointChar;
 
@@ -261,11 +285,6 @@ function findSnapPoint(pos) {
     return null; 
 }
 
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    redrawAllStrokes();
-}
 
 function getEventPosition(e) {
     if (e.touches && e.touches.length > 0) {
@@ -322,14 +341,16 @@ function redrawAllStrokes() {
     ctx.setTransform(1, 0, 0, 1, 0, 0); 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    // SADECE BU SATIRI EKLE:
+    if (!window.drawnStrokes || window.drawnStrokes.length === 0) return;
+
     ctx.save();
     // (Buradaki translate ve scale satırlarını tamamen sildik. Zemin artık sabit!)
 
     // 3. NESNELERİ ÇİZ (For döngüsü başlıyor)
     for (const stroke of drawnStrokes) {
-
         
-               // --- KALEM (PEN) GRAFİK TABLET DESTEKLİ ---
+        // --- KALEM (PEN) GRAFİK TABLET DESTEKLİ ---
         if (stroke.type === 'pen') {
             const points = stroke.path;
             
@@ -347,10 +368,8 @@ function redrawAllStrokes() {
                     ctx.lineTo(points[i].x, points[i].y);
                     ctx.strokeStyle = stroke.color;
                     
-                    // Basıncı genişliğe uygula (En az %20 kalınlık olsun ki çizgi kopmasın)
+                    // Basıncı genişliğe uygula (En az %20 kalınlık olsun)
                     let currentPressure = points[i].p !== undefined ? points[i].p : 1;
-                    
-                    // Tabletler bazen çok düşük basınç gönderir, alt sınır koyuyoruz
                     let dynamicWidth = stroke.baseWidth * Math.max(0.2, currentPressure);
                     
                     ctx.lineWidth = dynamicWidth;
@@ -360,7 +379,6 @@ function redrawAllStrokes() {
                 }
             }
         }
-
 
        // --- RESİM / PDF VE CANLANDIR (SNAPSHOT) KOPYASI ---
         else if (stroke.type === 'image') {
@@ -620,7 +638,7 @@ else if (stroke.type === 'rectangle') {
                 const r_label = `r = ${r_cm_str} cm`;
                 drawLabel(r_label, {x: centerPos.x + (r_px / 2) - 20, y: centerPos.y - 10}, '#FFFF00'); 
                 let labelY = centerPos.y - 20;
-                const labelX = centerPos.x + r_px + 10; 
+                const labelX = centerPos.x + r_px + 30; 
                 drawLabel(`Ç = 2 . π . r`, {x: labelX, y: labelY}, '#FFFF00'); labelY += 20; 
                 drawLabel(`= 2 . ${PI} . ${r_cm_str} = ${circ_str} cm`, {x: labelX, y: labelY}, '#FFFF00'); labelY += 25; 
                 drawLabel(`A = π . r²`, {x: labelX, y: labelY}, '#FFFF00'); labelY += 20;
@@ -866,6 +884,10 @@ function setActiveTool(tool) {
     body.classList.remove('cursor-eraser');
     body.classList.remove('cursor-snapshot');
 
+// --- BU SATIRI EKLE ---
+    if (eraserPreview) eraserPreview.style.display = 'none'; 
+    // ----------------------
+
     // Menüleri gizle
     if (polygonOptions) { polygonOptions.classList.add('hidden'); polygonOptions.style.display = ''; }
     
@@ -949,6 +971,7 @@ function setActiveTool(tool) {
         rayButton.classList.add('active');
         lineOptions.classList.remove('hidden');
     } 
+
     // --- DİĞER ARAÇLAR ---
     else if (tool === 'ruler') {
         rulerButton.classList.add('active');
@@ -960,9 +983,15 @@ function setActiveTool(tool) {
         aciolcerButton.classList.add('active');
         if (window.AciolcerTool) window.AciolcerTool.show();
     } else if (tool === 'pergel') {
-        pergelButton.classList.add('active');
-        if (window.PergelTool) window.PergelTool.show();
-    } else if (tool.startsWith('draw_polygon_')) { 
+    pergelButton.classList.add('active');
+    if (window.PergelTool) {
+        window.PergelTool.show(); // Pergelin görünür olmasını sağlar
+        // Pergelin en üstte görünmesi için:
+        if (window.bringToolToFront) {
+            window.bringToolToFront(window.PergelTool.pergelElement);
+        }
+    }
+} else if (tool.startsWith('draw_polygon_')) { 
         polygonButton.classList.add('active');
     } else if (tool === 'move') {
         moveButton.classList.add('active');
@@ -987,7 +1016,9 @@ eraserButton.addEventListener('click', () => setActiveTool(currentTool === 'eras
 rulerButton.addEventListener('click', () => { if (window.RulerTool) { window.RulerTool.toggle(); rulerButton.classList.toggle('active', !window.RulerTool.rulerElement.style.display); } });
 gonyeButton.addEventListener('click', () => { if (window.GonyeTool) { window.GonyeTool.toggle(); gonyeButton.classList.toggle('active', !window.GonyeTool.gonyeElement.style.display); } });
 aciolcerButton.addEventListener('click', () => { if (window.AciolcerTool) { window.AciolcerTool.toggle(); aciolcerButton.classList.toggle('active', !window.AciolcerTool.aciolcerElement.style.display); } });
-pergelButton.addEventListener('click', () => { if (window.PergelTool) { window.PergelTool.toggle(); pergelButton.classList.toggle('active', !window.PergelTool.pergelElement.classList.contains('hidden')); } });
+pergelButton.addEventListener('click', () => {
+    setActiveTool(currentTool === 'pergel' ? 'none' : 'pergel');
+});
 undoButton.addEventListener('click', undoLastStroke);
 clearAllButton.addEventListener('click', clearAllStrokes);
 moveButton.addEventListener('click', () => setActiveTool(currentTool === 'move' ? 'none' : 'move'));
@@ -2569,17 +2600,14 @@ function resizeCanvas() {
     const newWidth = window.innerWidth;
     const newHeight = window.innerHeight;
 
-    // Eğer genişlik değişmediyse (Sadece adres çubuğu inip kalktıysa) işlem yapma!
-    // Bu sayede çizim sırasında ekranın titremesini/zıplamasını engelleriz.
-    if (newWidth === lastWindowWidth && Math.abs(newHeight - canvas.height) < 150) {
-        return; 
-    }
-
     // Gerçekten ekran döndüyse veya boyut değiştiyse güncelle
     lastWindowWidth = newWidth;
     canvas.width = newWidth;
     canvas.height = newHeight;
     redrawAllStrokes();
+
+// canvas.height = newHeight; satırının hemen altına ekle
+setupCanvasResolution();
 }
 
 window.addEventListener('load', resizeCanvas);
@@ -2914,3 +2942,7 @@ function olusturYuzenKopya(imgSrc, startX, startY, width, height) {
     }, 200);
 }
 
+// Dosyanın en altına ekle
+window.addEventListener('load', () => {
+    setTimeout(setupCanvasResolution, 500);
+});
